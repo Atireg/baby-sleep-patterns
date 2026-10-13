@@ -1,4 +1,5 @@
 // Weekly aggregates for the consultant-log insights (settling, wake windows, how sleep started).
+import { allWeeks } from './series.js';
 
 export const METHOD_LABELS = {
   'на ръце': 'Held in arms',
@@ -15,8 +16,13 @@ export const MOOD_LABELS = {
   'трудно го събудих': 'Hard to wake',
 };
 
-export const methodLabel = (m) => (m ? METHOD_LABELS[m.toLowerCase()] ?? OTHER_METHOD : null);
-export const moodLabel = (m) => (m ? MOOD_LABELS[m.toLowerCase()] ?? m : null);
+export const METHODS = [...Object.values(METHOD_LABELS), OTHER_METHOD];
+export const MOODS = Object.values(MOOD_LABELS);
+
+// Accept both the Bulgarian template values and the English labels used by the entry form / export.
+const englishLabel = (labels, m) => Object.values(labels).find((l) => l.toLowerCase() === m.toLowerCase());
+export const methodLabel = (m) => (m ? METHOD_LABELS[m.toLowerCase()] ?? englishLabel(METHOD_LABELS, m) ?? OTHER_METHOD : null);
+export const moodLabel = (m) => (m ? MOOD_LABELS[m.toLowerCase()] ?? englishLabel(MOOD_LABELS, m) ?? m : null);
 
 /** Monday of the week containing `day` (YYYY-MM-DD). */
 export function weekKey(day) {
@@ -44,7 +50,9 @@ function byWeek(sessions) {
     if (!weeks.has(w)) weeks.set(w, []);
     weeks.get(w).push(s);
   }
-  return [...weeks.entries()].sort(([a], [b]) => a.localeCompare(b));
+  const keys = [...weeks.keys()].sort();
+  // Include empty weeks so charts show the gap instead of joining across it.
+  return keys.length ? allWeeks(keys[0], keys.at(-1)).map((w) => [w, weeks.get(w) ?? []]) : [];
 }
 
 const mean = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);

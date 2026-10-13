@@ -7,4 +7,6 @@ export default defineConfig({
   plugins: [react()],
   publicDir: 'static',
   base: './',
+  // Plotly (~1.4 MB) is lazy-loaded in its own chunk.
+  build: { chunkSizeWarningLimit: 1600 },
 });

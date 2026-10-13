@@ -1,10 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { readWorkbook } from './lib/readWorkbook.js';
-import { dailyStats, formatDay, formatDuration, summary } from './lib/sleepData.js';
+import { dailyStats, formatDay, summary } from './lib/sleepData.js';
 import {
   WAKE_WINDOW_SERIES, detailSummary, hasDetails, methodsByWeek, settlingByWeek, wakeWindowsByWeek,
 } from './lib/insights.js';
+import { entriesToSessions, loadEntries, saveEntries } from './lib/entries.js';
 import FileDrop from './components/FileDrop.jsx';
+import EntryForm from './components/EntryForm.jsx';
 import StatTiles from './components/StatTiles.jsx';
 import DailyTotalsChart from './components/DailyTotalsChart.jsx';
 import NapCountChart from './components/NapCountChart.jsx';
@@ -13,15 +15,18 @@ import WeeklyLineChart from './components/WeeklyLineChart.jsx';
 import MethodShareChart from './components/MethodShareChart.jsx';
 
 const RECENT_DAYS = 5;
-const WAKE_COLORS = ['var(--series-1)', 'var(--series-2)', 'var(--series-3)', 'var(--series-4)'];
+const WAKE_COLORS = ['s1', 's2', 's3', 's4'];
 const SETTLING_SERIES = [
-  { key: 'night', label: 'Bedtime', color: 'var(--series-1)' },
-  { key: 'nap', label: 'Naps', color: 'var(--series-2)' },
+  { key: 'night', label: 'Bedtime', color: 'night' },
+  { key: 'nap', label: 'Naps', color: 'nap' },
 ];
 
 export default function App() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
+  const [entries, setEntries] = useState(loadEntries);
+  const [storageOk, setStorageOk] = useState(true);
+  useEffect(() => { setStorageOk(saveEntries(entries)); }, [entries]);
 
   const load = (name, buffer) => {
     try {
@@ -45,20 +50,27 @@ export default function App() {
     load('sample-sleep-log.xlsx', await res.arrayBuffer());
   };
 
-  const days = useMemo(() => (data ? dailyStats(data.sessions) : []), [data]);
+  // Charts combine the uploaded file with sleeps entered on the site.
+  const sessions = useMemo(
+    () => [...(data?.sessions ?? []), ...entriesToSessions(entries)].sort((a, b) => a.start - b.start),
+    [data, entries],
+  );
+  const dayMeta = data?.days ?? [];
+  const days = useMemo(() => dailyStats(sessions), [sessions]);
   // The summary tiles describe only the most recent days in the log.
   const recentDays = useMemo(() => days.slice(-RECENT_DAYS), [days]);
   const stats = useMemo(() => summary(recentDays), [recentDays]);
-  const detailed = useMemo(() => (data ? hasDetails(data.sessions) : false), [data]);
-  const insights = useMemo(() => detailed && {
-    summary: detailSummary(
-      data.sessions.filter((x) => recentDays.some((d) => d.day === x.day)),
-      data.days.filter((x) => recentDays.some((d) => d.day === x.day)),
-    ),
-    settling: settlingByWeek(data.sessions),
-    wakeWindows: wakeWindowsByWeek(data.sessions),
-    methods: methodsByWeek(data.sessions),
-  }, [data, detailed, recentDays]);
+  const detailed = useMemo(() => hasDetails(sessions), [sessions]);
+  const insights = useMemo(() => {
+    if (!detailed) return null;
+    const recent = new Set(recentDays.map((d) => d.day));
+    return {
+      summary: detailSummary(sessions.filter((x) => recent.has(x.day)), dayMeta.filter((x) => recent.has(x.day))),
+      settling: settlingByWeek(sessions),
+      wakeWindows: wakeWindowsByWeek(sessions),
+      methods: methodsByWeek(sessions),
+    };
+  }, [sessions, dayMeta, detailed, recentDays]);
 
   return (
     <main>
@@ -70,13 +82,23 @@ export default function App() {
       <FileDrop onFile={onFile} onSample={onSample} />
       {error && <p className="error" role="alert">{error}</p>}
 
-      {data && (
+      <EntryForm
+        entries={entries}
+        storageOk={storageOk}
+        onAdd={(e) => setEntries((list) => [...list, e])}
+        onDelete={(id) => setEntries((list) => list.filter((e) => e.id !== id))}
+        onClear={() => setEntries([])}
+      />
+
+      {sessions.length > 0 && (
         <>
           <p className="loaded">
-            Showing <strong>{data.name}</strong> · {data.sessions.length} sleeps over {days.length} days
-            {data.errors.length > 0 && ` · ${data.errors.length} row(s) skipped`}
+            Showing {data && <><strong>{data.name}</strong>{entries.length > 0 && ' + '}</>}
+            {entries.length > 0 && `${entries.length} entered on this site`}
+            {' '}· {sessions.length} sleeps over {days.length} days
+            {data?.errors.length > 0 && ` · ${data.errors.length} row(s) skipped`}
           </p>
-          {data.errors.length > 0 && (
+          {data?.errors.length > 0 && (
             <details className="warnings">
               <summary>Skipped rows</summary>
               <ul>{data.errors.map((e) => <li key={e}>{e}</li>)}</ul>
@@ -97,7 +119,6 @@ export default function App() {
                 subtitle="Average time awake before each nap and before bedtime, per week"
                 rows={insights.wakeWindows}
                 series={WAKE_WINDOW_SERIES.map((s, i) => ({ ...s, color: WAKE_COLORS[i] }))}
-                format={formatDuration}
               />
               <div className="grid-2">
                 <WeeklyLineChart
@@ -105,14 +126,14 @@ export default function App() {
                   subtitle="Average from starting to settle until asleep, per week"
                   rows={insights.settling}
                   series={SETTLING_SERIES}
-                  format={formatDuration}
                   step={10}
+                  area
                 />
                 <MethodShareChart weeks={insights.methods} />
               </div>
             </>
           )}
-          <SleepTimeline sessions={data.sessions} />
+          <SleepTimeline sessions={sessions} />
         </>
       )}
     </main>
