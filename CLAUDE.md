@@ -22,7 +22,8 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
 ## Firebase (shared cloud log)
 - Project `baby-sleep-pattern`, Spark (free) plan — never enable Blaze/billing. Config in `src/lib/firebaseConfig.js` (public by design).
 - Auth: Google sign-in; `atireg.github.io` must be in Authentication → Authorized domains.
-- Firestore: doc `live/current` = `{ live }`, the sleep being tracked right now (shared between devices; deleted when saved/cancelled).
+- Firestore: doc `live/current` = `{ live }`, the sleep being tracked right now, or just `{ awakeFrom }` for a manually started
+  awake timer (shared between devices; deleted when a sleep is saved).
 - Firestore: collection `months`, one doc per month (`2026-10`) with `{ entries: [...] }` (same entry shape as the form) —
   ~12 reads per year of data. Writes are per-month transactions; duplicates skipped by `entryKey` (day|type|asleep).
 - Security rules: allow-list of family emails, kept only in the console (template: `firebase/firestore.rules.example`).
@@ -43,7 +44,8 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
   in one transaction), `deleteEntry`, `watchLive`/`setLive`, `describeError`);
   `src/lib/cloudData.js` – pure helpers (month grouping, merge/dedupe, `sessionsToEntries` for importing a file).
 - `src/lib/live.js` – live tracking ("Now" card): local storage `baby-sleep-live-v1`, `sleepDay` (night after midnight → previous
-  date), `liveToEntry`, `atTime` (tapped-late times never in the future), `formatTimer`.
+  date), `liveToEntry`, `atTime` (tapped-late times never in the future), `formatTimer`, `awakeSince` (later of last sleep end
+  and `live.awakeFrom`; null while asleep or if >16h).
 - `src/lib/insights.js` – weekly aggregates (wake windows, settling, method), `napCountTrend`, label translations (BG + EN accepted).
 - `src/lib/series.js` – gap handling: `breakGaps`, `segments`, `rollingMean` (calendar days), `allWeeks`.
 - `src/lib/theme.js` – resolves CSS color tokens for Plotly (`useChartTheme`), `baseLayout`, `durationAxis`, `rangeButtons`.
@@ -81,7 +83,8 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
 - Lines must break across missing days/weeks (`connectgaps: false`, `breakGaps`); area fills are drawn per `segments`.
 - Summary tiles average the last 5 days with data **before today** (today is incomplete; `RECENT_DAYS` in `App.jsx`),
   heading shows the date range; hidden if there's no earlier data. Charts show everything, including today.
-- "Now" card (top of page, mobile-first): Start settling → Fell asleep (running timer) → Woke up (confirm time, mood, notes) → Save
+- "Now" card (top of page, mobile-first): big running awake timer when idle (from the last sleep's end, or "Start awake timer"
+  / "reset" → `live.awakeFrom`); live states: idle (no settle/asleep), settling, asleep. Start settling → Fell asleep (running timer) → Woke up (confirm time, mood, notes) → Save
   as a normal entry. Type auto by clock (18:00–05:59 = night), switchable. "Tapped late?" time field. Method chips while settling/asleep.
   Unedited wake time uses the exact tap time. The sleep in progress counts in the tank (`tankSessions`) but not in charts until saved.
 - Editing: each listed entry has ✎ (loads it into the form → "Save changes"/"Cancel edit") and × (delete). "Show day" date filter

@@ -262,3 +262,6 @@ code { font-size: 0.85em; }
   border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; min-height: 42px;
 }
 .link-button { font: inherit; font-size: 0.85rem; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; justify-self: start; text-decoration: underline; }
+.live-timer.awake .timer { color: var(--text-primary); }
+.live-start-awake { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; }
+.timer-label .link-button { font-size: inherit; }

@@ -155,12 +155,6 @@ export default function App() {
     const ongoing = { day: sleepDay(live.type, start), type: live.type, start, end: new Date(Date.now() + 864e5), minutes: 0 };
     return [...sessions, ongoing];
   }, [sessions, live]);
-  const awakeSince = useMemo(() => {
-    if (live?.asleep) return null;
-    const now = Date.now();
-    const last = sessions.filter((x) => x.end <= now).reduce((m, x) => (!m || x.end > m ? x.end : m), null);
-    return last && now - last < 12 * 3600000 ? last : null;
-  }, [sessions, live]);
   const dayMeta = data?.days ?? [];
   const days = useMemo(() => dailyStats(sessions), [sessions]);
   // The summary tiles describe the last 5 days with data before today (today is still in progress).
@@ -199,7 +193,7 @@ export default function App() {
       />
       {notice && <p className="loaded" role="status">{notice}</p>}
 
-      <LiveTracker live={live} onChange={changeLive} onSave={saveLiveEntry} awakeSince={awakeSince} busy={busy} />
+      <LiveTracker live={live} onChange={changeLive} onSave={saveLiveEntry} sessions={sessions} busy={busy} />
 
       <FileDrop onFile={onFile} onSample={onSample} />
       {error && <p className="error" role="alert">{error}</p>}
