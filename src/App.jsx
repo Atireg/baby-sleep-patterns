@@ -7,6 +7,7 @@ import {
 import FileDrop from './components/FileDrop.jsx';
 import StatTiles from './components/StatTiles.jsx';
 import DailyTotalsChart from './components/DailyTotalsChart.jsx';
+import NapCountChart from './components/NapCountChart.jsx';
 import SleepTimeline from './components/SleepTimeline.jsx';
 import WeeklyLineChart from './components/WeeklyLineChart.jsx';
 import MethodShareChart from './components/MethodShareChart.jsx';
@@ -88,6 +89,7 @@ export default function App() {
             details={insights?.summary}
           />
           <DailyTotalsChart days={days} />
+          <NapCountChart days={days} />
           {insights && (
             <>
               <WeeklyLineChart

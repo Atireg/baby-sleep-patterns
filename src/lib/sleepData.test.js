@@ -70,3 +70,16 @@ describe('sample workbook', () => {
     expect(dailyStats(sessions)).toHaveLength(21);
   });
 });
+
+describe('napCountTrend', () => {
+  it('smooths single odd days and reports transitions', async () => {
+    const { napCountTrend } = await import('./insights.js');
+    const counts = [5, 5, 5, 4, 5, 5, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3];
+    const days = counts.map((naps, i) => ({ day: `2026-09-${String(i + 1).padStart(2, '0')}`, naps }));
+    const { points, changes } = napCountTrend(days);
+    expect(points[3]).toMatchObject({ naps: 4, typical: 5 });
+    expect(changes.map((c) => [c.from, c.to])).toEqual([[5, 4], [4, 3]]);
+    // Each new level starts on a day that actually had that many naps.
+    for (const c of changes) expect(days.find((d) => d.day === c.day).naps).toBe(c.to);
+  });
+});

@@ -108,3 +108,38 @@ export function detailSummary(sessions, dayMeta = []) {
     avgMorningWake: clock(dayMeta.map((d) => d.morningWake)),
   };
 }
+
+/**
+ * Nap count per day plus a smoothed "typical" count: the most frequent count in a
+ * centred 7-day window, so one odd day doesn't register as a change.
+ * Returns { points: [{ day, naps, typical }], changes: [{ day, from, to }] }.
+ */
+export function napCountTrend(days, window = 7) {
+  const half = Math.floor(window / 2);
+  const points = [];
+  days.forEach((d, i) => {
+    const counts = new Map();
+    for (const n of days.slice(Math.max(0, i - half), i + half + 1)) counts.set(n.naps, (counts.get(n.naps) ?? 0) + 1);
+    const best = Math.max(...counts.values());
+    const tied = [...counts.keys()].filter((k) => counts.get(k) === best);
+    // On a tie keep the previous typical count, so the line doesn't flicker.
+    const prev = points.at(-1)?.typical;
+    const typical = tied.includes(prev) ? prev : Math.max(...tied);
+    points.push({ day: d.day, naps: d.naps, typical });
+  });
+  // The centred window anticipates a change by a day or two; start each new level on
+  // the first day that actually has the new count.
+  for (let i = 1; i < points.length; i++) {
+    const prev = points[i - 1].typical;
+    if (points[i].typical !== prev && points[i].naps !== points[i].typical) {
+      const to = points[i].typical;
+      let j = i;
+      while (j < points.length && points[j].typical === to && points[j].naps !== to) j++;
+      if (j < points.length && points[j].typical === to) for (let k = i; k < j; k++) points[k].typical = prev;
+    }
+  }
+  const changes = points.slice(1).flatMap((p, i) =>
+    p.typical !== points[i].typical ? [{ day: p.day, from: points[i].typical, to: p.typical }] : [],
+  );
+  return { points, changes };
+}

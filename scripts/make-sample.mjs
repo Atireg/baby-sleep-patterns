@@ -15,11 +15,16 @@ const first = new Date(2026, 8, 1);
 for (let i = 0; i < 21; i++) {
   const day = new Date(first.getFullYear(), first.getMonth(), first.getDate() + i);
   const date = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
-  // Naps consolidate from 4 to 3 over the three weeks.
-  const napStarts = i < 10 ? [9 * 60, 12 * 60, 15 * 60, 17 * 60 + 15] : [9 * 60 + 15, 13 * 60, 16 * 60 + 15];
-  for (const s of napStarts) {
-    const start = s + jitter(20);
-    const len = (i < 10 ? 45 : 70) + jitter(25);
+  // Naps consolidate from 5 to 4 to 3 over the three weeks (with an odd day in between).
+  const napPlans = {
+    5: [8 * 60 + 30, 10 * 60 + 45, 13 * 60, 15 * 60, 17 * 60],
+    4: [9 * 60, 12 * 60, 15 * 60, 17 * 60 + 15],
+    3: [9 * 60 + 15, 13 * 60, 16 * 60 + 15],
+  };
+  const napCount = i < 6 ? (i === 4 ? 4 : 5) : i < 13 ? (i === 10 ? 3 : 4) : 3;
+  for (const s of napPlans[napCount]) {
+    const start = s + jitter(15);
+    const len = { 5: 35, 4: 50, 3: 70 }[napCount] + jitter(15);
     rows.push([date, hhmm(start), hhmm(start + len), 'Nap', '']);
   }
   // Night sleep with one or two wakings that get rarer over time.
