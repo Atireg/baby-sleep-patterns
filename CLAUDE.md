@@ -43,7 +43,8 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
 - `src/lib/series.js` – gap handling: `breakGaps`, `segments`, `rollingMean` (calendar days), `allWeeks`.
 - `src/lib/theme.js` – resolves CSS color tokens for Plotly (`useChartTheme`), `baseLayout`, `durationAxis`, `rangeButtons`.
 - `src/components/` – `PlotlyChart` (lazy-loads Plotly, card wrapper), `DailyTotalsChart`, `NapCountChart`, `WeeklyLineChart`,
-  `MethodShareChart`, `SleepTimeline`, `StatTiles`, `FileDrop`, `EntryForm`, `CloudBar` (sign-in status).
+  `MethodShareChart`, `SleepTimeline`, `StatTiles`, `FileDrop`, `EntryForm`, `CloudBar` (sign-in status),
+  `DaytimeTank` (custom SVG, not Plotly).
 - Tests: `src/lib/*.test.js` (Vitest).
 - `scripts/make-sample.mjs` – deterministic sample data generator.
 
@@ -75,6 +76,9 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
 - Lines must break across missing days/weeks (`connectgaps: false`, `breakGaps`); area fills are drawn per `segments`.
 - Summary tiles average the last 5 days with data **before today** (today is incomplete; `RECENT_DAYS` in `App.jsx`),
   heading shows the date range; hidden if there's no earlier data. Charts show everything, including today.
+- "Daytime sleep tank" (below the summary tiles): today's naps (`daytimeTank` in insights.js; a nap in progress counts up to now)
+  vs a target = 5-day average nap time (auto) or a fixed choice saved in localStorage `baby-sleep-nap-target`.
+  Also shows "awake since" / "asleep since"; refreshes every minute.
 - Sleep timeline: newest first, today on top labelled "Today", one row per calendar day incl. empty days.
 - Charts use a loaded file + saved entries (local, or the cloud log when signed in) combined; file sleeps already saved are
   not double-counted. Signed in, a loaded file shows a "Save to shared log" prompt; local entries can be moved to the cloud.
