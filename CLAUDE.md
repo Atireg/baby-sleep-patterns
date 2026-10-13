@@ -13,6 +13,11 @@ Everything runs in the browser; uploaded files are never sent anywhere.
 - `npm run build` / `npm run preview` – production build in `dist/`
 - `npm run sample` – regenerate `static/sample-sleep-log.xlsx`
 
+## Deployment
+GitHub Pages via `.github/workflows/deploy.yml`: on push to `main` (or manual run) it tests, builds and deploys `dist/`.
+Requires repo Settings → Pages → Source = "GitHub Actions". Site URL: https://atireg.github.io/baby-sleep-patterns/
+`vite.config.js` uses `base: './'` so assets and the sample file resolve under the Pages sub-path — keep all in-app URLs relative (no leading `/`).
+
 ## Layout
 - `static/` – Vite `publicDir` (served at site root). Holds `sample-sleep-log.xlsx` (sample data + downloadable template).
 - `src/lib/sleepData.js` – pure parsing + stats (no xlsx dependency; unit tested in `sleepData.test.js`).

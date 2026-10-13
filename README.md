@@ -1,5 +1,7 @@
 # baby-sleep-patterns
 
+**Live site:** https://atireg.github.io/baby-sleep-patterns/
+
 A React website for visualising and analysing a baby's sleep patterns from an Excel sleep log.
 
 Load an `.xlsx`, `.xls` or `.csv` file (or try the built-in sample) to see:
@@ -30,3 +32,8 @@ npm run dev     # http://localhost:5173
 npm test
 npm run build
 ```
+
+## Deployment
+
+Pushing to `main` deploys to GitHub Pages via `.github/workflows/deploy.yml`
+(one-time setup: Settings → Pages → Source → **GitHub Actions**).
