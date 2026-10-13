@@ -4,24 +4,26 @@
 
 A React website for visualising and analysing a baby's sleep patterns from an Excel sleep log.
 
-Load an `.xlsx`, `.xls` or `.csv` file (or try the built-in sample) to see:
+Load an `.xlsx`, `.xls` or `.csv` file (or try the built-in sample), or add sleeps with the form on the page, to see:
 
-- summary tiles: average total, night and nap sleep, naps per day, longest stretch
-- a stacked bar chart of night and nap hours per day
-- a 24-hour timeline of every sleep session
-- a day-by-day breakdown table
+- averages for the last 5 days
+- night and nap hours per day with a 7-day average
+- how the number of naps changes over time (e.g. 5 → 4 → 3)
+- wake windows, time to fall asleep and how the baby fell asleep, per week
+- a timeline of every sleep, newest day first
 
-Files are processed entirely in your browser.
+Charts are interactive (Plotly): hover for details, drag to zoom, double-click to reset.
+Files are processed in your browser and entries are stored only in your browser; they can be downloaded as Excel.
 
 ## Spreadsheet format
 
-| Date       | Start | End   | Type  | Notes |
-|------------|-------|-------|-------|-------|
-| 2026-09-01 | 09:00 | 09:45 | Nap   |       |
-| 2026-09-01 | 19:30 | 02:10 | Night | Feed  |
-| 2026-09-01 | 02:30 | 06:45 | Night |       |
+| Date       | Settling start | Fell asleep | Woke up | Type  | How fell asleep | Mood after | Notes |
+|------------|----------------|-------------|---------|-------|-----------------|------------|-------|
+| 2026-09-01 | 08:50          | 09:00       | 09:45   | Nap   | Independently   | Good       |       |
+| 2026-09-01 | 19:15          | 19:30       | 02:10   | Night | Patting         |            | Feed  |
+| 2026-09-01 |                | 02:30       | 06:45   | Night |                 |            |       |
 
-Use the evening's date for the whole night, including after midnight. `Type` is optional
+Only Date, Fell asleep and Woke up are required. Use the evening's date for the whole night, including after midnight. `Type` is optional
 (guessed from the start time). A template is available at `static/sample-sleep-log.xlsx`.
 
 ## Development

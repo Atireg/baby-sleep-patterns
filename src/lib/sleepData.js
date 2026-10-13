@@ -11,6 +11,9 @@ const HEADER_ALIASES = {
   end: ['end', 'sleepend', 'wokeup', 'woke', 'awake', 'to', 'endtime', 'wake'],
   type: ['type', 'kind', 'sleeptype', 'category'],
   notes: ['notes', 'note', 'comment', 'comments'],
+  settle: ['settlingstart', 'settlestart', 'startedsettling', 'settling', 'puttosleep'],
+  method: ['howfellasleep', 'method', 'settlingmethod'],
+  mood: ['moodafter', 'mood', 'moodafterwaking'],
 };
 
 const normalizeHeader = (h) => String(h ?? '').toLowerCase().replace(/[^a-z]/g, '');
@@ -136,11 +139,57 @@ export function rowsToSessions(rows) {
       minutes: Math.round((endMs - startMs) / MS_MIN),
       type,
       notes: cols.notes !== undefined ? String(row[cols.notes] ?? '') : '',
+      ...optionalDetails(row, cols, start),
     });
   });
+  annotateSessions(sessions);
 
   sessions.sort((a, b) => a.start - b.start);
   return { sessions, errors };
+}
+
+// Optional columns: when settling started, how the baby fell asleep, mood after waking.
+function optionalDetails(row, cols, startMinutes) {
+  const details = {};
+  if (cols.settle !== undefined) {
+    const settle = parseTimeCell(row[cols.settle]);
+    if (settle !== null) {
+      const diff = (startMinutes - settle + 1440) % 1440;
+      if (diff <= 180) details.settleMinutes = diff;
+    }
+  }
+  const text = (col) => (cols[col] !== undefined ? String(row[cols[col]] ?? '').trim() : '');
+  if (text('method')) details.method = text('method');
+  if (text('mood')) details.mood = text('mood');
+  return details;
+}
+
+/**
+ * Fill in nap position (1, 2, ... per day, 'bedtime' for the night) and the wake window
+ * (time awake since the previous sleep ended) where a parser didn't set them. Sessions must be sorted.
+ */
+export function annotateSessions(sessions) {
+  const napNo = new Map();
+  const seenNight = new Set();
+  let prevEnd = null;
+  for (const s of sessions) {
+    if (s.position === undefined) {
+      if (s.type === 'nap') {
+        napNo.set(s.day, (napNo.get(s.day) ?? 0) + 1);
+        s.position = napNo.get(s.day);
+      } else if (!seenNight.has(s.day)) {
+        s.position = 'bedtime';
+      }
+    }
+    if (s.type === 'night') seenNight.add(s.day);
+    if (s.wakeWindow === undefined && prevEnd) {
+      const gap = Math.round((s.start - prevEnd) / MS_MIN);
+      // Gaps of 8h+ mean missing entries rather than a real wake window.
+      s.wakeWindow = gap > 0 && gap < 8 * 60 ? gap : null;
+    }
+    prevEnd = s.end;
+  }
+  return sessions;
 }
 
 /** Aggregate sessions into one record per day, in date order. */

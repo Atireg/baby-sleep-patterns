@@ -70,3 +70,45 @@ describe('sample workbook', () => {
     expect(dailyStats(sessions)).toHaveLength(21);
   });
 });
+
+describe('napCountTrend', () => {
+  it('smooths single odd days and reports transitions', async () => {
+    const { napCountTrend } = await import('./insights.js');
+    const counts = [5, 5, 5, 4, 5, 5, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3];
+    const days = counts.map((naps, i) => ({ day: `2026-09-${String(i + 1).padStart(2, '0')}`, naps }));
+    const { points, changes } = napCountTrend(days);
+    expect(points[3]).toMatchObject({ naps: 4, typical: 5 });
+    expect(changes.map((c) => [c.from, c.to])).toEqual([[5, 4], [4, 3]]);
+    // Each new level starts on a day that actually had that many naps.
+    for (const c of changes) expect(days.find((d) => d.day === c.day).naps).toBe(c.to);
+  });
+});
+
+describe('manual entries', () => {
+  it('validates, converts and round-trips through the export rows', async () => {
+    const { makeEntry, entriesToSessions, entriesToRows } = await import('./entries.js');
+    expect(makeEntry({ day: '2026-10-13', asleep: '', woke: '10:00' }).error).toBeTruthy();
+    const nap = makeEntry({ day: '2026-10-13', type: 'nap', settle: '15:05', asleep: '15:15', woke: '16:20', method: 'Independently', mood: 'Good' }).entry;
+    const night = makeEntry({ day: '2026-10-13', type: 'night', settle: '19:00', asleep: '19:20', woke: '06:30', method: 'Patting' }).entry;
+    const sessions = entriesToSessions([night, nap]);
+    expect(sessions.map((s) => [s.type, s.minutes, s.settleMinutes, s.method])).toEqual([
+      ['nap', 65, 10, 'Independently'],
+      ['night', 670, 20, 'Patting'],
+    ]);
+    expect(sessions[1]).toMatchObject({ position: 'bedtime', wakeWindow: 180 });
+    // The export uses the same simple layout, so it can be uploaded again.
+    const again = rowsToSessions(entriesToRows([nap, night])).sessions;
+    expect(again.map((s) => s.minutes)).toEqual([65, 670]);
+  });
+});
+
+describe('series helpers', () => {
+  it('breaks lines at missing days and fills missing weeks', async () => {
+    const { breakGaps, allWeeks } = await import('./series.js');
+    expect(breakGaps(['2026-09-01', '2026-09-02', '2026-09-10'], [1, 2, 3])).toEqual({
+      x: ['2026-09-01', '2026-09-02', '2026-09-03', '2026-09-10'],
+      y: [1, 2, null, 3],
+    });
+    expect(allWeeks('2026-09-07', '2026-09-28')).toEqual(['2026-09-07', '2026-09-14', '2026-09-21', '2026-09-28']);
+  });
+});

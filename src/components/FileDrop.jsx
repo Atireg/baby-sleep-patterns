@@ -28,8 +28,9 @@ export default function FileDrop({ onFile, onSample }) {
         <a className="button ghost" href="sample-sleep-log.xlsx" download>Download template</a>
       </div>
       <p className="hint">
-        Columns: <code>Date</code>, <code>Start</code>, <code>End</code>, optional <code>Type</code> (Night / Nap)
-        and <code>Notes</code>. Use the evening's date for the whole night, even after midnight.
+        Columns: <code>Date</code>, <code>Fell asleep</code>, <code>Woke up</code>, optional <code>Type</code> (Night / Nap),
+        <code>Settling start</code>, <code>How fell asleep</code>, <code>Mood after</code> and <code>Notes</code> — or the
+        sleep-consultant template. Use the evening's date for the whole night, even after midnight.
         Your file stays in your browser and is never uploaded.
       </p>
     </div>

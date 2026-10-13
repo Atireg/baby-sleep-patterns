@@ -1,4 +1,5 @@
 // Weekly aggregates for the consultant-log insights (settling, wake windows, how sleep started).
+import { allWeeks } from './series.js';
 
 export const METHOD_LABELS = {
   'на ръце': 'Held in arms',
@@ -15,8 +16,13 @@ export const MOOD_LABELS = {
   'трудно го събудих': 'Hard to wake',
 };
 
-export const methodLabel = (m) => (m ? METHOD_LABELS[m.toLowerCase()] ?? OTHER_METHOD : null);
-export const moodLabel = (m) => (m ? MOOD_LABELS[m.toLowerCase()] ?? m : null);
+export const METHODS = [...Object.values(METHOD_LABELS), OTHER_METHOD];
+export const MOODS = Object.values(MOOD_LABELS);
+
+// Accept both the Bulgarian template values and the English labels used by the entry form / export.
+const englishLabel = (labels, m) => Object.values(labels).find((l) => l.toLowerCase() === m.toLowerCase());
+export const methodLabel = (m) => (m ? METHOD_LABELS[m.toLowerCase()] ?? englishLabel(METHOD_LABELS, m) ?? OTHER_METHOD : null);
+export const moodLabel = (m) => (m ? MOOD_LABELS[m.toLowerCase()] ?? englishLabel(MOOD_LABELS, m) ?? m : null);
 
 /** Monday of the week containing `day` (YYYY-MM-DD). */
 export function weekKey(day) {
@@ -44,7 +50,9 @@ function byWeek(sessions) {
     if (!weeks.has(w)) weeks.set(w, []);
     weeks.get(w).push(s);
   }
-  return [...weeks.entries()].sort(([a], [b]) => a.localeCompare(b));
+  const keys = [...weeks.keys()].sort();
+  // Include empty weeks so charts show the gap instead of joining across it.
+  return keys.length ? allWeeks(keys[0], keys.at(-1)).map((w) => [w, weeks.get(w) ?? []]) : [];
 }
 
 const mean = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
@@ -107,4 +115,39 @@ export function detailSummary(sessions, dayMeta = []) {
     avgBedtime: clock(firsts.filter((s) => s.type === 'night').map((s) => s.start.getHours() * 60 + s.start.getMinutes())),
     avgMorningWake: clock(dayMeta.map((d) => d.morningWake)),
   };
+}
+
+/**
+ * Nap count per day plus a smoothed "typical" count: the most frequent count in a
+ * centred 7-day window, so one odd day doesn't register as a change.
+ * Returns { points: [{ day, naps, typical }], changes: [{ day, from, to }] }.
+ */
+export function napCountTrend(days, window = 7) {
+  const half = Math.floor(window / 2);
+  const points = [];
+  days.forEach((d, i) => {
+    const counts = new Map();
+    for (const n of days.slice(Math.max(0, i - half), i + half + 1)) counts.set(n.naps, (counts.get(n.naps) ?? 0) + 1);
+    const best = Math.max(...counts.values());
+    const tied = [...counts.keys()].filter((k) => counts.get(k) === best);
+    // On a tie keep the previous typical count, so the line doesn't flicker.
+    const prev = points.at(-1)?.typical;
+    const typical = tied.includes(prev) ? prev : Math.max(...tied);
+    points.push({ day: d.day, naps: d.naps, typical });
+  });
+  // The centred window anticipates a change by a day or two; start each new level on
+  // the first day that actually has the new count.
+  for (let i = 1; i < points.length; i++) {
+    const prev = points[i - 1].typical;
+    if (points[i].typical !== prev && points[i].naps !== points[i].typical) {
+      const to = points[i].typical;
+      let j = i;
+      while (j < points.length && points[j].typical === to && points[j].naps !== to) j++;
+      if (j < points.length && points[j].typical === to) for (let k = i; k < j; k++) points[k].typical = prev;
+    }
+  }
+  const changes = points.slice(1).flatMap((p, i) =>
+    p.typical !== points[i].typical ? [{ day: p.day, from: points[i].typical, to: p.typical }] : [],
+  );
+  return { points, changes };
 }
