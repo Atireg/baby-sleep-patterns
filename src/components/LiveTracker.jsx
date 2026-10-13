@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { METHODS, MOODS } from '../lib/insights.js';
-import { atTime, formatTimer, hhmm, liveToEntry, typeAt } from '../lib/live.js';
+import { atTime, awakeSince as findAwakeSince, formatTimer, hhmm, liveToEntry, typeAt } from '../lib/live.js';
 import { formatDuration } from '../lib/sleepData.js';
 
 /** Ticks every second while a timer is on screen. */
@@ -37,16 +37,18 @@ function Chips({ options, value, onChange, label }) {
  * "Now" card for logging on the go: Start settling → Fell asleep → Woke up.
  * live: { type, settle, asleep, method } or null; onChange persists it; onSave(entry) stores the finished sleep.
  */
-export default function LiveTracker({ live, onChange, onSave, awakeSince, busy }) {
-  const state = !live ? 'idle' : live.asleep ? 'asleep' : 'settling';
+export default function LiveTracker({ live, onChange, onSave, sessions, busy }) {
+  // live may hold only { awakeFrom } (a manually started awake timer) — that still counts as idle.
+  const state = live?.asleep ? 'asleep' : live?.settle ? 'settling' : 'idle';
   const now = useTicker(true);
+  const awakeSince = findAwakeSince(sessions, live, now);
   const [at, setAt] = useState(''); // optional "tapped late" time
   const [finishing, setFinishing] = useState(null); // { woke, mood, notes }
   const [error, setError] = useState(null);
   const [type, setType] = useState(null); // manual override while idle
   const [editTimes, setEditTimes] = useState(null); // { type, settle, asleep } as "HH:MM" while correcting
 
-  useEffect(() => { if (!live) { setFinishing(null); setEditTimes(null); } }, [live]);
+  useEffect(() => { if (state === 'idle') { setFinishing(null); setEditTimes(null); } }, [state]);
 
   const openEditTimes = () => {
     setError(null);
@@ -75,7 +77,7 @@ export default function LiveTracker({ live, onChange, onSave, awakeSince, busy }
 
   const startSettling = () => act(() => {
     const t = when();
-    onChange({ type: idleType, settle: t.toISOString(), asleep: null, method: '' });
+    onChange({ type: idleType, settle: t.toISOString(), asleep: null, method: '', awakeFrom: live?.awakeFrom ?? null });
   });
   const fellAsleep = () => act(() => {
     const t = when();
@@ -84,7 +86,11 @@ export default function LiveTracker({ live, onChange, onSave, awakeSince, busy }
     setType(null);
   });
   const cancel = () => {
-    if (window.confirm('Discard this sleep without saving?')) { onChange(null); setError(null); setType(null); }
+    if (window.confirm('Discard this sleep without saving?')) {
+      onChange(live?.awakeFrom ? { awakeFrom: live.awakeFrom } : null); // keep a manually started awake timer
+      setError(null);
+      setType(null);
+    }
   };
   const save = async () => {
     // Use the exact tap time unless the wake-up time was changed by hand.
@@ -101,6 +107,7 @@ export default function LiveTracker({ live, onChange, onSave, awakeSince, busy }
     }
   };
 
+  const startAwake = () => act(() => onChange({ awakeFrom: when().toISOString() }));
   const since = (iso) => new Date(iso);
   const typeLabel = (t) => (t === 'night' ? 'Night' : 'Nap');
 
@@ -122,9 +129,21 @@ export default function LiveTracker({ live, onChange, onSave, awakeSince, busy }
 
       {state === 'idle' && (
         <>
-          <p className="live-status">
-            {awakeSince ? <>Awake for <strong>{formatDuration((now - awakeSince) / 60000)}</strong> · since {hhmm(awakeSince)}</> : 'Ready when she is.'}
-          </p>
+          {awakeSince ? (
+            <div className="live-timer awake">
+              <span className="timer">{formatTimer(now - awakeSince)}</span>
+              <span className="timer-label">
+                awake since {hhmm(awakeSince)}
+                {' · '}
+                <button type="button" className="link-button" onClick={startAwake}>reset</button>
+              </span>
+            </div>
+          ) : (
+            <div className="live-start-awake">
+              <p className="live-status">No wake-up time known yet.</p>
+              <button type="button" className="button" onClick={startAwake} disabled={busy}>Start awake timer</button>
+            </div>
+          )}
           <div className="live-actions">
             <button type="button" className="button big" onClick={startSettling} disabled={busy}>Start settling</button>
             <button type="button" className="button big primary" onClick={fellAsleep} disabled={busy}>Fell asleep</button>
@@ -136,7 +155,10 @@ export default function LiveTracker({ live, onChange, onSave, awakeSince, busy }
         <>
           <div className="live-timer settling">
             <span className="timer">{formatTimer(now - since(live.settle))}</span>
-            <span className="timer-label">settling since {hhmm(since(live.settle))}</span>
+            <span className="timer-label">
+              settling since {hhmm(since(live.settle))}
+              {awakeSince && <> · awake {formatTimer(now - awakeSince)} in total</>}
+            </span>
           </div>
           <Chips label="How she's falling asleep" options={METHODS} value={live.method} onChange={(m) => onChange({ ...live, method: m })} />
           <div className="live-actions">

@@ -81,3 +81,17 @@ export function formatTimer(ms) {
   const s = total % 60;
   return h ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
 }
+
+/**
+ * When the current awake period began: the later of the last logged sleep's end and a
+ * manually started awake timer (live.awakeFrom). Null while asleep or when unknown
+ * (nothing in the last 16 hours).
+ */
+export function awakeSince(sessions, live, now = new Date()) {
+  if (live?.asleep) return null;
+  let latest = null;
+  for (const s of sessions) if (s.end <= now && (!latest || s.end > latest)) latest = s.end;
+  const manual = live?.awakeFrom ? new Date(live.awakeFrom) : null;
+  if (manual && manual <= now && (!latest || manual > latest)) latest = manual;
+  return latest && now - latest < 16 * 3600000 ? latest : null;
+}

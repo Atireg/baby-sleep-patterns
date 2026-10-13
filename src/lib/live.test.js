@@ -34,3 +34,17 @@ describe('live tracking', () => {
     expect(atTime('23:50', new Date(2026, 9, 14, 0, 10))).toEqual(new Date(2026, 9, 13, 23, 50));
   });
 });
+
+describe('awake timer', () => {
+  it('starts from the last sleep or a manual start, whichever is later', async () => {
+    const { awakeSince } = await import('./live.js');
+    const at = (h, m) => new Date(2026, 9, 13, h, m);
+    const sessions = [{ start: at(9, 0), end: at(10, 0) }, { start: at(12, 0), end: at(13, 30) }];
+    expect(awakeSince(sessions, null, at(14, 0))).toEqual(at(13, 30));
+    expect(awakeSince(sessions, { awakeFrom: at(13, 45).toISOString() }, at(14, 0))).toEqual(at(13, 45));
+    expect(awakeSince(sessions, { asleep: at(13, 50).toISOString() }, at(14, 0))).toBeNull();
+    // Settling still counts as awake.
+    expect(awakeSince(sessions, { settle: at(13, 55).toISOString() }, at(14, 0))).toEqual(at(13, 30));
+    expect(awakeSince(sessions, null, new Date(2026, 9, 14, 8, 0))).toBeNull();
+  });
+});
