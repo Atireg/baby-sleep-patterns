@@ -21,11 +21,27 @@ Requires repo Settings → Pages → Source = "GitHub Actions". Site URL: https:
 ## Layout
 - `static/` – Vite `publicDir` (served at site root). Holds `sample-sleep-log.xlsx` (sample data + downloadable template).
 - `src/lib/sleepData.js` – pure parsing + stats (no xlsx dependency; unit tested in `sleepData.test.js`).
-- `src/lib/readWorkbook.js` – reads first sheet of .xlsx/.xls/.csv via SheetJS (`xlsx`).
-- `src/components/` – `FileDrop`, `StatTiles`, `DailyTotalsChart` (stacked bars), `SleepTimeline` (per-day 24h rows), `DailyTable`, shared `Tooltip`/`Legend`.
+- `src/lib/readWorkbook.js` – reads first sheet of .xlsx/.xls/.csv via SheetJS (`xlsx`) and picks the parser by format.
+- `src/lib/consultantLog.js` – parser for the Bulgarian sleep-consultant template (tested in `consultantLog.test.js`).
+- `src/lib/insights.js` – weekly aggregates (wake windows, settling time, settling method) + label translations.
+- `src/components/` – `FileDrop`, `StatTiles`, `DailyTotalsChart` (stacked bars), `WeeklyLineChart`, `MethodShareChart` (100% stacked),
+  `SleepTimeline` (per-day 24h rows), `DailyTable`, shared `Tooltip`/`Legend`. Insight charts only render when the data has consultant fields.
 - `scripts/make-sample.mjs` – deterministic sample data generator.
 
-## Excel format
+## Excel formats
+Two layouts are auto-detected (`isConsultantLog` = column A contains "Сутрешно събуждане:").
+
+### 1. Consultant template (the user's real log, sheet "Таблица сън")
+- Blocks of 5 days side by side, 8 columns per day starting at column B; block = date row, "Сутрешно събуждане:" (morning wake),
+  header row, nap rows "1".."5", "Вечерно заспиване" (bedtime), then summary/free-text rows. Rows are found by label, not offset.
+- Per sleep: settling start, asleep, woke, wake window, duration, how fell asleep, mood after, re-settled (да/не).
+- Duration/wake window are recomputed from times (sheet formulas ignored). "/" or text in a time cell = unknown.
+- "Детето будува ли през нощта?" text ranges ("4:04 - 5:12", 24:xx allowed) split the night into separate night sessions.
+- Template placeholders starting with "Например" are dropped from notes.
+- Real log covers 28 Jun – 12 Oct 2026 (no night data 1–5 Oct). It contains personal data (name, birth date, notes):
+  NOT committed — repo is public. Only add it to `static/` if the user explicitly confirms.
+
+### 2. Simple layout
 Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Start`, `End`, optional `Type` (Night/Nap), optional `Notes`.
 - Blank `Date` repeats the row above.
 - `End` ≤ `Start` → sleep crossed midnight.
@@ -40,4 +56,4 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Start`, `End`,
 
 ## Known caveats
 - `xlsx@0.18.5` from npm (the SheetJS CDN build is blocked in the cloud env). It has known advisories for malicious files; acceptable since users only parse their own files locally. Switch to the CDN tarball when possible.
-- The user's original spreadsheet was not received in the first session; `static/` currently only contains the generated sample.
+- GitHub Pages is not yet enabled in repo settings (first deploy run failed at configure-pages). User must set Source = GitHub Actions; fallback offered: gh-pages branch (needs user OK).

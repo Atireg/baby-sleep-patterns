@@ -3,8 +3,8 @@ import { formatClock, formatDay, formatDuration } from '../lib/sleepData.js';
 import { useWidth } from '../lib/useWidth.js';
 import Legend, { SERIES } from './Legend.jsx';
 import Tooltip from './Tooltip.jsx';
+import { methodLabel, moodLabel } from '../lib/insights.js';
 
-const ROW = 18;
 const M = { top: 24, right: 8, bottom: 8, left: 64 };
 const MS_DAY = 24 * 60 * 60 * 1000;
 const COLOR = Object.fromEntries(SERIES.map((s) => [s.key, s.color]));
@@ -43,6 +43,8 @@ export default function SleepTimeline({ sessions }) {
   const [tip, setTip] = useState(null);
   const rows = useMemo(() => toRows(sessions), [sessions]);
 
+  // Tighter rows for long logs so the chart stays scannable.
+  const ROW = rows.length > 40 ? 12 : 18;
   const plotW = width - M.left - M.right;
   const height = M.top + rows.length * ROW + M.bottom;
   const hours = plotW < 480 ? [0, 6, 12, 18, 24] : [0, 3, 6, 9, 12, 15, 18, 21, 24];
@@ -57,6 +59,11 @@ export default function SleepTimeline({ sessions }) {
         { label: 'From', value: formatClock(s.start) },
         { label: 'To', value: formatClock(s.end) },
         { label: 'Duration', value: formatDuration(s.minutes), color: COLOR[s.type] },
+        ...(s.wakeWindow != null ? [{ label: 'Awake before', value: formatDuration(s.wakeWindow) }] : []),
+        ...(s.settleMinutes != null ? [{ label: 'Took to fall asleep', value: formatDuration(s.settleMinutes) }] : []),
+        ...(s.method ? [{ label: 'Fell asleep', value: methodLabel(s.method) === 'Other' ? s.method : methodLabel(s.method) }] : []),
+        ...(s.mood ? [{ label: 'Mood after', value: moodLabel(s.mood) }] : []),
+        ...(s.resettled ? [{ label: 'Re-settled', value: 'yes' }] : []),
         ...(s.notes ? [{ label: 'Notes', value: s.notes }] : []),
       ],
     });
@@ -82,16 +89,18 @@ export default function SleepTimeline({ sessions }) {
             ))}
             {rows.map((r, i) => (
               <g key={r.key} transform={`translate(0,${i * ROW})`}>
-                <text x={-8} y={ROW / 2} dy="0.32em" className="tick" textAnchor="end">
-                  {formatDay(r.key, { day: 'numeric', month: 'short' })}
-                </text>
+                {(ROW > 12 || i % 7 === 0) && (
+                  <text x={-8} y={ROW / 2} dy="0.32em" className="tick" textAnchor="end">
+                    {formatDay(r.key, { day: 'numeric', month: 'short' })}
+                  </text>
+                )}
                 {r.pieces.map((p, j) => (
                   <rect
                     key={j}
                     x={p.startFrac * plotW + 1}
                     width={Math.max(2, (p.endFrac - p.startFrac) * plotW - 2)}
-                    y={3}
-                    height={ROW - 6}
+                    y={ROW > 12 ? 3 : 2}
+                    height={ROW > 12 ? ROW - 6 : ROW - 4}
                     rx={3}
                     fill={COLOR[p.session.type]}
                     className="session"
