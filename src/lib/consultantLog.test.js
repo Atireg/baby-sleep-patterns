@@ -25,7 +25,7 @@ function sampleRows() {
   add('Вечерно заспиване', { 1: t(18, 30), 2: t(19, 0), 3: t(6, 30), 9: '/', 10: t(19, 30), 11: t(7, 0) });
   add('Брой нощни събуждания ', { 1: 1 });
   add('Детето будува ли през нощта?', { 1: 'Да', 3: 'Напишете от колко до колко часа будува детето: 2:00 - 2:30' });
-  add('Нощни събуждания пояснения', { 1: 'woke once', 9: 'Например: Всякаква информация' });
+  add('Нощни събуждания пояснения', { 1: 'Baby woke once', 9: 'Например: Всякаква информация' });
   return rows;
 }
 
@@ -36,15 +36,18 @@ describe('consultant log', () => {
   });
 
   it('parses naps, bedtime and splits the night around awake periods', () => {
-    const { sessions, days, profile } = consultantLogToSessions(sampleRows());
-    expect(profile.name).toBe('Baby');
+    const result = consultantLogToSessions(sampleRows());
+    const { sessions, days } = result;
+    // Personal details at the top of the sheet must never be extracted.
+    expect(result).not.toHaveProperty('profile');
+    expect(JSON.stringify(result)).not.toContain('Baby');
     const day1 = sessions.filter((s) => s.day === '2026-06-28');
     expect(day1.map((s) => [s.type, s.minutes])).toEqual([['nap', 60], ['night', 420], ['night', 240]]);
     expect(day1[0]).toMatchObject({ settleMinutes: 20, wakeWindow: 120, method: 'на ръце', position: 1 });
     expect(day1[1]).toMatchObject({ settleMinutes: 30, wakeWindow: 600, position: 'bedtime' });
     const night2 = sessions.find((s) => s.day === '2026-06-29' && s.type === 'night');
     expect(night2.settleMinutes).toBeNull();
-    expect(days.find((d) => d.day === '2026-06-28')).toMatchObject({ nightWakings: 1, notes: 'woke once', morningWake: 360 });
+    expect(days.find((d) => d.day === '2026-06-28')).toMatchObject({ nightWakings: 1, notes: '[name] woke once', morningWake: 360 });
     expect(days.find((d) => d.day === '2026-06-29').notes).toBe('');
   });
 

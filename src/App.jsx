@@ -70,12 +70,6 @@ export default function App() {
             Showing <strong>{data.name}</strong> · {data.sessions.length} sleeps over {days.length} days
             {data.errors.length > 0 && ` · ${data.errors.length} row(s) skipped`}
           </p>
-          {data.profile?.name && (
-            <p className="profile">
-              {data.profile.name}
-              {data.profile.birth && ` · born ${data.profile.birth}`}
-            </p>
-          )}
           {data.errors.length > 0 && (
             <details className="warnings">
               <summary>Skipped rows</summary>

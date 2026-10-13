@@ -14,6 +14,7 @@ const COLS_PER_DAY = 8;
 const DAYS_PER_BLOCK = 5;
 
 const LABELS = {
+  name: 'име на детето',
   wake: 'сутрешно събуждане',
   bedtime: 'вечерно заспиване',
   wakings: 'брой нощни събуждания',
@@ -21,9 +22,6 @@ const LABELS = {
   awake: 'детето будува ли през нощта',
   nightNotes: 'нощни събуждания пояснения',
   dayType: 'как протича денят',
-  name: 'име на детето',
-  birth: 'ден на раждане',
-  age: 'възраст на детето',
 };
 
 // Template prompts left in unfilled cells ("Например: ..." = "For example: ...").
@@ -66,17 +64,11 @@ export function consultantLogToSessions(rows) {
   const errors = [];
   const sessions = [];
   const days = [];
-  const profile = {};
-
-  for (const [key, label] of [['name', LABELS.name], ['birth', LABELS.birth], ['age', LABELS.age]]) {
-    const i = findRow(rows, 0, 10, label);
-    if (i >= 0 && rows[i][1] !== '') profile[key] = rows[i][1];
-  }
-  if (profile.birth !== undefined) {
-    const b = parseDateCell(profile.birth);
-    profile.birth = b ? dayKey(b) : String(profile.birth);
-  }
-
+  // The child's name, birth date and age at the top of the sheet are never returned or shown.
+  // The name is only used to blank it out of free-text notes.
+  const nameRow = findRow(rows, 0, 10, LABELS.name);
+  const childName = nameRow >= 0 ? String(rows[nameRow][1] ?? '').trim() : '';
+  const redact = (text) => (childName ? text.split(childName).join('[name]') : text);
   const blockStarts = rows.flatMap((r, i) => (norm(r?.[0]).startsWith(LABELS.wake) ? [i] : []));
   blockStarts.forEach((wakeRow, b) => {
     const end = blockStarts[b + 1] ?? rows.length;
@@ -163,13 +155,13 @@ export function consultantLogToSessions(rows) {
         day,
         morningWake: wakeMin,
         nightWakings: Number.isFinite(wakings) && rows[wakingsRow][c] !== '' ? wakings : null,
-        dayType: dayTypeRow >= 0 ? userText(rows[dayTypeRow][c]) : '',
-        notes: notesRow >= 0 ? userText(rows[notesRow][c]) : '',
+        dayType: dayTypeRow >= 0 ? redact(userText(rows[dayTypeRow][c])) : '',
+        notes: notesRow >= 0 ? redact(userText(rows[notesRow][c])) : '',
       });
     }
   });
 
   if (!sessions.length) errors.push('No sleep entries found in the consultant log.');
   sessions.sort((a, b) => a.start - b.start);
-  return { sessions, days, profile, errors };
+  return { sessions, days, errors };
 }

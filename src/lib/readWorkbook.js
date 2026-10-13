@@ -14,5 +14,5 @@ export function readWorkbook(arrayBuffer) {
   if (isConsultantLog(rows)) {
     return { sheetName: wb.SheetNames[0], format: 'consultant', ...consultantLogToSessions(rows) };
   }
-  return { sheetName: wb.SheetNames[0], format: 'simple', days: [], profile: {}, ...rowsToSessions(rows) };
+  return { sheetName: wb.SheetNames[0], format: 'simple', days: [], ...rowsToSessions(rows) };
 }
