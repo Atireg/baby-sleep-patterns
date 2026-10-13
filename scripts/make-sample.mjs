@@ -1,0 +1,43 @@
+// Generates static/sample-sleep-log.xlsx: three weeks of realistic sleep data
+// in the column layout the website expects (Date, Start, End, Type, Notes).
+import { utils, writeFile } from 'xlsx';
+
+let seed = 7;
+const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+const jitter = (spread) => Math.round((rand() - 0.5) * 2 * spread);
+const hhmm = (min) => {
+  const m = ((Math.round(min) % 1440) + 1440) % 1440;
+  return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+};
+
+const rows = [['Date', 'Start', 'End', 'Type', 'Notes']];
+const first = new Date(2026, 8, 1);
+for (let i = 0; i < 21; i++) {
+  const day = new Date(first.getFullYear(), first.getMonth(), first.getDate() + i);
+  const date = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+  // Naps consolidate from 4 to 3 over the three weeks.
+  const napStarts = i < 10 ? [9 * 60, 12 * 60, 15 * 60, 17 * 60 + 15] : [9 * 60 + 15, 13 * 60, 16 * 60 + 15];
+  for (const s of napStarts) {
+    const start = s + jitter(20);
+    const len = (i < 10 ? 45 : 70) + jitter(25);
+    rows.push([date, hhmm(start), hhmm(start + len), 'Nap', '']);
+  }
+  // Night sleep with one or two wakings that get rarer over time.
+  const bedtime = 19 * 60 + 30 + jitter(25);
+  const wakings = rand() < 0.75 - i * 0.03 ? (rand() < 0.4 ? 2 : 1) : 0;
+  const morning = 24 * 60 + 6 * 60 + 45 + jitter(30);
+  let cursor = bedtime;
+  for (let w = 0; w < wakings; w++) {
+    const stretchEnd = cursor + (morning - bedtime) / (wakings + 1) + jitter(40);
+    rows.push([date, hhmm(cursor), hhmm(stretchEnd), 'Night', w === 0 ? 'Feed' : '']);
+    cursor = stretchEnd + 15 + jitter(10);
+  }
+  rows.push([date, hhmm(cursor), hhmm(morning), 'Night', '']);
+}
+
+const ws = utils.aoa_to_sheet(rows);
+ws['!cols'] = [{ wch: 12 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 16 }];
+const wb = utils.book_new();
+utils.book_append_sheet(wb, ws, 'Sleep log');
+writeFile(wb, new URL('../static/sample-sleep-log.xlsx', import.meta.url).pathname);
+console.log(`Wrote ${rows.length - 1} sleep sessions to static/sample-sleep-log.xlsx`);
