@@ -79,7 +79,8 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
 - "Daytime sleep tank" (below the summary tiles): today's naps (`daytimeTank` in insights.js; a nap in progress counts up to now)
   vs a target = 5-day average nap time (auto) or a fixed choice saved in localStorage `baby-sleep-nap-target`.
   Also shows "awake since" / "asleep since"; refreshes every minute.
-- Sleep timeline: newest first, today on top labelled "Today", one row per calendar day incl. empty days.
+- Sleep timeline: only the same 5 days as the summary tiles (last 5 days with data, excluding today), newest first,
+  one row per calendar day (`dayKeys` prop); pieces of sleeps on other calendar days (e.g. after midnight into today) are not shown.
 - Charts use a loaded file + saved entries (local, or the cloud log when signed in) combined; file sleeps already saved are
   not double-counted. Signed in, a loaded file shows a "Save to shared log" prompt; local entries can be moved to the cloud.
 - Importing the consultant log to the cloud keeps times, settling, method and mood but not the free-text day notes. The daily breakdown table was removed at the user's request — don't re-add it.
