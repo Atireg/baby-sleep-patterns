@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { readWorkbook } from './lib/readWorkbook.js';
-import { dailyStats, formatDuration, summary } from './lib/sleepData.js';
+import { dailyStats, formatDay, formatDuration, summary } from './lib/sleepData.js';
 import {
   WAKE_WINDOW_SERIES, detailSummary, hasDetails, methodsByWeek, settlingByWeek, wakeWindowsByWeek,
 } from './lib/insights.js';
@@ -11,6 +11,7 @@ import SleepTimeline from './components/SleepTimeline.jsx';
 import WeeklyLineChart from './components/WeeklyLineChart.jsx';
 import MethodShareChart from './components/MethodShareChart.jsx';
 
+const RECENT_DAYS = 5;
 const WAKE_COLORS = ['var(--series-1)', 'var(--series-2)', 'var(--series-3)', 'var(--series-4)'];
 const SETTLING_SERIES = [
   { key: 'night', label: 'Bedtime', color: 'var(--series-1)' },
@@ -44,14 +45,19 @@ export default function App() {
   };
 
   const days = useMemo(() => (data ? dailyStats(data.sessions) : []), [data]);
-  const stats = useMemo(() => summary(days), [days]);
+  // The summary tiles describe only the most recent days in the log.
+  const recentDays = useMemo(() => days.slice(-RECENT_DAYS), [days]);
+  const stats = useMemo(() => summary(recentDays), [recentDays]);
   const detailed = useMemo(() => (data ? hasDetails(data.sessions) : false), [data]);
   const insights = useMemo(() => detailed && {
-    summary: detailSummary(data.sessions, data.days),
+    summary: detailSummary(
+      data.sessions.filter((x) => recentDays.some((d) => d.day === x.day)),
+      data.days.filter((x) => recentDays.some((d) => d.day === x.day)),
+    ),
     settling: settlingByWeek(data.sessions),
     wakeWindows: wakeWindowsByWeek(data.sessions),
     methods: methodsByWeek(data.sessions),
-  }, [data, detailed]);
+  }, [data, detailed, recentDays]);
 
   return (
     <main>
@@ -75,7 +81,12 @@ export default function App() {
               <ul>{data.errors.map((e) => <li key={e}>{e}</li>)}</ul>
             </details>
           )}
-          <StatTiles stats={stats} details={insights?.summary} />
+          <StatTiles
+            title={`Last ${recentDays.length} days`}
+            range={`${formatDay(recentDays[0].day, { day: 'numeric', month: 'short' })} – ${formatDay(recentDays.at(-1).day, { day: 'numeric', month: 'short' })}`}
+            stats={stats}
+            details={insights?.summary}
+          />
           <DailyTotalsChart days={days} />
           {insights && (
             <>

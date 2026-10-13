@@ -52,6 +52,7 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Start`, `End`,
 ## Conventions
 - Charts are hand-built SVG (no chart library). Colors come from CSS tokens in `src/styles.css`
   (`--series-1` night = blue, `--series-2` nap = orange, light + dark variants). Text never uses series colors.
+- Summary tiles (`StatTiles`) cover only the last 5 days present in the log (`RECENT_DAYS` in `App.jsx`), with the date range in the heading; charts show the whole log.
 - Every chart has a legend and hover tooltip. The daily breakdown table was removed at the user's request — don't re-add it.
 
 ## Known caveats
