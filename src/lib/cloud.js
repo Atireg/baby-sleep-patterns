@@ -112,3 +112,24 @@ export function describeError(e) {
   if (code.includes('resource-exhausted')) return 'Today’s free Firebase quota is used up; it resets within 24 hours.';
   return `Something went wrong with the cloud log${code ? ` (${code})` : ''}.`;
 }
+
+// The sleep being tracked right now, shared between devices: document live/current.
+const LIVE = ['live', 'current'];
+
+/** Calls back with the live sleep (or null). Returns an unsubscribe function. */
+export function watchLive(callback, onError) {
+  let unsub = () => {};
+  let cancelled = false;
+  init().then(({ fs, db }) => {
+    if (cancelled) return;
+    unsub = fs.onSnapshot(fs.doc(db, ...LIVE), (snap) => callback(snap.exists() ? snap.data().live ?? null : null), onError);
+  }).catch(onError);
+  return () => { cancelled = true; unsub(); };
+}
+
+export async function setLive(live) {
+  const { fs, db } = await init();
+  const ref = fs.doc(db, ...LIVE);
+  if (live) await fs.setDoc(ref, { live });
+  else await fs.deleteDoc(ref);
+}

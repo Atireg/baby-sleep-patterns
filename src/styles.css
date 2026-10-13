@@ -210,3 +210,37 @@ code { font-size: 0.85em; }
   font: inherit; color: var(--text-primary); background: var(--page); border: 1px solid var(--border);
   border-radius: 8px; padding: 5px 8px; max-width: 100%;
 }
+
+/* "Now" card: logging on the go */
+.live { gap: 14px; border-width: 2px; }
+.live-asleep { border-color: var(--series-1); }
+.live-settling { border-color: var(--series-2); }
+.live-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.live-head h2 { font-size: 1.25rem; }
+.live-status { margin: 0; color: var(--text-secondary); }
+.live-status strong { color: var(--text-primary); }
+.live-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.button.big { font-size: 1.05rem; font-weight: 600; padding: 14px 22px; min-height: 52px; border-radius: 12px; flex: 1 1 160px; }
+.live-timer { display: grid; justify-items: center; gap: 2px; padding: 8px 0; }
+.timer { font-size: clamp(2.8rem, 12vw, 4.2rem); font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; line-height: 1.05; }
+.live-timer.asleep .timer { color: var(--series-1); }
+.live-timer.settling .timer { color: var(--series-2); }
+.timer-label { color: var(--text-secondary); font-size: 0.9rem; text-align: center; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  font: inherit; font-size: 0.85rem; padding: 6px 12px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--border); background: transparent; color: var(--text-secondary);
+}
+.chip.active { background: var(--accent); border-color: transparent; color: #fff; }
+.segmented.small { display: flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.segmented.small button { font: inherit; font-size: 0.85rem; padding: 5px 12px; border: 0; background: transparent; color: var(--text-secondary); cursor: pointer; }
+.segmented.small button.active { background: var(--accent); color: #fff; }
+.live-finish { display: grid; gap: 10px; }
+.live-finish label { display: grid; gap: 4px; font-size: 0.85rem; color: var(--text-secondary); max-width: 220px; }
+.live-finish input, .live-at input, .live-notes {
+  font: inherit; font-size: 1rem; color: var(--text-primary); background: var(--page);
+  border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; min-height: 42px;
+}
+.live-finish p { margin: 0; }
+.live-at { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--text-muted); }
+.live-at input { font-size: 0.9rem; min-height: 34px; padding: 4px 8px; }

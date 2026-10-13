@@ -22,6 +22,7 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
 ## Firebase (shared cloud log)
 - Project `baby-sleep-pattern`, Spark (free) plan — never enable Blaze/billing. Config in `src/lib/firebaseConfig.js` (public by design).
 - Auth: Google sign-in; `atireg.github.io` must be in Authentication → Authorized domains.
+- Firestore: doc `live/current` = `{ live }`, the sleep being tracked right now (shared between devices; deleted when saved/cancelled).
 - Firestore: collection `months`, one doc per month (`2026-10`) with `{ entries: [...] }` (same entry shape as the form) —
   ~12 reads per year of data. Writes are per-month transactions; duplicates skipped by `entryKey` (day|type|asleep).
 - Security rules: allow-list of family emails, kept only in the console (template: `firebase/firestore.rules.example`).
@@ -39,12 +40,14 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
 - `src/lib/entries.js` – sleeps entered on the site: validation, localStorage (`baby-sleep-entries-v1`), conversion, Excel export rows.
 - `src/lib/cloud.js` – Firebase wrapper (sign-in, live `watchEntries`, `addEntries`, `deleteEntry`, `describeError`);
   `src/lib/cloudData.js` – pure helpers (month grouping, merge/dedupe, `sessionsToEntries` for importing a file).
+- `src/lib/live.js` – live tracking ("Now" card): local storage `baby-sleep-live-v1`, `sleepDay` (night after midnight → previous
+  date), `liveToEntry`, `atTime` (tapped-late times never in the future), `formatTimer`.
 - `src/lib/insights.js` – weekly aggregates (wake windows, settling, method), `napCountTrend`, label translations (BG + EN accepted).
 - `src/lib/series.js` – gap handling: `breakGaps`, `segments`, `rollingMean` (calendar days), `allWeeks`.
 - `src/lib/theme.js` – resolves CSS color tokens for Plotly (`useChartTheme`), `baseLayout`, `durationAxis`, `rangeButtons`.
 - `src/components/` – `PlotlyChart` (lazy-loads Plotly, card wrapper), `DailyTotalsChart`, `NapCountChart`, `WeeklyLineChart`,
   `MethodShareChart`, `SleepTimeline`, `StatTiles`, `FileDrop`, `EntryForm`, `CloudBar` (sign-in status),
-  `DaytimeTank` (custom SVG, not Plotly).
+  `DaytimeTank` (custom SVG, not Plotly), `LiveTracker` ("Now" card).
 - Tests: `src/lib/*.test.js` (Vitest).
 - `scripts/make-sample.mjs` – deterministic sample data generator.
 
@@ -76,6 +79,9 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
 - Lines must break across missing days/weeks (`connectgaps: false`, `breakGaps`); area fills are drawn per `segments`.
 - Summary tiles average the last 5 days with data **before today** (today is incomplete; `RECENT_DAYS` in `App.jsx`),
   heading shows the date range; hidden if there's no earlier data. Charts show everything, including today.
+- "Now" card (top of page, mobile-first): Start settling → Fell asleep (running timer) → Woke up (confirm time, mood, notes) → Save
+  as a normal entry. Type auto by clock (18:00–05:59 = night), switchable. "Tapped late?" time field. Method chips while settling/asleep.
+  Unedited wake time uses the exact tap time. The sleep in progress counts in the tank (`tankSessions`) but not in charts until saved.
 - "Daytime sleep tank" (below the summary tiles): today's naps (`daytimeTank` in insights.js; a nap in progress counts up to now)
   vs a target = 5-day average nap time (auto) or a fixed choice saved in localStorage `baby-sleep-nap-target`.
   Also shows "awake since" / "asleep since"; refreshes every minute.
