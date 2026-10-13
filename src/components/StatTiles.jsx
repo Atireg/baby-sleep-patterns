@@ -1,6 +1,9 @@
 import { formatDuration } from '../lib/sleepData.js';
 
-export default function StatTiles({ stats }) {
+const clock = (min) => `${String(Math.floor(min / 60) % 24).padStart(2, '0')}:${String(Math.round(min % 60)).padStart(2, '0')}`;
+const pct = (x) => `${Math.round(x * 100)}%`;
+
+export default function StatTiles({ stats, details }) {
   const tiles = [
     { label: 'Avg. total sleep / day', value: formatDuration(stats.avgTotal) },
     { label: 'Avg. night sleep', value: formatDuration(stats.avgNight) },
@@ -8,6 +11,12 @@ export default function StatTiles({ stats }) {
     { label: 'Avg. naps / day', value: stats.avgNaps.toFixed(1) },
     { label: 'Longest stretch', value: formatDuration(stats.longest) },
   ];
+  if (details) {
+    if (details.avgMorningWake != null) tiles.push({ label: 'Avg. morning wake', value: clock(details.avgMorningWake) });
+    if (details.avgBedtime != null) tiles.push({ label: 'Avg. bedtime (asleep)', value: clock(details.avgBedtime) });
+    if (details.independentShare != null) tiles.push({ label: 'Fell asleep independently', value: pct(details.independentShare) });
+    if (details.cryingAfterNapShare != null) tiles.push({ label: 'Naps ending crying / fussy', value: pct(details.cryingAfterNapShare) });
+  }
   return (
     <section className="tiles" aria-label="Summary">
       {tiles.map((t) => (
