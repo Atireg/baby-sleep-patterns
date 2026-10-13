@@ -29,14 +29,14 @@ const newId = () => `${Date.now().toString(36)}-${Math.random().toString(36).sli
  * Validate form values. Returns { entry } or { error }.
  * Values: { day: 'YYYY-MM-DD', type: 'nap'|'night', settle, asleep, woke: 'HH:MM', method, mood, notes }
  */
-export function makeEntry(values) {
+export function makeEntry(values, id = newId()) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(values.day ?? '')) return { error: 'Choose a date.' };
   if (!values.asleep) return { error: 'Enter when she fell asleep.' };
   if (!values.woke) return { error: 'Enter when she woke up.' };
   if (values.asleep === values.woke) return { error: 'Fell asleep and woke up can’t be the same time.' };
   return {
     entry: {
-      id: newId(),
+      id,
       day: values.day,
       type: values.type === 'night' ? 'night' : 'nap',
       settle: values.settle || '',
@@ -65,3 +65,23 @@ export function entriesToSessions(entries) {
   const { sessions } = rowsToSessions(entriesToRows(sorted));
   return sessions.map((s) => ({ ...s, manual: true }));
 }
+
+const sameSleep = (a, b) => a.day === b.day && a.type === b.type && a.asleep === b.asleep;
+
+/**
+ * Replace the entry with the same id. Returns { list } or { error } when the edit would
+ * duplicate another sleep (same day, type and fell-asleep time).
+ */
+export function replaceEntry(list, updated) {
+  if (!list.some((e) => e.id === updated.id)) return { error: 'That sleep no longer exists — it may have been deleted.' };
+  if (list.some((e) => e.id !== updated.id && sameSleep(e, updated))) {
+    return { error: 'Another sleep with the same date, type and fell-asleep time already exists.' };
+  }
+  return { list: list.map((e) => (e.id === updated.id ? updated : e)) };
+}
+
+/** Form values for editing an existing entry. */
+export const entryToValues = (e) => ({
+  day: e.day, type: e.type, settle: e.settle || '', asleep: e.asleep, woke: e.woke,
+  method: e.method || '', mood: e.mood || '', notes: e.notes || '',
+});

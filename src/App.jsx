@@ -4,10 +4,10 @@ import { dailyStats, dayKey, formatClock, formatDay, summary } from './lib/sleep
 import {
   WAKE_WINDOW_SERIES, detailSummary, hasDetails, methodsByWeek, settlingByWeek, wakeWindowsByWeek,
 } from './lib/insights.js';
-import { entriesToSessions, loadEntries, saveEntries } from './lib/entries.js';
+import { entriesToSessions, loadEntries, replaceEntry, saveEntries } from './lib/entries.js';
 import { entryKey, sessionsToEntries } from './lib/cloudData.js';
 import {
-  addEntries, deleteEntry, describeError, setLive, signIn, signOut, watchEntries, watchLive, watchUser,
+  addEntries, deleteEntry, describeError, setLive, signIn, signOut, updateEntry, watchEntries, watchLive, watchUser,
 } from './lib/cloud.js';
 import { loadLocalLive, saveLocalLive, sleepDay } from './lib/live.js';
 import LiveTracker from './components/LiveTracker.jsx';
@@ -101,6 +101,20 @@ export default function App() {
     setNotice(`Moved ${added} entr${added === 1 ? 'y' : 'ies'} from this device to the shared log.`);
   });
   const addEntry = (e) => (cloud ? run(() => addEntries([e])) : setEntries((list) => [...list, e]));
+  // Throws with a readable message so the form can show it next to the fields.
+  const changeEntry = async (previous, updated) => {
+    if (cloud) {
+      try {
+        await updateEntry(previous, updated);
+      } catch (e) {
+        throw new Error(describeError(e));
+      }
+      return;
+    }
+    const { list, error } = replaceEntry(entries, updated);
+    if (error) throw new Error(error);
+    setEntries(list);
+  };
   const removeEntry = (id) => (cloud
     ? run(() => deleteEntry(cloudEntries.find((e) => e.id === id)))
     : setEntries((list) => list.filter((e) => e.id !== id)));
@@ -210,6 +224,7 @@ export default function App() {
         cloud={cloud}
         storageOk={storageOk}
         onAdd={addEntry}
+        onUpdate={changeEntry}
         onDelete={removeEntry}
         onClear={cloud ? null : () => setEntries([])}
       />

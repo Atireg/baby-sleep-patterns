@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { utils, writeFile } from 'xlsx';
-import { entriesToRows, makeEntry } from '../lib/entries.js';
+import { entriesToRows, entryToValues, makeEntry } from '../lib/entries.js';
 import { METHODS, MOODS } from '../lib/insights.js';
 import { formatDay, formatDuration } from '../lib/sleepData.js';
 
@@ -14,16 +14,44 @@ const EMPTY = { settle: '', asleep: '', woke: '', method: '', mood: '', notes: '
 const SHOW = 6;
 
 /** Form for adding sleeps by hand, plus the list of entries with export / delete. */
-export default function EntryForm({ entries, cloud, onAdd, onDelete, onClear, storageOk }) {
+export default function EntryForm({ entries, cloud, onAdd, onUpdate, onDelete, onClear, storageOk }) {
   const [values, setValues] = useState({ day: today(), type: 'nap', ...EMPTY });
   const [error, setError] = useState(null);
   const [showAll, setShowAll] = useState(false);
+  const [editing, setEditing] = useState(null); // entry being edited
+  const [dayFilter, setDayFilter] = useState('');
+  const [saving, setSaving] = useState(false);
+  const formRef = useRef(null);
   const set = (key) => (e) => setValues((v) => ({ ...v, [key]: e.target.value }));
 
-  const submit = (e) => {
+  const startEdit = (entry) => {
+    setEditing(entry);
+    setValues(entryToValues(entry));
+    setError(null);
+    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+  const stopEdit = () => {
+    setEditing(null);
+    setError(null);
+    setValues((v) => ({ day: v.day, type: v.type, ...EMPTY }));
+  };
+
+  const submit = async (e) => {
     e.preventDefault();
-    const { entry, error: err } = makeEntry(values);
+    const { entry, error: err } = makeEntry(values, editing?.id);
     if (err) return setError(err);
+    if (editing) {
+      setSaving(true);
+      try {
+        await onUpdate(editing, entry);
+        stopEdit();
+      } catch (ex) {
+        setError(ex.message || 'Could not save the changes.');
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
     onAdd(entry);
     setError(null);
     // Keep the date for the next entry of the same day; clear the times.
@@ -39,19 +67,20 @@ export default function EntryForm({ entries, cloud, onAdd, onDelete, onClear, st
   };
 
   const sorted = [...entries].sort((a, b) => (b.day + b.asleep).localeCompare(a.day + a.asleep));
-  const visible = showAll ? sorted : sorted.slice(0, SHOW);
+  const filtered = dayFilter ? sorted.filter((e) => e.day === dayFilter) : sorted;
+  const visible = showAll || dayFilter ? filtered : filtered.slice(0, SHOW);
 
   return (
-    <section className="card entry">
+    <section className={`card entry ${editing ? 'editing' : ''}`}>
       <div>
-        <h2>Add a sleep</h2>
+        <h2>{editing ? 'Edit sleep' : 'Add a sleep'}</h2>
         <p className="subtitle">
           Log naps and nights here; they appear in the charts straight away. For a night, use the evening’s date
           — the wake-up time is the next morning.
         </p>
       </div>
 
-      <form className="entry-form" onSubmit={submit} noValidate>
+      <form className="entry-form" onSubmit={submit} noValidate ref={formRef}>
         <label>
           <span>Date</span>
           <input type="date" value={values.day} onChange={set('day')} required />
@@ -96,7 +125,10 @@ export default function EntryForm({ entries, cloud, onAdd, onDelete, onClear, st
           <input type="text" value={values.notes} onChange={set('notes')} placeholder="e.g. short nap in the car" />
         </label>
         <div className="form-actions">
-          <button type="submit" className="button primary">Add entry</button>
+          <button type="submit" className="button primary" disabled={saving}>
+            {editing ? (saving ? 'Saving…' : 'Save changes') : 'Add entry'}
+          </button>
+          {editing && <button type="button" className="button ghost" onClick={stopEdit}>Cancel edit</button>}
           {error && <span className="error" role="alert">{error}</span>}
         </div>
       </form>
@@ -122,19 +154,26 @@ export default function EntryForm({ entries, cloud, onAdd, onDelete, onClear, st
               )}
             </div>
           </div>
+          <label className="entry-filter">
+            <span>Show day</span>
+            <input type="date" value={dayFilter} onChange={(e) => setDayFilter(e.target.value)} />
+            {dayFilter && <button type="button" className="icon-button" aria-label="Show all days" onClick={() => setDayFilter('')}>×</button>}
+          </label>
+          {dayFilter && filtered.length === 0 && <p className="muted">No sleeps logged on that day.</p>}
           <ul className="entry-list">
             {visible.map((e) => (
-              <li key={e.id}>
+              <li key={e.id} className={editing?.id === e.id ? 'being-edited' : ''}>
                 <span className={`pill ${e.type}`}>{e.type === 'night' ? 'Night' : 'Nap'}</span>
                 <span className="entry-day">{formatDay(e.day)}</span>
                 <span className="entry-time">{e.asleep}–{e.woke}</span>
                 <span className="entry-dur">{formatDuration(duration(e))}</span>
                 <span className="entry-extra">{[e.method, e.mood, e.notes].filter(Boolean).join(' · ')}</span>
+                <button type="button" className="icon-button edit" aria-label="Edit entry" title="Edit" onClick={() => startEdit(e)}>✎</button>
                 <button type="button" className="icon-button" aria-label="Delete entry" onClick={() => (!cloud || window.confirm('Delete this sleep from the shared log?')) && onDelete(e.id)}>×</button>
               </li>
             ))}
           </ul>
-          {sorted.length > SHOW && (
+          {!dayFilter && sorted.length > SHOW && (
             <button type="button" className="button ghost" onClick={() => setShowAll((s) => !s)}>
               {showAll ? 'Show fewer' : `Show all ${sorted.length}`}
             </button>

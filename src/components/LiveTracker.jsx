@@ -44,8 +44,30 @@ export default function LiveTracker({ live, onChange, onSave, awakeSince, busy }
   const [finishing, setFinishing] = useState(null); // { woke, mood, notes }
   const [error, setError] = useState(null);
   const [type, setType] = useState(null); // manual override while idle
+  const [editTimes, setEditTimes] = useState(null); // { type, settle, asleep } as "HH:MM" while correcting
 
-  useEffect(() => { if (!live) setFinishing(null); }, [live]);
+  useEffect(() => { if (!live) { setFinishing(null); setEditTimes(null); } }, [live]);
+
+  const openEditTimes = () => {
+    setError(null);
+    setEditTimes({
+      type: live.type,
+      settle: live.settle ? hhmm(new Date(live.settle)) : '',
+      asleep: live.asleep ? hhmm(new Date(live.asleep)) : '',
+    });
+  };
+  const saveEditTimes = () => {
+    const nowDate = new Date();
+    const asleep = editTimes.asleep ? atTime(editTimes.asleep, nowDate) : null;
+    // Settling happens before falling asleep, so read it relative to that moment.
+    const settle = editTimes.settle ? atTime(editTimes.settle, asleep ?? nowDate) : null;
+    if (live.asleep && !asleep) return setError('Enter when she fell asleep.');
+    if (!live.asleep && !settle) return setError('Enter when settling started.');
+    if (asleep && nowDate - asleep > 16 * 3600000) return setError('That would mean she has been asleep for over 16 hours — check the time.');
+    onChange({ ...live, type: editTimes.type, settle: settle ? settle.toISOString() : null, asleep: asleep ? asleep.toISOString() : null });
+    setEditTimes(null);
+    setError(null);
+  };
 
   const when = () => (at ? atTime(at, new Date()) : new Date());
   const idleType = type ?? typeAt(now);
@@ -168,7 +190,36 @@ export default function LiveTracker({ live, onChange, onSave, awakeSince, busy }
         </div>
       )}
 
-      {!finishing && (
+
+      {state !== 'idle' && !finishing && editTimes && (
+        <div className="live-edit">
+          <div className="segmented small" role="group" aria-label="Sleep type">
+            {['nap', 'night'].map((t) => (
+              <button key={t} type="button" className={editTimes.type === t ? 'active' : ''} onClick={() => setEditTimes({ ...editTimes, type: t })}>
+                {typeLabel(t)}
+              </button>
+            ))}
+          </div>
+          <label>
+            <span>Started settling</span>
+            <input type="time" value={editTimes.settle} onChange={(e) => setEditTimes({ ...editTimes, settle: e.target.value })} />
+          </label>
+          {state === 'asleep' && (
+            <label>
+              <span>Fell asleep</span>
+              <input type="time" value={editTimes.asleep} onChange={(e) => setEditTimes({ ...editTimes, asleep: e.target.value })} />
+            </label>
+          )}
+          <div className="live-actions">
+            <button type="button" className="button primary" onClick={saveEditTimes}>Save times</button>
+            <button type="button" className="button ghost" onClick={() => { setEditTimes(null); setError(null); }}>Back</button>
+          </div>
+        </div>
+      )}
+      {state !== 'idle' && !finishing && !editTimes && (
+        <button type="button" className="link-button" onClick={openEditTimes}>Edit times or type</button>
+      )}
+      {!finishing && !editTimes && (
         <label className="live-at">
           <span>Tapped late? Use this time instead:</span>
           <input type="time" value={at} onChange={(e) => setAt(e.target.value)} />
