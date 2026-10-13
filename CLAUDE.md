@@ -15,7 +15,7 @@ Everything runs in the browser; uploaded files are never sent anywhere.
 
 ## Deployment
 GitHub Pages via `.github/workflows/deploy.yml`: on push to `main` (or manual run) it tests, builds and deploys `dist/`.
-Requires repo Settings → Pages → Source = "GitHub Actions". Site URL: https://atireg.github.io/baby-sleep-patterns/
+Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io/baby-sleep-patterns/
 `vite.config.js` uses `base: './'` so assets and the sample file resolve under the Pages sub-path — keep all in-app URLs relative (no leading `/`).
 
 ## Layout
@@ -38,8 +38,8 @@ Two layouts are auto-detected (`isConsultantLog` = column A contains "Сутре
 - Duration/wake window are recomputed from times (sheet formulas ignored). "/" or text in a time cell = unknown.
 - "Детето будува ли през нощта?" text ranges ("4:04 - 5:12", 24:xx allowed) split the night into separate night sessions.
 - Template placeholders starting with "Например" are dropped from notes.
-- Real log covers 28 Jun – 12 Oct 2026 (no night data 1–5 Oct). It contains personal data (name, birth date, notes):
-  NOT committed — repo is public. Only add it to `static/` if the user explicitly confirms.
+- Privacy: the child's name / birth date / age rows are never returned or displayed; the name is only used to replace
+  itself with "[name]" in notes (tested). Never add the real log or personal data to the repo (it is public).
 
 ### 2. Simple layout
 Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Start`, `End`, optional `Type` (Night/Nap), optional `Notes`.
@@ -56,4 +56,3 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Start`, `End`,
 
 ## Known caveats
 - `xlsx@0.18.5` from npm (the SheetJS CDN build is blocked in the cloud env). It has known advisories for malicious files; acceptable since users only parse their own files locally. Switch to the CDN tarball when possible.
-- GitHub Pages is not yet enabled in repo settings (first deploy run failed at configure-pages). User must set Source = GitHub Actions; fallback offered: gh-pages branch (needs user OK).
