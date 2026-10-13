@@ -3,7 +3,7 @@ import { formatDuration } from '../lib/sleepData.js';
 const clock = (min) => `${String(Math.floor(min / 60) % 24).padStart(2, '0')}:${String(Math.round(min % 60)).padStart(2, '0')}`;
 const pct = (x) => `${Math.round(x * 100)}%`;
 
-export default function StatTiles({ stats, details }) {
+export default function StatTiles({ title, range, stats, details }) {
   const tiles = [
     { label: 'Avg. total sleep / day', value: formatDuration(stats.avgTotal) },
     { label: 'Avg. night sleep', value: formatDuration(stats.avgNight) },
@@ -18,13 +18,18 @@ export default function StatTiles({ stats, details }) {
     if (details.cryingAfterNapShare != null) tiles.push({ label: 'Naps ending crying / fussy', value: pct(details.cryingAfterNapShare) });
   }
   return (
-    <section className="tiles" aria-label="Summary">
-      {tiles.map((t) => (
-        <div className="tile" key={t.label}>
-          <div className="tile-label">{t.label}</div>
-          <div className="tile-value">{t.value}</div>
-        </div>
-      ))}
+    <section className="summary" aria-label={`Summary, ${title}`}>
+      <h2>
+        {title} <span className="summary-range">{range}</span>
+      </h2>
+      <div className="tiles">
+        {tiles.map((t) => (
+          <div className="tile" key={t.label}>
+            <div className="tile-label">{t.label}</div>
+            <div className="tile-value">{t.value}</div>
+          </div>
+        ))}
+      </div>
     </section>
   );
 }
