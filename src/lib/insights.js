@@ -160,3 +160,27 @@ export function napCountTrend(days, window = 7) {
   );
   return { points, changes };
 }
+
+/**
+ * Today's daytime sleep against a target, for the "Daytime sleep tank".
+ * Returns { naps, napMinutes, target, fill (0..1+), remaining, over, awakeSince, asleepSince }.
+ */
+export function daytimeTank(sessions, now, targetMinutes) {
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const naps = sessions.filter((s) => s.type === 'nap' && s.day === today).sort((a, b) => a.start - b.start);
+  // A nap still in progress only counts up to now.
+  const napMinutes = naps.reduce((sum, s) => sum + Math.max(0, Math.round((Math.min(s.end, now) - s.start) / 60000)), 0);
+  const target = Math.max(1, Math.round(targetMinutes || 0));
+  const current = sessions.find((s) => s.start <= now && s.end > now);
+  const ended = sessions.filter((s) => s.end <= now).sort((a, b) => b.end - a.end)[0];
+  return {
+    naps,
+    napMinutes,
+    target,
+    fill: napMinutes / target,
+    remaining: Math.max(0, target - napMinutes),
+    over: Math.max(0, napMinutes - target),
+    asleepSince: current ? current.start : null,
+    awakeSince: !current && ended && now - ended.end < 12 * 3600000 ? ended.end : null,
+  };
+}

@@ -112,3 +112,24 @@ describe('series helpers', () => {
     expect(allWeeks('2026-09-07', '2026-09-28')).toEqual(['2026-09-07', '2026-09-14', '2026-09-21', '2026-09-28']);
   });
 });
+
+describe('daytimeTank', () => {
+  it('fills with today’s naps and tracks time awake', async () => {
+    const { daytimeTank } = await import('./insights.js');
+    const at = (h, m) => new Date(2026, 9, 13, h, m);
+    const s = (day, type, a, b) => ({ day, type, start: a, end: b });
+    const sessions = [
+      s('2026-10-12', 'night', new Date(2026, 9, 12, 19, 30), at(6, 30)),
+      s('2026-10-13', 'nap', at(9, 0), at(10, 0)),
+      s('2026-10-13', 'nap', at(12, 30), at(13, 30)),
+    ];
+    const t = daytimeTank(sessions, at(14, 0), 150);
+    expect(t).toMatchObject({ napMinutes: 120, target: 150, remaining: 30, over: 0, asleepSince: null });
+    expect(t.awakeSince).toEqual(at(13, 30));
+    expect(t.fill).toBeCloseTo(0.8);
+    // During a nap only the part so far counts.
+    const during = daytimeTank(sessions, at(13, 0), 150);
+    expect(during.napMinutes).toBe(90);
+    expect(during.asleepSince).toEqual(at(12, 30));
+  });
+});

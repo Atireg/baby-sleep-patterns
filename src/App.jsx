@@ -8,6 +8,7 @@ import { entriesToSessions, loadEntries, saveEntries } from './lib/entries.js';
 import { entryKey, sessionsToEntries } from './lib/cloudData.js';
 import { addEntries, deleteEntry, describeError, signIn, signOut, watchEntries, watchUser } from './lib/cloud.js';
 import CloudBar from './components/CloudBar.jsx';
+import DaytimeTank from './components/DaytimeTank.jsx';
 import FileDrop from './components/FileDrop.jsx';
 import EntryForm from './components/EntryForm.jsx';
 import StatTiles from './components/StatTiles.jsx';
@@ -191,6 +192,7 @@ export default function App() {
             stats={stats}
             details={insights?.summary}
           />}
+          <DaytimeTank sessions={sessions} autoTarget={stats?.avgNap ?? 0} />
           <DailyTotalsChart days={days} />
           <NapCountChart days={days} />
           {insights && (

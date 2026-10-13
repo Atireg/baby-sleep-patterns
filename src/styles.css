@@ -181,3 +181,32 @@ code { font-size: 0.85em; }
 .notice p { margin: 0; color: var(--text-secondary); }
 .notice strong { color: var(--text-primary); }
 .button:disabled { opacity: 0.6; cursor: default; }
+
+.tank-card { gap: 14px; }
+.tank-body { display: flex; flex-wrap: wrap; gap: 20px 32px; align-items: center; }
+.tank { flex: none; overflow: visible; }
+.tank-glass { fill: var(--page); }
+.tank-outline { fill: none; stroke: var(--baseline); stroke-width: 2; }
+.tank-tick { stroke: var(--text-muted); stroke-width: 1; }
+.tank-tick-label { fill: var(--text-muted); font-size: 10px; font-variant-numeric: tabular-nums; }
+.tank-liquid { transition: transform 900ms cubic-bezier(.2,.8,.2,1); }
+.tank-wave { animation: tank-wave 6s linear infinite; }
+@keyframes tank-wave { from { transform: translateX(0); } to { transform: translateX(66px); } }
+@media (prefers-reduced-motion: reduce) { .tank-wave { animation: none; } .tank-liquid { transition: none; } }
+.tank-pct { font-size: 26px; font-weight: 700; fill: var(--text-primary); font-variant-numeric: tabular-nums; }
+.tank-pct.on-liquid { fill: #fff; }
+.tank-info { display: grid; gap: 8px; flex: 1; min-width: 220px; }
+.tank-big strong { font-size: 2rem; }
+.tank-big span { color: var(--text-secondary); font-size: 1.05rem; }
+.tank-status { margin: 0; font-weight: 600; color: var(--text-primary); }
+.tank-status.full { color: var(--series-3); }
+.tank-now { margin: 0; color: var(--text-secondary); font-size: 0.9rem; }
+.tank-naps { list-style: none; margin: 4px 0; padding: 0; display: grid; gap: 4px; font-size: 0.88rem; font-variant-numeric: tabular-nums; }
+.tank-naps li { display: flex; gap: 12px; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--grid); }
+.tank-nap-no { font-size: 0.75rem; font-weight: 600; color: #fff; background: var(--series-2); border-radius: 999px; padding: 2px 8px; }
+.muted { color: var(--text-secondary); }
+.tank-target { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--text-secondary); }
+.tank-target select {
+  font: inherit; color: var(--text-primary); background: var(--page); border: 1px solid var(--border);
+  border-radius: 8px; padding: 5px 8px; max-width: 100%;
+}
