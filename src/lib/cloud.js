@@ -1,6 +1,7 @@
 // Thin wrapper around Firebase Auth + Firestore. The SDK is loaded on first use.
 import { firebaseConfig } from './firebaseConfig.js';
-import { MONTHS, groupByMonth, mergeEntries } from './cloudData.js';
+import { MONTHS, groupByMonth, mergeEntries, monthKey } from './cloudData.js';
+import { replaceEntry } from './entries.js';
 
 let ready;
 function init() {
@@ -104,6 +105,7 @@ export async function deleteEntry(entry) {
 /** Human-readable message for Firebase errors the user can act on. */
 export function describeError(e) {
   const code = e?.code ?? '';
+  if (!code && e?.message) return e.message; // our own validation errors
   if (code.includes('permission-denied')) return 'This Google account doesn’t have access to the shared log. Add its email address to the Firestore security rules.';
   if (code.includes('unauthorized-domain')) return 'This website isn’t allowed to sign in yet: in Firebase → Authentication → Settings → Authorized domains, add atireg.github.io.';
   if (code.includes('popup-closed') || code.includes('cancelled-popup')) return null;
@@ -132,4 +134,31 @@ export async function setLive(live) {
   const ref = fs.doc(db, ...LIVE);
   if (live) await fs.setDoc(ref, { live });
   else await fs.deleteDoc(ref);
+}
+
+/** Replace an entry (matched by id), moving it to another month document if its date changed. */
+export async function updateEntry(previous, updated) {
+  const { fs, db } = await init();
+  const fromRef = fs.doc(db, MONTHS, monthKey(previous.day));
+  const toRef = fs.doc(db, MONTHS, monthKey(updated.day));
+  await fs.runTransaction(db, async (tx) => {
+    const read = async (ref) => {
+      const snap = await tx.get(ref);
+      return snap.exists() ? snap.data().entries ?? [] : [];
+    };
+    const fromList = await read(fromRef);
+    if (fromRef.path === toRef.path) {
+      const { list, error } = replaceEntry(fromList, updated);
+      if (error) throw new Error(error);
+      tx.set(fromRef, { entries: list });
+      return;
+    }
+    const toList = await read(toRef);
+    if (!fromList.some((e) => e.id === updated.id)) throw new Error('That sleep no longer exists — it may have been deleted.');
+    // Moving to another month: check for a clash there, then move it.
+    const { error } = replaceEntry([...toList, previous], updated);
+    if (error) throw new Error(error);
+    tx.set(fromRef, { entries: fromList.filter((e) => e.id !== updated.id) });
+    tx.set(toRef, { entries: [...toList, updated] });
+  });
 }

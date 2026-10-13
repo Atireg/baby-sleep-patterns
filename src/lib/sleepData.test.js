@@ -133,3 +133,18 @@ describe('daytimeTank', () => {
     expect(during.asleepSince).toEqual(at(12, 30));
   });
 });
+
+describe('editing entries', () => {
+  it('replaces by id and refuses duplicates', async () => {
+    const { makeEntry, replaceEntry, entryToValues } = await import('./entries.js');
+    const a = makeEntry({ day: '2026-10-13', type: 'nap', asleep: '09:00', woke: '10:00' }).entry;
+    const b = makeEntry({ day: '2026-10-13', type: 'nap', asleep: '13:00', woke: '14:00' }).entry;
+    const edited = makeEntry({ ...entryToValues(a), woke: '10:30', mood: 'Good' }, a.id).entry;
+    const { list } = replaceEntry([a, b], edited);
+    expect(list.find((e) => e.id === a.id)).toMatchObject({ woke: '10:30', mood: 'Good' });
+    expect(list).toHaveLength(2);
+    const clash = makeEntry({ ...entryToValues(a), asleep: '13:00' }, a.id).entry;
+    expect(replaceEntry([a, b], clash).error).toMatch(/already exists/);
+    expect(replaceEntry([b], edited).error).toMatch(/no longer exists/);
+  });
+});

@@ -149,15 +149,16 @@ code { font-size: 0.85em; }
 .actions-inline { display: flex; gap: 8px; }
 .entry-list { list-style: none; margin: 0; padding: 0; display: grid; }
 .entry-list li {
-  display: grid; grid-template-columns: 56px 120px 100px 70px 1fr 28px; gap: 8px; align-items: center;
+  display: grid; grid-template-columns: 56px 120px 100px 70px 1fr 28px 28px; gap: 8px; align-items: center;
   padding: 7px 0; border-bottom: 1px solid var(--grid); font-size: 0.85rem; font-variant-numeric: tabular-nums;
 }
 @media (max-width: 640px) {
-  .entry-list li { grid-template-columns: 56px 1fr auto 28px; }
+  .entry-list li { grid-template-columns: 56px 1fr auto 28px 28px; }
   .entry-list .entry-day { grid-column: 2; }
   .entry-list .entry-time { grid-column: 3; }
   .entry-list .entry-dur, .entry-list .entry-extra { grid-column: 2 / 4; color: var(--text-secondary); }
-  .entry-list .icon-button { grid-column: 4; grid-row: 1; }
+  .entry-list .icon-button.edit { grid-column: 4; grid-row: 1; }
+  .entry-list .icon-button:not(.edit) { grid-column: 5; grid-row: 1; }
 }
 .entry-extra { color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pill { font-size: 0.75rem; font-weight: 600; border-radius: 999px; padding: 2px 8px; text-align: center; color: #fff; }
@@ -244,3 +245,20 @@ code { font-size: 0.85em; }
 .live-finish p { margin: 0; }
 .live-at { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--text-muted); }
 .live-at input { font-size: 0.9rem; min-height: 34px; padding: 4px 8px; }
+
+.icon-button.edit { font-size: 1rem; }
+.icon-button.edit:hover { color: var(--accent); }
+.entry.editing { border-color: var(--accent); border-width: 2px; }
+.entry-list li.being-edited { background: color-mix(in srgb, var(--accent) 10%, transparent); border-radius: 6px; }
+.entry-filter { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--text-secondary); }
+.entry-filter input {
+  font: inherit; color: var(--text-primary); background: var(--page); border: 1px solid var(--border);
+  border-radius: 8px; padding: 5px 8px;
+}
+.live-edit { display: grid; gap: 10px; padding: 12px; border: 1px dashed var(--border); border-radius: 10px; }
+.live-edit label { display: grid; gap: 4px; font-size: 0.85rem; color: var(--text-secondary); max-width: 220px; }
+.live-edit input {
+  font: inherit; font-size: 1rem; color: var(--text-primary); background: var(--page);
+  border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; min-height: 42px;
+}
+.link-button { font: inherit; font-size: 0.85rem; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; justify-self: start; text-decoration: underline; }

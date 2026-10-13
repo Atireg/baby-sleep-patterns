@@ -37,8 +37,10 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
 - `src/lib/sleepData.js` – simple-layout parser, `annotateSessions` (nap position + wake window), daily stats. No xlsx dependency.
 - `src/lib/consultantLog.js` – parser for the Bulgarian sleep-consultant template.
 - `src/lib/readWorkbook.js` – reads the first sheet via SheetJS (`xlsx`) and picks the parser by format.
-- `src/lib/entries.js` – sleeps entered on the site: validation, localStorage (`baby-sleep-entries-v1`), conversion, Excel export rows.
-- `src/lib/cloud.js` – Firebase wrapper (sign-in, live `watchEntries`, `addEntries`, `deleteEntry`, `describeError`);
+- `src/lib/entries.js` – sleeps entered on the site: validation (`makeEntry(values, id?)`), `replaceEntry` (edit by id, refuses
+  duplicates), `entryToValues`, localStorage (`baby-sleep-entries-v1`), conversion, Excel export rows.
+- `src/lib/cloud.js` – Firebase wrapper (sign-in, live `watchEntries`, `addEntries`, `updateEntry` (moves between month docs
+  in one transaction), `deleteEntry`, `watchLive`/`setLive`, `describeError`);
   `src/lib/cloudData.js` – pure helpers (month grouping, merge/dedupe, `sessionsToEntries` for importing a file).
 - `src/lib/live.js` – live tracking ("Now" card): local storage `baby-sleep-live-v1`, `sleepDay` (night after midnight → previous
   date), `liveToEntry`, `atTime` (tapped-late times never in the future), `formatTimer`.
@@ -82,6 +84,8 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
 - "Now" card (top of page, mobile-first): Start settling → Fell asleep (running timer) → Woke up (confirm time, mood, notes) → Save
   as a normal entry. Type auto by clock (18:00–05:59 = night), switchable. "Tapped late?" time field. Method chips while settling/asleep.
   Unedited wake time uses the exact tap time. The sleep in progress counts in the tank (`tankSessions`) but not in charts until saved.
+- Editing: each listed entry has ✎ (loads it into the form → "Save changes"/"Cancel edit") and × (delete). "Show day" date filter
+  finds older entries. The Now card has "Edit times or type" for the sleep in progress.
 - "Daytime sleep tank" (below the summary tiles): today's naps (`daytimeTank` in insights.js; a nap in progress counts up to now)
   vs a target = 5-day average nap time (auto) or a fixed choice saved in localStorage `baby-sleep-nap-target`.
   Also shows "awake since" / "asleep since"; refreshes every minute.
