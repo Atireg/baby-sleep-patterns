@@ -28,7 +28,8 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
 - SDK `firebase@12.19.0`, loaded lazily with a persistent local cache (offline + fewer reads).
 - Testing: Firebase emulators (firebase-tools, installed outside the repo) + `VITE_FIREBASE_EMULATOR=1` build, which connects
   to 127.0.0.1:9099/8080 and exposes `window.__testSignIn(email)` (Google's pop-up can't load in the sandbox). Not in prod builds.
-- Setup status: config added; the user is still enabling Google sign-in, creating the Firestore DB (EU location) and publishing rules.
+- Setup status (verified from outside via public endpoints): Google provider enabled, `atireg.github.io` authorized,
+  Firestore DB exists and refuses unauthenticated reads/writes. The allow-list itself can only be verified by signing in.
 
 ## Layout
 - `static/` – Vite `publicDir` (served at site root): `sample-sleep-log.xlsx` (demo data + template, 5→4→3 naps), `favicon.svg`.
