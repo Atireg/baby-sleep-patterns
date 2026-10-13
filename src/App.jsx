@@ -10,7 +10,6 @@ import DailyTotalsChart from './components/DailyTotalsChart.jsx';
 import SleepTimeline from './components/SleepTimeline.jsx';
 import WeeklyLineChart from './components/WeeklyLineChart.jsx';
 import MethodShareChart from './components/MethodShareChart.jsx';
-import DailyTable from './components/DailyTable.jsx';
 
 const WAKE_COLORS = ['var(--series-1)', 'var(--series-2)', 'var(--series-3)', 'var(--series-4)'];
 const SETTLING_SERIES = [
@@ -101,7 +100,6 @@ export default function App() {
             </>
           )}
           <SleepTimeline sessions={data.sessions} />
-          <DailyTable days={days} meta={data.days} />
         </>
       )}
     </main>

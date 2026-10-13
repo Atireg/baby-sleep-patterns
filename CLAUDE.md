@@ -25,7 +25,7 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
 - `src/lib/consultantLog.js` – parser for the Bulgarian sleep-consultant template (tested in `consultantLog.test.js`).
 - `src/lib/insights.js` – weekly aggregates (wake windows, settling time, settling method) + label translations.
 - `src/components/` – `FileDrop`, `StatTiles`, `DailyTotalsChart` (stacked bars), `WeeklyLineChart`, `MethodShareChart` (100% stacked),
-  `SleepTimeline` (per-day 24h rows), `DailyTable`, shared `Tooltip`/`Legend`. Insight charts only render when the data has consultant fields.
+  `SleepTimeline` (per-day 24h rows), shared `Tooltip`/`Legend`. Insight charts only render when the data has consultant fields.
 - `scripts/make-sample.mjs` – deterministic sample data generator.
 
 ## Excel formats
@@ -39,7 +39,7 @@ Two layouts are auto-detected (`isConsultantLog` = column A contains "Сутре
 - "Детето будува ли през нощта?" text ranges ("4:04 - 5:12", 24:xx allowed) split the night into separate night sessions.
 - Template placeholders starting with "Например" are dropped from notes.
 - Privacy: the child's name / birth date / age rows are never returned or displayed; the name is only used to replace
-  itself with "[name]" in notes (tested). Never add the real log or personal data to the repo (it is public).
+  itself with "[name]" in notes (tested; notes currently only surface via `days` meta, not displayed). Never add the real log or personal data to the repo (it is public).
 
 ### 2. Simple layout
 Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Start`, `End`, optional `Type` (Night/Nap), optional `Notes`.
@@ -52,7 +52,7 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Start`, `End`,
 ## Conventions
 - Charts are hand-built SVG (no chart library). Colors come from CSS tokens in `src/styles.css`
   (`--series-1` night = blue, `--series-2` nap = orange, light + dark variants). Text never uses series colors.
-- Every chart has a legend, hover tooltip, and the daily table serves as the table view.
+- Every chart has a legend and hover tooltip. The daily breakdown table was removed at the user's request — don't re-add it.
 
 ## Known caveats
 - `xlsx@0.18.5` from npm (the SheetJS CDN build is blocked in the cloud env). It has known advisories for malicious files; acceptable since users only parse their own files locally. Switch to the CDN tarball when possible.

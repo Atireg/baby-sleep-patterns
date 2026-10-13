@@ -125,7 +125,6 @@ code { font-size: 0.85em; }
 .direct-label { fill: var(--text-secondary); font-size: 11px; }
 .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr)); gap: 16px; }
 @media (max-width: 520px) { .grid-2 { grid-template-columns: minmax(0, 1fr); } }
-td.note { white-space: normal; min-width: 240px; max-width: 420px; color: var(--text-secondary); }
 .session:hover { stroke: var(--text-primary); stroke-width: 1.5; }
 
 .tooltip {
@@ -144,9 +143,3 @@ td.note { white-space: normal; min-width: 240px; max-width: 420px; color: var(--
 .tooltip-row { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); }
 .tooltip-label { flex: 1; }
 .tooltip-value { color: var(--text-primary); font-variant-numeric: tabular-nums; }
-
-.table-wrap { overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-th, td { padding: 6px 8px; border-bottom: 1px solid var(--grid); text-align: left; white-space: nowrap; }
-th { color: var(--text-secondary); font-weight: 500; }
-.num { text-align: right; font-variant-numeric: tabular-nums; }
