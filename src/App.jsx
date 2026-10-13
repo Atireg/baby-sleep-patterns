@@ -216,7 +216,7 @@ export default function App() {
               </div>
             </>
           )}
-          <SleepTimeline sessions={sessions} />
+          {recentDays.length > 0 && <SleepTimeline sessions={sessions} dayKeys={recentDays.map((d) => d.day)} />}
         </>
       )}
     </main>

@@ -36,20 +36,16 @@ function hoverText(s) {
   return lines.join('<br>');
 }
 
-export default function SleepTimeline({ sessions }) {
+/** dayKeys: the calendar days to show as rows (shown newest first). */
+export default function SleepTimeline({ sessions, dayKeys }) {
   const t = useChartTheme();
   // Fewer hour labels on phones so they don't overlap.
   const hourTicks = window.innerWidth < 600 ? [0, 6, 12, 18, 24] : [0, 3, 6, 9, 12, 15, 18, 21, 24];
   const { data, layout, rows } = useMemo(() => {
-    const pieces = toPieces(sessions);
-    // One row per calendar day from the first entry up to today (empty days included), newest first.
-    const todayKey = keyOf(new Date());
-    const first = [...pieces.map((p) => p.row)].sort()[0];
-    const last = [...pieces.map((p) => p.row), todayKey].sort().at(-1);
-    const rowKeys = [];
-    for (let d = new Date(`${first}T00:00`); keyOf(d) <= last; d.setDate(d.getDate() + 1)) rowKeys.push(keyOf(d));
-    rowKeys.reverse();
-    const label = (k) => (k === todayKey ? 'Today' : formatDay(k, { weekday: 'short', day: 'numeric', month: 'short' }));
+    const rowKeys = [...dayKeys].sort().reverse();
+    const shown = new Set(rowKeys);
+    const pieces = toPieces(sessions).filter((p) => shown.has(p.row));
+    const label = (k) => formatDay(k, { weekday: 'short', day: 'numeric', month: 'short' });
     const trace = (type, name, color) => {
       const list = pieces.filter((p) => p.session.type === type);
       return {
@@ -82,15 +78,15 @@ export default function SleepTimeline({ sessions }) {
         legend: { orientation: 'h', x: 0, y: -0.02, yanchor: 'top' },
       }),
     };
-  }, [sessions, t, hourTicks.length]);
+  }, [sessions, dayKeys, t, hourTicks.length]);
 
   return (
     <PlotlyChart
       title="Sleep timeline"
-      subtitle="Newest first: each row is a calendar day, midnight to midnight. Hover a bar for details; drag up/down to zoom into dates."
+      subtitle="Last 5 days (excluding today), newest first. Each row is a calendar day, midnight to midnight; hover a bar for details."
       data={data}
       layout={layout}
-      height={Math.min(2400, 90 + rows * 16)}
+      height={110 + rows * 44}
     />
   );
 }
