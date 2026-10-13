@@ -1,0 +1,83 @@
+// The sleep currently being tracked live ("Now" card): settling → asleep → woke up.
+// Shape: { type: 'nap'|'night', settle: ISO|null, asleep: ISO|null, method: string }
+import { inferType } from './sleepData.js';
+
+const LOCAL_KEY = 'baby-sleep-live-v1';
+const pad = (n) => String(n).padStart(2, '0');
+export const hhmm = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+const dateKey = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+export function loadLocalLive() {
+  try {
+    return JSON.parse(localStorage.getItem(LOCAL_KEY) ?? 'null');
+  } catch {
+    return null;
+  }
+}
+
+export function saveLocalLive(live) {
+  try {
+    if (live) localStorage.setItem(LOCAL_KEY, JSON.stringify(live));
+    else localStorage.removeItem(LOCAL_KEY);
+  } catch { /* storage blocked: state lasts for this visit only */ }
+}
+
+/** Nap or night from the clock time (night = 18:00–05:59). */
+export const typeAt = (date) => inferType(date.getHours() * 60 + date.getMinutes());
+
+/**
+ * The log date for a sleep: naps use their own date; a night uses the evening it began,
+ * so a night sleep starting after midnight (before noon) belongs to the previous date.
+ */
+export function sleepDay(type, asleep) {
+  if (type === 'night' && asleep.getHours() < 12) {
+    const prev = new Date(asleep);
+    prev.setDate(prev.getDate() - 1);
+    return dateKey(prev);
+  }
+  return dateKey(asleep);
+}
+
+/** Replace the time of `base` with "HH:MM", choosing the latest such moment not after `notAfter`. */
+export function atTime(hhmmText, notAfter) {
+  const [h, m] = hhmmText.split(':').map(Number);
+  const d = new Date(notAfter);
+  d.setHours(h, m, 0, 0);
+  if (d > notAfter) d.setDate(d.getDate() - 1);
+  return d;
+}
+
+/**
+ * Turn a finished live sleep into a form entry, or { error }.
+ * extra: { mood, notes }
+ */
+export function liveToEntry(live, woke, extra = {}) {
+  if (!live?.asleep) return { error: 'Tap “Fell asleep” first.' };
+  const asleep = new Date(live.asleep);
+  if (woke <= asleep) return { error: 'Wake-up time must be after she fell asleep.' };
+  if (hhmm(woke) === hhmm(asleep) && woke - asleep < 60000) return { error: 'That sleep was shorter than a minute — tap Cancel to discard it.' };
+  if (woke - asleep > 16 * 3600000) return { error: 'That would be a sleep of more than 16 hours — check the times.' };
+  const settle = live.settle ? new Date(live.settle) : null;
+  return {
+    entry: {
+      id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+      day: sleepDay(live.type, asleep),
+      type: live.type,
+      settle: settle && settle <= asleep ? hhmm(settle) : '',
+      asleep: hhmm(asleep),
+      woke: hhmm(woke),
+      method: live.method || '',
+      mood: extra.mood || '',
+      notes: (extra.notes || '').trim(),
+    },
+  };
+}
+
+/** "1:05:09" / "12:03" style running timer. */
+export function formatTimer(ms) {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  return h ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
+}

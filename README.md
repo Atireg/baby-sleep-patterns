@@ -4,7 +4,8 @@
 
 A React website for visualising and analysing a baby's sleep patterns from an Excel sleep log.
 
-Load an `.xlsx`, `.xls` or `.csv` file (or try the built-in sample), or add sleeps with the form on the page, to see:
+Track sleeps live with the **Now** card (Start settling → Fell asleep with a running timer → Woke up), load an `.xlsx`, `.xls`
+or `.csv` file (or try the built-in sample), or add sleeps with the form on the page, to see:
 
 - averages for the last 5 days
 - night and nap hours per day with a 7-day average

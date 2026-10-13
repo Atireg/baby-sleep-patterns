@@ -6,7 +6,11 @@ import {
 } from './lib/insights.js';
 import { entriesToSessions, loadEntries, saveEntries } from './lib/entries.js';
 import { entryKey, sessionsToEntries } from './lib/cloudData.js';
-import { addEntries, deleteEntry, describeError, signIn, signOut, watchEntries, watchUser } from './lib/cloud.js';
+import {
+  addEntries, deleteEntry, describeError, setLive, signIn, signOut, watchEntries, watchLive, watchUser,
+} from './lib/cloud.js';
+import { loadLocalLive, saveLocalLive, sleepDay } from './lib/live.js';
+import LiveTracker from './components/LiveTracker.jsx';
 import CloudBar from './components/CloudBar.jsx';
 import DaytimeTank from './components/DaytimeTank.jsx';
 import FileDrop from './components/FileDrop.jsx';
@@ -48,6 +52,29 @@ export default function App() {
   }, [user]);
   const cloud = Boolean(user);
   const formEntries = cloud ? cloudEntries : entries;
+
+  // The sleep being tracked right now: shared via the cloud when signed in, else kept on this device.
+  const [localLive, setLocalLive] = useState(loadLocalLive);
+  const [cloudLive, setCloudLive] = useState(null);
+  useEffect(() => {
+    setCloudLive(null);
+    if (!user) return undefined;
+    return watchLive(setCloudLive, (e) => setCloudError(describeError(e)));
+  }, [user]);
+  const live = cloud ? cloudLive : localLive;
+  const changeLive = (next) => {
+    if (cloud) {
+      setCloudLive(next); // show it immediately; the listener confirms
+      setLive(next).catch((e) => setCloudError(describeError(e)));
+    } else {
+      setLocalLive(next);
+      saveLocalLive(next);
+    }
+  };
+  const saveLiveEntry = async (entry) => {
+    if (cloud) await addEntries([entry]);
+    else setEntries((list) => [...list, entry]);
+  };
 
   const report = (e) => setCloudError(describeError(e));
   const run = async (task) => {
@@ -107,6 +134,19 @@ export default function App() {
     const fromFile = (data?.sessions ?? []).filter((s) => !keys.has(`${s.day}|${s.type}|${formatClock(s.start)}`));
     return [...fromFile, ...saved].sort((a, b) => a.start - b.start);
   }, [data, formEntries]);
+  // A sleep in progress counts in the daytime tank (up to now) but not in the charts until it's saved.
+  const tankSessions = useMemo(() => {
+    if (!live?.asleep) return sessions;
+    const start = new Date(live.asleep);
+    const ongoing = { day: sleepDay(live.type, start), type: live.type, start, end: new Date(Date.now() + 864e5), minutes: 0 };
+    return [...sessions, ongoing];
+  }, [sessions, live]);
+  const awakeSince = useMemo(() => {
+    if (live?.asleep) return null;
+    const now = Date.now();
+    const last = sessions.filter((x) => x.end <= now).reduce((m, x) => (!m || x.end > m ? x.end : m), null);
+    return last && now - last < 12 * 3600000 ? last : null;
+  }, [sessions, live]);
   const dayMeta = data?.days ?? [];
   const days = useMemo(() => dailyStats(sessions), [sessions]);
   // The summary tiles describe the last 5 days with data before today (today is still in progress).
@@ -144,6 +184,8 @@ export default function App() {
         onSignOut={onSignOut}
       />
       {notice && <p className="loaded" role="status">{notice}</p>}
+
+      <LiveTracker live={live} onChange={changeLive} onSave={saveLiveEntry} awakeSince={awakeSince} busy={busy} />
 
       <FileDrop onFile={onFile} onSample={onSample} />
       {error && <p className="error" role="alert">{error}</p>}
@@ -192,7 +234,7 @@ export default function App() {
             stats={stats}
             details={insights?.summary}
           />}
-          <DaytimeTank sessions={sessions} autoTarget={stats?.avgNap ?? 0} />
+          <DaytimeTank sessions={tankSessions} autoTarget={stats?.avgNap ?? 0} />
           <DailyTotalsChart days={days} />
           <NapCountChart days={days} />
           {insights && (
