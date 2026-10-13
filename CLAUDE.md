@@ -4,7 +4,8 @@ Project notes for Claude. **Keep this file clean and current: update it after ev
 
 ## Project
 Website (React + Vite) that visualises and analyses baby sleep patterns from an Excel sleep log.
-Everything runs in the browser; uploaded files are never sent anywhere.
+Runs in the browser. Signed out: files and form entries stay on the device. Signed in with Google: entries live in
+a shared Firebase (Firestore) log so the file only has to be imported once and every device sees the same data.
 
 ## Commands
 - `npm install` – install deps
@@ -18,17 +19,30 @@ GitHub Pages via `.github/workflows/deploy.yml`: on push to `main` (or manual ru
 Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io/baby-sleep-patterns/
 `vite.config.js` uses `base: './'` so assets and the sample file resolve under the Pages sub-path — keep all in-app URLs relative (no leading `/`).
 
+## Firebase (shared cloud log)
+- Project `baby-sleep-pattern`, Spark (free) plan — never enable Blaze/billing. Config in `src/lib/firebaseConfig.js` (public by design).
+- Auth: Google sign-in; `atireg.github.io` must be in Authentication → Authorized domains.
+- Firestore: collection `months`, one doc per month (`2026-10`) with `{ entries: [...] }` (same entry shape as the form) —
+  ~12 reads per year of data. Writes are per-month transactions; duplicates skipped by `entryKey` (day|type|asleep).
+- Security rules: allow-list of family emails, kept only in the console (template: `firebase/firestore.rules.example`).
+- SDK `firebase@12.19.0`, loaded lazily with a persistent local cache (offline + fewer reads).
+- Testing: Firebase emulators (firebase-tools, installed outside the repo) + `VITE_FIREBASE_EMULATOR=1` build, which connects
+  to 127.0.0.1:9099/8080 and exposes `window.__testSignIn(email)` (Google's pop-up can't load in the sandbox). Not in prod builds.
+- Setup status: config added; the user is still enabling Google sign-in, creating the Firestore DB (EU location) and publishing rules.
+
 ## Layout
 - `static/` – Vite `publicDir` (served at site root): `sample-sleep-log.xlsx` (demo data + template, 5→4→3 naps), `favicon.svg`.
 - `src/lib/sleepData.js` – simple-layout parser, `annotateSessions` (nap position + wake window), daily stats. No xlsx dependency.
 - `src/lib/consultantLog.js` – parser for the Bulgarian sleep-consultant template.
 - `src/lib/readWorkbook.js` – reads the first sheet via SheetJS (`xlsx`) and picks the parser by format.
 - `src/lib/entries.js` – sleeps entered on the site: validation, localStorage (`baby-sleep-entries-v1`), conversion, Excel export rows.
+- `src/lib/cloud.js` – Firebase wrapper (sign-in, live `watchEntries`, `addEntries`, `deleteEntry`, `describeError`);
+  `src/lib/cloudData.js` – pure helpers (month grouping, merge/dedupe, `sessionsToEntries` for importing a file).
 - `src/lib/insights.js` – weekly aggregates (wake windows, settling, method), `napCountTrend`, label translations (BG + EN accepted).
 - `src/lib/series.js` – gap handling: `breakGaps`, `segments`, `rollingMean` (calendar days), `allWeeks`.
 - `src/lib/theme.js` – resolves CSS color tokens for Plotly (`useChartTheme`), `baseLayout`, `durationAxis`, `rangeButtons`.
 - `src/components/` – `PlotlyChart` (lazy-loads Plotly, card wrapper), `DailyTotalsChart`, `NapCountChart`, `WeeklyLineChart`,
-  `MethodShareChart`, `SleepTimeline`, `StatTiles`, `FileDrop`, `EntryForm`.
+  `MethodShareChart`, `SleepTimeline`, `StatTiles`, `FileDrop`, `EntryForm`, `CloudBar` (sign-in status).
 - Tests: `src/lib/*.test.js` (Vitest).
 - `scripts/make-sample.mjs` – deterministic sample data generator.
 
@@ -60,7 +74,9 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
 - Lines must break across missing days/weeks (`connectgaps: false`, `breakGaps`); area fills are drawn per `segments`.
 - Summary tiles cover only the last 5 days with data (`RECENT_DAYS` in `App.jsx`); charts show everything.
 - Sleep timeline: newest first, today on top labelled "Today", one row per calendar day incl. empty days.
-- Charts use the uploaded file + entries from the form combined. The daily breakdown table was removed at the user's request — don't re-add it.
+- Charts use a loaded file + saved entries (local, or the cloud log when signed in) combined; file sleeps already saved are
+  not double-counted. Signed in, a loaded file shows a "Save to shared log" prompt; local entries can be moved to the cloud.
+- Importing the consultant log to the cloud keeps times, settling, method and mood but not the free-text day notes. The daily breakdown table was removed at the user's request — don't re-add it.
 
 ## Known caveats
 - `xlsx@0.18.5` from npm (the SheetJS CDN build is blocked in the cloud env). It has known advisories for malicious files; acceptable since users only parse their own files locally. Switch to the CDN tarball when possible.

@@ -13,7 +13,10 @@ Load an `.xlsx`, `.xls` or `.csv` file (or try the built-in sample), or add slee
 - a timeline of every sleep, newest day first
 
 Charts are interactive (Plotly): hover for details, drag to zoom, double-click to reset.
-Files are processed in your browser and entries are stored only in your browser; they can be downloaded as Excel.
+Without signing in, files are processed in your browser and entries are stored only in your browser (downloadable as Excel).
+Sign in with Google to keep the log in a shared Firebase database instead: import your spreadsheet once and every
+device where you sign in sees the same data. Access is limited to the Google accounts listed in the Firestore rules
+(see `firebase/firestore.rules.example`).
 
 ## Spreadsheet format
 

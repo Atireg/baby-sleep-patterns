@@ -103,6 +103,13 @@ export function methodsByWeek(sessions) {
   });
 }
 
+// Without a morning-wake column, use when each night's last stretch ended.
+function morningWakes(sessions) {
+  const lastEnd = new Map();
+  for (const s of sessions) if (s.type === 'night') lastEnd.set(s.day, s.end);
+  return [...lastEnd.values()].map((d) => d.getHours() * 60 + d.getMinutes());
+}
+
 /** Overall shares for the headline numbers. */
 export function detailSummary(sessions, dayMeta = []) {
   const firsts = firstPieces(sessions);
@@ -113,7 +120,9 @@ export function detailSummary(sessions, dayMeta = []) {
     independentShare: withMethod.length ? withMethod.filter((s) => methodLabel(s.method) === 'Independently').length / withMethod.length : null,
     cryingAfterNapShare: naps.length ? naps.filter((s) => ['Crying', 'Fussy'].includes(moodLabel(s.mood))).length / naps.length : null,
     avgBedtime: clock(firsts.filter((s) => s.type === 'night').map((s) => s.start.getHours() * 60 + s.start.getMinutes())),
-    avgMorningWake: clock(dayMeta.map((d) => d.morningWake)),
+    avgMorningWake: dayMeta.some((d) => d.morningWake != null)
+      ? clock(dayMeta.map((d) => d.morningWake))
+      : clock(morningWakes(sessions)),
   };
 }
 

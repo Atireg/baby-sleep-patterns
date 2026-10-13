@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { readWorkbook } from './lib/readWorkbook.js';
-import { dailyStats, formatDay, summary } from './lib/sleepData.js';
+import { dailyStats, formatClock, formatDay, summary } from './lib/sleepData.js';
 import {
   WAKE_WINDOW_SERIES, detailSummary, hasDetails, methodsByWeek, settlingByWeek, wakeWindowsByWeek,
 } from './lib/insights.js';
 import { entriesToSessions, loadEntries, saveEntries } from './lib/entries.js';
+import { entryKey, sessionsToEntries } from './lib/cloudData.js';
+import { addEntries, deleteEntry, describeError, signIn, signOut, watchEntries, watchUser } from './lib/cloud.js';
+import CloudBar from './components/CloudBar.jsx';
 import FileDrop from './components/FileDrop.jsx';
 import EntryForm from './components/EntryForm.jsx';
 import StatTiles from './components/StatTiles.jsx';
@@ -24,9 +27,55 @@ const SETTLING_SERIES = [
 export default function App() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
+  // Entries kept only in this browser (used when not signed in).
   const [entries, setEntries] = useState(loadEntries);
   const [storageOk, setStorageOk] = useState(true);
   useEffect(() => { setStorageOk(saveEntries(entries)); }, [entries]);
+
+  // Shared cloud log (Firebase). user: undefined = still checking, null = signed out.
+  const [user, setUser] = useState(undefined);
+  const [cloudEntries, setCloudEntries] = useState([]);
+  const [cloudError, setCloudError] = useState(null);
+  const [notice, setNotice] = useState(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => watchUser(setUser), []);
+  useEffect(() => {
+    setCloudEntries([]);
+    setCloudError(null);
+    if (!user) return undefined;
+    return watchEntries(setCloudEntries, (e) => setCloudError(describeError(e)));
+  }, [user]);
+  const cloud = Boolean(user);
+  const formEntries = cloud ? cloudEntries : entries;
+
+  const report = (e) => setCloudError(describeError(e));
+  const run = async (task) => {
+    setBusy(true);
+    setCloudError(null);
+    try {
+      await task();
+    } catch (e) {
+      report(e);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const onSignIn = () => run(signIn);
+  const onSignOut = () => run(async () => { await signOut(); setNotice(null); });
+  const importFile = () => run(async () => {
+    const added = await addEntries(sessionsToEntries(data.sessions));
+    setNotice(`Saved ${added} new sleep${added === 1 ? '' : 's'} from ${data.name} to the shared log${added < data.sessions.length ? ' (the rest were already there)' : ''}.`);
+    setData(null);
+  });
+  const moveLocal = () => run(async () => {
+    const added = await addEntries(entries);
+    setEntries([]);
+    setNotice(`Moved ${added} entr${added === 1 ? 'y' : 'ies'} from this device to the shared log.`);
+  });
+  const addEntry = (e) => (cloud ? run(() => addEntries([e])) : setEntries((list) => [...list, e]));
+  const removeEntry = (id) => (cloud
+    ? run(() => deleteEntry(cloudEntries.find((e) => e.id === id)))
+    : setEntries((list) => list.filter((e) => e.id !== id)));
 
   const load = (name, buffer) => {
     try {
@@ -50,11 +99,13 @@ export default function App() {
     load('sample-sleep-log.xlsx', await res.arrayBuffer());
   };
 
-  // Charts combine the uploaded file with sleeps entered on the site.
-  const sessions = useMemo(
-    () => [...(data?.sessions ?? []), ...entriesToSessions(entries)].sort((a, b) => a.start - b.start),
-    [data, entries],
-  );
+  // Charts combine a loaded file with the saved entries; sleeps already saved aren't counted twice.
+  const sessions = useMemo(() => {
+    const saved = entriesToSessions(formEntries);
+    const keys = new Set(formEntries.map(entryKey));
+    const fromFile = (data?.sessions ?? []).filter((s) => !keys.has(`${s.day}|${s.type}|${formatClock(s.start)}`));
+    return [...fromFile, ...saved].sort((a, b) => a.start - b.start);
+  }, [data, formEntries]);
   const dayMeta = data?.days ?? [];
   const days = useMemo(() => dailyStats(sessions), [sessions]);
   // The summary tiles describe only the most recent days in the log.
@@ -79,22 +130,48 @@ export default function App() {
         <p className="subtitle">Visualise and analyse your baby's sleep from an Excel log.</p>
       </header>
 
+      <CloudBar
+        user={user}
+        count={cloudEntries.length}
+        busy={busy}
+        error={cloudError}
+        onSignIn={onSignIn}
+        onSignOut={onSignOut}
+      />
+      {notice && <p className="loaded" role="status">{notice}</p>}
+
       <FileDrop onFile={onFile} onSample={onSample} />
       {error && <p className="error" role="alert">{error}</p>}
 
+      {cloud && data && (
+        <div className="notice">
+          <p><strong>{data.name}</strong> is only open on this device. Save its {data.sessions.length} sleeps to the shared log so you don’t need the file again.</p>
+          <button type="button" className="button primary" onClick={importFile} disabled={busy}>
+            {busy ? 'Saving…' : 'Save to shared log'}
+          </button>
+        </div>
+      )}
+      {cloud && entries.length > 0 && (
+        <div className="notice">
+          <p><strong>{entries.length} entr{entries.length === 1 ? 'y is' : 'ies are'}</strong> saved only in this browser.</p>
+          <button type="button" className="button" onClick={moveLocal} disabled={busy}>Move to shared log</button>
+        </div>
+      )}
+
       <EntryForm
-        entries={entries}
+        entries={formEntries}
+        cloud={cloud}
         storageOk={storageOk}
-        onAdd={(e) => setEntries((list) => [...list, e])}
-        onDelete={(id) => setEntries((list) => list.filter((e) => e.id !== id))}
-        onClear={() => setEntries([])}
+        onAdd={addEntry}
+        onDelete={removeEntry}
+        onClear={cloud ? null : () => setEntries([])}
       />
 
       {sessions.length > 0 && (
         <>
           <p className="loaded">
-            Showing {data && <><strong>{data.name}</strong>{entries.length > 0 && ' + '}</>}
-            {entries.length > 0 && `${entries.length} entered on this site`}
+            Showing {data && <><strong>{data.name}</strong>{formEntries.length > 0 && ' + '}</>}
+            {formEntries.length > 0 && (cloud ? `shared log (${formEntries.length})` : `${formEntries.length} entered on this site`)}
             {' '}· {sessions.length} sleeps over {days.length} days
             {data?.errors.length > 0 && ` · ${data.errors.length} row(s) skipped`}
           </p>
