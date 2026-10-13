@@ -165,3 +165,19 @@ code { font-size: 0.85em; }
 .pill.night { background: var(--series-1); }
 .icon-button { border: 0; background: transparent; color: var(--text-muted); font-size: 1.2rem; cursor: pointer; border-radius: 6px; line-height: 1; padding: 4px; }
 .icon-button:hover { color: var(--critical); background: var(--grid); }
+
+.cloud-bar {
+  display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between;
+  padding: 12px 16px; background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; font-size: 0.9rem;
+}
+.cloud-text { color: var(--text-secondary); }
+.cloud-text strong { color: var(--text-primary); }
+.cloud-bar .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #0ca30c; margin-right: 4px; }
+.cloud-error { flex-basis: 100%; margin: 0; }
+.notice {
+  display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between;
+  padding: 12px 16px; border-radius: 12px; border: 1px dashed var(--accent); background: var(--surface-1); font-size: 0.9rem;
+}
+.notice p { margin: 0; color: var(--text-secondary); }
+.notice strong { color: var(--text-primary); }
+.button:disabled { opacity: 0.6; cursor: default; }

@@ -14,7 +14,7 @@ const EMPTY = { settle: '', asleep: '', woke: '', method: '', mood: '', notes: '
 const SHOW = 6;
 
 /** Form for adding sleeps by hand, plus the list of entries with export / delete. */
-export default function EntryForm({ entries, onAdd, onDelete, onClear, storageOk }) {
+export default function EntryForm({ entries, cloud, onAdd, onDelete, onClear, storageOk }) {
   const [values, setValues] = useState({ day: today(), type: 'nap', ...EMPTY });
   const [error, setError] = useState(null);
   const [showAll, setShowAll] = useState(false);
@@ -101,23 +101,25 @@ export default function EntryForm({ entries, onAdd, onDelete, onClear, storageOk
         </div>
       </form>
 
-      {!storageOk && (
+      {!cloud && !storageOk && (
         <p className="error">This browser is blocking storage, so entries will be lost when you close the page. Download them to keep them.</p>
       )}
 
       {entries.length > 0 && (
         <div className="entries">
           <div className="entries-head">
-            <h3>Your entries <span className="count">{entries.length}</span></h3>
+            <h3>{cloud ? 'Shared log' : 'Your entries'} <span className="count">{entries.length}</span></h3>
             <div className="actions-inline">
               <button type="button" className="button" onClick={download}>Download as Excel</button>
-              <button
-                type="button"
-                className="button ghost"
-                onClick={() => window.confirm('Delete all entries saved on this device?') && onClear()}
-              >
-                Clear all
-              </button>
+              {onClear && (
+                <button
+                  type="button"
+                  className="button ghost"
+                  onClick={() => window.confirm('Delete all entries saved on this device?') && onClear()}
+                >
+                  Clear all
+                </button>
+              )}
             </div>
           </div>
           <ul className="entry-list">
@@ -128,7 +130,7 @@ export default function EntryForm({ entries, onAdd, onDelete, onClear, storageOk
                 <span className="entry-time">{e.asleep}–{e.woke}</span>
                 <span className="entry-dur">{formatDuration(duration(e))}</span>
                 <span className="entry-extra">{[e.method, e.mood, e.notes].filter(Boolean).join(' · ')}</span>
-                <button type="button" className="icon-button" aria-label="Delete entry" onClick={() => onDelete(e.id)}>×</button>
+                <button type="button" className="icon-button" aria-label="Delete entry" onClick={() => (!cloud || window.confirm('Delete this sleep from the shared log?')) && onDelete(e.id)}>×</button>
               </li>
             ))}
           </ul>
@@ -137,7 +139,11 @@ export default function EntryForm({ entries, onAdd, onDelete, onClear, storageOk
               {showAll ? 'Show fewer' : `Show all ${sorted.length}`}
             </button>
           )}
-          <p className="hint">Saved in this browser only. Download them to keep a copy or to load them on another device.</p>
+          <p className="hint">
+            {cloud
+              ? 'Saved to your shared log — visible on every device where you sign in.'
+              : 'Saved in this browser only. Sign in above to keep them in the cloud, or download them as a copy.'}
+          </p>
         </div>
       )}
     </section>
