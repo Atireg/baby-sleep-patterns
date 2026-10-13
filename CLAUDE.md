@@ -73,7 +73,8 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
 - Charts use Plotly (`plotly.js-cartesian-dist-min@3.7.0`, lazy-loaded chunk ~476 kB gzip) via `PlotlyChart`. Colors always come
   from CSS tokens in `src/styles.css` through `useChartTheme` (night = `--series-1` blue, nap = `--series-2` orange, light + dark).
 - Lines must break across missing days/weeks (`connectgaps: false`, `breakGaps`); area fills are drawn per `segments`.
-- Summary tiles cover only the last 5 days with data (`RECENT_DAYS` in `App.jsx`); charts show everything.
+- Summary tiles average the last 5 days with data **before today** (today is incomplete; `RECENT_DAYS` in `App.jsx`),
+  heading shows the date range; hidden if there's no earlier data. Charts show everything, including today.
 - Sleep timeline: newest first, today on top labelled "Today", one row per calendar day incl. empty days.
 - Charts use a loaded file + saved entries (local, or the cloud log when signed in) combined; file sleeps already saved are
   not double-counted. Signed in, a loaded file shows a "Save to shared log" prompt; local entries can be moved to the cloud.

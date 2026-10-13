@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { readWorkbook } from './lib/readWorkbook.js';
-import { dailyStats, formatClock, formatDay, summary } from './lib/sleepData.js';
+import { dailyStats, dayKey, formatClock, formatDay, summary } from './lib/sleepData.js';
 import {
   WAKE_WINDOW_SERIES, detailSummary, hasDetails, methodsByWeek, settlingByWeek, wakeWindowsByWeek,
 } from './lib/insights.js';
@@ -108,8 +108,12 @@ export default function App() {
   }, [data, formEntries]);
   const dayMeta = data?.days ?? [];
   const days = useMemo(() => dailyStats(sessions), [sessions]);
-  // The summary tiles describe only the most recent days in the log.
-  const recentDays = useMemo(() => days.slice(-RECENT_DAYS), [days]);
+  // The summary tiles describe the last 5 days with data before today (today is still in progress).
+  const recentDays = useMemo(() => {
+    const now = new Date();
+    const today = dayKey({ y: now.getFullYear(), m: now.getMonth(), d: now.getDate() });
+    return days.filter((d) => d.day < today).slice(-RECENT_DAYS);
+  }, [days]);
   const stats = useMemo(() => summary(recentDays), [recentDays]);
   const detailed = useMemo(() => hasDetails(sessions), [sessions]);
   const insights = useMemo(() => {
@@ -181,12 +185,12 @@ export default function App() {
               <ul>{data.errors.map((e) => <li key={e}>{e}</li>)}</ul>
             </details>
           )}
-          <StatTiles
-            title={`Last ${recentDays.length} days`}
+          {recentDays.length > 0 && <StatTiles
+            title={`Last ${recentDays.length} day${recentDays.length === 1 ? '' : 's'} (excluding today)`}
             range={`${formatDay(recentDays[0].day, { day: 'numeric', month: 'short' })} – ${formatDay(recentDays.at(-1).day, { day: 'numeric', month: 'short' })}`}
             stats={stats}
             details={insights?.summary}
-          />
+          />}
           <DailyTotalsChart days={days} />
           <NapCountChart days={days} />
           {insights && (
