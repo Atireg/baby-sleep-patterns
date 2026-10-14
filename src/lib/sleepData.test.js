@@ -244,3 +244,25 @@ describe('night feeds', () => {
     expect(n.awakeMinutes).toBe(45);
   });
 });
+
+describe('upcomingNap', () => {
+  it('averages the same nap number over the last 3 days', async () => {
+    const { upcomingNap } = await import('./insights.js');
+    const { sessions } = rowsToSessions([
+      ['Date', 'Fell asleep', 'Woke up', 'Type'],
+      ['2026-10-09', '09:00', '11:00', 'Nap'], // older than 3 days: ignored
+      ['2026-10-10', '09:00', '10:00', 'Nap'], ['2026-10-10', '13:00', '14:30', 'Nap'],
+      ['2026-10-11', '09:00', '10:20', 'Nap'], ['2026-10-11', '13:00', '14:00', 'Nap'],
+      ['2026-10-12', '09:00', '09:40', 'Nap'],
+      ['2026-10-13', '09:00', '10:00', 'Nap'], // today: one nap done
+    ]);
+    const now = new Date(2026, 9, 13, 11, 0);
+    expect(upcomingNap(sessions, now)).toEqual({ position: 2, avgMinutes: 75, samples: 2, days: 3 });
+    const morning = new Date(2026, 9, 13, 7, 0); // before today's first nap ended
+    expect(upcomingNap(sessions, morning).position).toBe(1);
+    expect(upcomingNap(sessions, morning).avgMinutes).toBeCloseTo((60 + 80 + 40) / 3);
+    const late = rowsToSessions([['Date', 'Fell asleep', 'Woke up', 'Type'], ['2026-10-12', '09:00', '10:00', 'Nap'],
+      ['2026-10-13', '09:00', '10:00', 'Nap'], ['2026-10-13', '12:00', '13:00', 'Nap']]).sessions;
+    expect(upcomingNap(late, new Date(2026, 9, 13, 15, 0))).toMatchObject({ position: 3, avgMinutes: null });
+  });
+});

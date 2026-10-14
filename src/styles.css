@@ -309,3 +309,8 @@ code { font-size: 0.85em; }
 .legend { list-style: none; display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; padding: 0; font-size: 0.85rem; color: var(--text-secondary); }
 .legend li { display: flex; align-items: center; gap: 6px; }
 .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.nap-forecast { margin: 0; text-align: center; font-size: 0.95rem; color: var(--text-secondary); }
+.nap-forecast strong { color: var(--text-primary); }
+.nap-progress { display: grid; gap: 6px; }
+.nap-progress-bar { height: 8px; border-radius: 999px; background: var(--grid); overflow: hidden; }
+.nap-progress-bar > div { height: 100%; border-radius: 999px; background: var(--series-2); transition: width 1s linear; }

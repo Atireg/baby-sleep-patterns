@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { METHODS, MOODS } from '../lib/insights.js';
+import { useEffect, useMemo, useState } from 'react';
+import { METHODS, MOODS, upcomingNap } from '../lib/insights.js';
 import { atTime, awakeSince as findAwakeSince, formatTimer, hhmm, liveToEntry, typeAt } from '../lib/live.js';
 import { formatDuration } from '../lib/sleepData.js';
 
@@ -44,6 +44,18 @@ export default function LiveTracker({ live, onChange, onSave, sessions, busy }) 
   const sleeping = state === 'asleep' || state === 'nightawake';
   const now = useTicker(true);
   const awakeSince = findAwakeSince(sessions, live, now);
+  // How long the next (or current) nap usually lasts, from the last 3 days. Recomputed once a minute.
+  const minuteKey = Math.floor(now.getTime() / 60000);
+  const nap = useMemo(() => upcomingNap(sessions, new Date(minuteKey * 60000)), [sessions, minuteKey]);
+  const ordinal = (n) => `${n}${n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2 && n !== 12 ? 'nd' : n % 10 === 3 && n !== 13 ? 'rd' : 'th'}`;
+  const napForecast = (
+    <p className="nap-forecast">
+      💤 Next: <strong>{ordinal(nap.position)} nap</strong>
+      {nap.avgMinutes != null
+        ? <> · usually <strong>~{formatDuration(nap.avgMinutes)}</strong> <span className="muted">(last {nap.samples === 1 ? 'day' : `${nap.samples} days`} with a {ordinal(nap.position)} nap)</span></>
+        : <span className="muted"> · no {ordinal(nap.position)} nap in the last {nap.days || 3} days — maybe bedtime is next?</span>}
+    </p>
+  );
   const [at, setAt] = useState(''); // optional "tapped late" time
   const [finishing, setFinishing] = useState(null); // { woke, mood, notes }
   const [error, setError] = useState(null);
@@ -172,6 +184,7 @@ export default function LiveTracker({ live, onChange, onSave, sessions, busy }) 
               <button type="button" className="button" onClick={startAwake} disabled={busy}>Start awake timer</button>
             </div>
           )}
+          {idleType === 'nap' && napForecast}
           <div className="live-actions">
             <button type="button" className="button big" onClick={startSettling} disabled={busy}>Start settling</button>
             <button type="button" className="button big primary" onClick={fellAsleep} disabled={busy}>Fell asleep</button>
@@ -188,6 +201,7 @@ export default function LiveTracker({ live, onChange, onSave, sessions, busy }) 
               {awakeSince && <> · awake {formatTimer(now - awakeSince)} in total</>}
             </span>
           </div>
+          {live.type === 'nap' && napForecast}
           <Chips label="How she's falling asleep" options={METHODS} value={live.method} onChange={(m) => onChange({ ...live, method: m })} />
           <div className="live-actions">
             <button type="button" className="button big primary" onClick={fellAsleep} disabled={busy}>Fell asleep</button>
@@ -207,6 +221,24 @@ export default function LiveTracker({ live, onChange, onSave, sessions, busy }) 
               {wakings.some((w) => w.feed) && ` (${wakings.filter((w) => w.feed).length} feed${wakings.filter((w) => w.feed).length === 1 ? '' : 's'})`}
             </span>
           </div>
+          {live.type === 'nap' && nap.avgMinutes != null && (() => {
+            const elapsed = (now - since(live.asleep)) / 60000;
+            const share = Math.min(1, elapsed / nap.avgMinutes);
+            const expected = new Date(since(live.asleep).getTime() + nap.avgMinutes * 60000);
+            return (
+              <div className="nap-progress">
+                <p className="nap-forecast">
+                  💤 {ordinal(nap.position)} nap usually lasts <strong>~{formatDuration(nap.avgMinutes)}</strong>
+                  {elapsed < nap.avgMinutes
+                    ? <> · she may wake around <strong>{hhmm(expected)}</strong></>
+                    : <> · already {formatDuration(elapsed - nap.avgMinutes)} longer than usual 🎉</>}
+                </p>
+                <div className="nap-progress-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(share * 100)}>
+                  <div style={{ width: `${share * 100}%` }} />
+                </div>
+              </div>
+            );
+          })()}
           <Chips label="How she fell asleep" options={METHODS} value={live.method} onChange={(m) => onChange({ ...live, method: m })} />
           <div className="live-actions">
             <button type="button" className="button big primary" onClick={() => { setError(null); const t = when(); setAt(''); setFinishing({ woke: hhmm(t), tapped: t, mood: '', notes: '' }); }}>

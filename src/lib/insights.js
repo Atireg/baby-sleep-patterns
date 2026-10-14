@@ -281,3 +281,31 @@ export function friendsWindows(sessions, dayKeys, { from = 7 * 60, to = 19 * 60,
   }
   return [];
 }
+
+/**
+ * Forecast for the next (or current) nap: how long nap number N usually lasts, averaged over the
+ * last `days` days with naps before today. N = today's saved naps + 1.
+ * Returns { position, avgMinutes (null if those days had no nap N), samples, days }.
+ */
+export function upcomingNap(sessions, now = new Date(), days = 3) {
+  const pad = (n) => String(n).padStart(2, '0');
+  const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const napsByDay = new Map();
+  for (const s of sessions) {
+    if (s.type !== 'nap' || s.end > now) continue;
+    if (!napsByDay.has(s.day)) napsByDay.set(s.day, []);
+    napsByDay.get(s.day).push(s);
+  }
+  const position = (napsByDay.get(today)?.length ?? 0) + 1;
+  const previous = [...napsByDay.keys()].filter((d) => d < today).sort().slice(-days);
+  const lengths = previous
+    .map((d) => napsByDay.get(d).sort((a, b) => a.start - b.start)[position - 1])
+    .filter(Boolean)
+    .map((s) => s.minutes);
+  return {
+    position,
+    avgMinutes: lengths.length ? lengths.reduce((a, b) => a + b, 0) / lengths.length : null,
+    samples: lengths.length,
+    days: previous.length,
+  };
+}
