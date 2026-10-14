@@ -83,6 +83,8 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
 - Lines must break across missing days/weeks (`connectgaps: false`, `breakGaps`); area fills are drawn per `segments`.
 - Summary tiles average the last 5 days with data **before today** (today is incomplete; `RECENT_DAYS` in `App.jsx`),
   heading shows the date range; hidden if there's no earlier data. Charts show everything, including today.
+  Includes "Avg. awake time / day" (sum of the day's wake windows, morning wake → bedtime; only complete days) and
+  "Avg. wake window" (`awakeStats` in insights.js; windows ≥ 8h treated as missing data).
 - "Now" card (top of page, mobile-first): big running awake timer when idle (from the last sleep's end, or "Start awake timer"
   / "reset" → `live.awakeFrom`); live states: idle (no settle/asleep), settling, asleep. Start settling → Fell asleep (running timer) → Woke up (confirm time, mood, notes) → Save
   as a normal entry. Type auto by clock (18:00–05:59 = night), switchable. "Tapped late?" time field. Method chips while settling/asleep.

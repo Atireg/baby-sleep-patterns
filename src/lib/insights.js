@@ -184,3 +184,29 @@ export function daytimeTank(sessions, now, targetMinutes) {
     awakeSince: !current && ended && now - ended.end < 12 * 3600000 ? ended.end : null,
   };
 }
+
+/**
+ * Awake-time averages for the summary tiles.
+ * - avgWakeWindow: mean time awake before each nap and before bedtime.
+ * - avgAwakePerDay: mean total awake time from morning wake-up to falling asleep for the night,
+ *   counted only for days where every wake window of the day is known (naps + bedtime).
+ */
+export function awakeStats(sessions) {
+  const windows = [];
+  const byDay = new Map();
+  for (const s of sessions) {
+    if (s.position === undefined || s.position === null) continue; // later night stretches aren't daytime
+    // 8h+ "windows" mean a missing entry, not a real wake window.
+    const w = s.wakeWindow != null && s.wakeWindow < 8 * 60 ? s.wakeWindow : null;
+    if (!byDay.has(s.day)) byDay.set(s.day, []);
+    byDay.get(s.day).push({ ...s, wakeWindow: w });
+    if (w != null) windows.push(w);
+  }
+  const dayTotals = [];
+  for (const list of byDay.values()) {
+    const complete = list.some((s) => s.position === 'bedtime') && list.every((s) => s.wakeWindow != null);
+    if (complete) dayTotals.push(list.reduce((sum, s) => sum + s.wakeWindow, 0));
+  }
+  const mean = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
+  return { avgWakeWindow: mean(windows), avgAwakePerDay: mean(dayTotals), days: dayTotals.length };
+}
