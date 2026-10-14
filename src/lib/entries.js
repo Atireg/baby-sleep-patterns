@@ -3,7 +3,7 @@ import { rowsToSessions } from './sleepData.js';
 
 const STORAGE_KEY = 'baby-sleep-entries-v1';
 
-export const EXPORT_HEADERS = ['Date', 'Settling start', 'Fell asleep', 'Woke up', 'Type', 'How fell asleep', 'Mood after', 'Notes', 'Night wakings'];
+export const EXPORT_HEADERS = ['Date', 'Settling start', 'Fell asleep', 'Woke up', 'Type', 'How fell asleep', 'Mood after', 'Notes', 'Night wakings', 'Nap extended'];
 
 export function loadEntries() {
   try {
@@ -50,9 +50,14 @@ export function makeEntry(values, id = newId()) {
       mood: values.mood || '',
       notes: (values.notes || '').trim(),
       wakings: checked.wakings,
+      // Naps only: was the nap extended (re-settled to sleep longer)? true / false / null = not answered.
+      extended: type === 'nap' ? toYesNo(values.extended) : null,
     },
   };
 }
+
+/** 'yes' / true → true, 'no' / false → false, anything else → null. */
+export const toYesNo = (v) => (v === true || v === 'yes' ? true : v === false || v === 'no' ? false : null);
 
 const toMin = (hhmm) => +hhmm.slice(0, 2) * 60 + +hhmm.slice(3, 5);
 
@@ -84,6 +89,7 @@ export function entriesToRows(entries) {
     EXPORT_HEADERS,
     ...sorted.map((e) => [
       e.day, e.settle, e.asleep, e.woke, e.type === 'night' ? 'Night' : 'Nap', e.method, e.mood, e.notes, formatWakings(e.wakings),
+      e.type === 'nap' && e.extended != null ? (e.extended ? 'Yes' : 'No') : '',
     ]),
   ];
 }
@@ -115,4 +121,5 @@ export const entryToValues = (e) => ({
   day: e.day, type: e.type, settle: e.settle || '', asleep: e.asleep, woke: e.woke,
   method: e.method || '', mood: e.mood || '', notes: e.notes || '',
   wakings: (e.wakings ?? []).map((w) => ({ ...w })),
+  extended: e.extended === true ? 'yes' : e.extended === false ? 'no' : '',
 });

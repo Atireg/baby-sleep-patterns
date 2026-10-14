@@ -431,6 +431,8 @@ export function dayDetails(day, sessions) {
     nightWakings: wakings.length,
     nightAwakeMinutes: wakings.reduce((a, w) => a + w.minutes, 0),
     nightFeeds: details.filter((w) => w.feed).length,
+    extendedNaps: naps.filter((s) => s.extended === true).length,
+    napsAnswered: naps.filter((s) => s.extended != null).length,
     independent: firsts.filter((s) => methodLabel(s.method) === 'Independently').length,
     withMethod: firsts.filter((s) => s.method).length,
   };

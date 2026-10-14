@@ -15,6 +15,7 @@ const HEADER_ALIASES = {
   method: ['howfellasleep', 'method', 'settlingmethod'],
   mood: ['moodafter', 'mood', 'moodafterwaking'],
   wakings: ['nightwakings', 'nightwaking', 'wakings', 'awakeatnight'],
+  extended: ['napextended', 'extended', 'resettled', 'doprispivane'],
 };
 
 const normalizeHeader = (h) => String(h ?? '').toLowerCase().replace(/[^a-z]/g, '');
@@ -227,6 +228,10 @@ function optionalDetails(row, cols, startMinutes) {
   const text = (col) => (cols[col] !== undefined ? String(row[cols[col]] ?? '').trim() : '');
   if (text('method')) details.method = text('method');
   if (text('mood')) details.mood = text('mood');
+  // "Was the nap extended?" yes/no (blank = not answered).
+  const ext = text('extended').toLowerCase();
+  if (/^(yes|y|да|true|1)$/.test(ext)) details.extended = true;
+  else if (/^(no|n|не|false|0)$/.test(ext)) details.extended = false;
   return details;
 }
 

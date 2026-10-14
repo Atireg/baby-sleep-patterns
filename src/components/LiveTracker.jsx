@@ -370,7 +370,21 @@ export default function LiveTracker({ live, onChange, onSave, sessions, busy }) 
             {wakings.length > 0 && ` with ${wakings.length} night waking${wakings.length === 1 ? '' : 's'}`}
             {' '}({hhmm(since(live.asleep))}–{finishing.woke})
           </p>
-          <Chips label="Mood after" options={MOODS} value={finishing.mood} onChange={(m) => setFinishing({ ...finishing, mood: m })} />
+          {live.type === 'nap' && (
+            <div className="live-yesno">
+              <span>Was the nap extended?</span>
+              <Chips
+                label="Was the nap extended?"
+                options={['Yes', 'No']}
+                value={finishing.extended === 'yes' ? 'Yes' : finishing.extended === 'no' ? 'No' : ''}
+                onChange={(v) => setFinishing({ ...finishing, extended: v === 'Yes' ? 'yes' : v === 'No' ? 'no' : '' })}
+              />
+            </div>
+          )}
+          <div className="live-yesno">
+            <span>Mood after waking</span>
+            <Chips label="Mood after" options={MOODS} value={finishing.mood} onChange={(m) => setFinishing({ ...finishing, mood: m })} />
+          </div>
           <input
             type="text"
             className="live-notes"

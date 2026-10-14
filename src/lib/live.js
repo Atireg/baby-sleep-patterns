@@ -1,7 +1,7 @@
 // The sleep currently being tracked live ("Now" card): settling → asleep → woke up.
 // Shape: { type: 'nap'|'night', settle: ISO|null, asleep: ISO|null, method: string }
 import { inferType } from './sleepData.js';
-import { checkWakings } from './entries.js';
+import { checkWakings, toYesNo } from './entries.js';
 
 const LOCAL_KEY = 'baby-sleep-live-v1';
 const pad = (n) => String(n).padStart(2, '0');
@@ -77,6 +77,7 @@ export function liveToEntry(live, woke, extra = {}) {
       mood: extra.mood || '',
       notes: (extra.notes || '').trim(),
       wakings: checked.wakings,
+      extended: live.type === 'nap' ? toYesNo(extra.extended) : null,
     },
   };
 }
