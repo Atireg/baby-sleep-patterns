@@ -213,7 +213,7 @@ export default function App() {
       />
       {notice && <p className="loaded" role="status">{notice}</p>}
 
-      <LiveTracker live={live} onChange={changeLive} onSave={saveLiveEntry} sessions={sessions} busy={busy} awakeAvg={awakeAvg} />
+      <LiveTracker live={live} onChange={changeLive} onSave={saveLiveEntry} sessions={sessions} busy={busy} awakeAvg={awakeAvg} recentKeys={recentKeys} />
       {(sessions.length > 0 || live?.asleep) && (
         <DaytimeTank sessions={tankSessions} autoTarget={stats?.avgNap ?? 0} />
       )}

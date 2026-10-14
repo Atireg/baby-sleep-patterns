@@ -454,3 +454,21 @@ export function dayAwakeTotal(sessions, day, bedtime) {
     .reduce((sum, s) => sum + s.minutes, 0);
   return { minutes: Math.round((bedtime - wake) / 60000) - napMinutes, wake, bedtime, napMinutes };
 }
+
+/**
+ * Actual wake windows for the given days (no averages): one row per nap number plus bedtime,
+ * one value per day (minutes, or null when not known). Rows only for naps that occurred.
+ * Returns [{ key: 1 | 2 | … | 'bedtime', values: [minutes|null per day] }].
+ */
+export function wakeWindowGrid(sessions, dayKeys) {
+  const byKey = new Map();
+  let maxNap = 0;
+  for (const s of sessions) {
+    if (!dayKeys.includes(s.day) || s.position == null) continue;
+    byKey.set(`${s.day}|${s.position}`, s.wakeWindow != null && s.wakeWindow < 8 * 60 ? s.wakeWindow : null);
+    if (typeof s.position === 'number') maxNap = Math.max(maxNap, s.position);
+  }
+  const keys = [...Array.from({ length: maxNap }, (_, i) => i + 1), 'bedtime'];
+  return keys.map((key) => ({ key, values: dayKeys.map((d) => byKey.get(`${d}|${key}`) ?? null) }))
+    .filter((row) => row.key !== 'bedtime' || row.values.some((v) => v != null));
+}

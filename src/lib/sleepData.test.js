@@ -393,3 +393,23 @@ describe('dayAwakeTotal', () => {
     expect(dayAwakeTotal(sessions, '2026-10-14', new Date(2026, 9, 14, 19, 30))).toBeNull();
   });
 });
+
+describe('wakeWindowGrid', () => {
+  it('lists the actual wake window per nap and bedtime for each day', async () => {
+    const { wakeWindowGrid } = await import('./insights.js');
+    const { sessions } = rowsToSessions([
+      ['Date', 'Fell asleep', 'Woke up', 'Type'],
+      ['2026-10-10', '19:00', '06:30', 'Night'],
+      ['2026-10-11', '08:30', '09:30', 'Nap'], ['2026-10-11', '12:00', '13:00', 'Nap'], ['2026-10-11', '19:00', '06:00', 'Night'],
+      ['2026-10-12', '08:00', '09:00', 'Nap'], ['2026-10-12', '12:30', '13:30', 'Nap'], ['2026-10-12', '16:00', '16:30', 'Nap'],
+      ['2026-10-12', '19:30', '06:30', 'Night'],
+    ]);
+    const grid = wakeWindowGrid(sessions, ['2026-10-11', '2026-10-12']);
+    expect(grid).toEqual([
+      { key: 1, values: [120, 120] },
+      { key: 2, values: [150, 210] },
+      { key: 3, values: [null, 150] },
+      { key: 'bedtime', values: [360, 180] },
+    ]);
+  });
+});

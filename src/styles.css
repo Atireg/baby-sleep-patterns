@@ -338,3 +338,12 @@ code { font-size: 0.85em; }
 .yesno-buttons { display: flex; gap: 6px; }
 .yesno-buttons .chip { min-width: 64px; min-height: 38px; }
 .live-yesno { display: grid; gap: 6px; font-size: 0.85rem; color: var(--text-secondary); }
+.ww-table { border: 1px solid var(--border); border-radius: 10px; padding: 6px 10px; }
+.ww-table summary { cursor: pointer; font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); padding: 2px 0; }
+.recent-table.compact { font-size: 0.82rem; }
+.recent-table.compact th, .recent-table.compact td { padding: 5px 6px; }
+.recent-table.compact tbody th[scope="row"] { min-width: 72px; }
+.recent-table tr.next-row th, .recent-table tr.next-row td { background: color-mix(in srgb, var(--series-3) 14%, var(--surface-1)); color: var(--text-primary); font-weight: 600; }
+/* Cards are single-column grids; let wide content (tables) scroll inside instead of stretching the card. */
+.card { grid-template-columns: minmax(0, 1fr); }
+.ww-table { min-width: 0; }
