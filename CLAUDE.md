@@ -43,7 +43,8 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
 - `src/lib/readWorkbook.js` – reads the first sheet via SheetJS (`xlsx`) and picks the parser by format.
 - `src/lib/entries.js` – sleeps entered on the site: validation (`makeEntry(values, id?)`, `checkWakings`), `replaceEntry` (edit by
   id, refuses duplicates), `entryToValues`, localStorage (`baby-sleep-entries-v1`), conversion, Excel export rows.
-  Entry shape: `{ id, day, type, settle, asleep, woke, method, mood, notes, wakings: [{ from, to, feed }] }` (HH:MM; wakings nights only).
+  Entry shape: `{ id, day, type, settle, asleep, woke, method, mood, notes, wakings: [{ from, to, feed }], extended }` (HH:MM;
+  wakings nights only; `extended` = "Was the nap extended?" true/false/null, naps only; `toYesNo`).
 - `src/lib/cloud.js` – Firebase wrapper (sign-in, live `watchEntries`, `addEntries`, `updateEntry` (moves between month docs
   in one transaction), `deleteEntry`, `watchLive`/`setLive`, `describeError`);
   `src/lib/cloudData.js` – pure helpers (month grouping, merge/dedupe, `sessionsToEntries` for importing a file).
@@ -81,7 +82,8 @@ Two layouts are auto-detected (`isConsultantLog` = column A contains "Сутре
 
 ### 2. Simple layout (also the entry-form export format)
 Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`Start`, `Woke up`/`End`, optional `Type` (Night/Nap),
-`Settling start`, `How fell asleep`, `Mood after`, `Notes`, `Night wakings` ("01:10-01:45 feed, 04:30-04:40"; splits the night;
+`Settling start`, `How fell asleep`, `Mood after`, `Notes`, `Night wakings`, `Nap extended` (Yes/No/да/не; consultant
+"доприспиване" maps to it) ("01:10-01:45 feed, 04:30-04:40"; splits the night;
 "feed"/"fed"/"хран"/"кърм"/🍼 after a range marks a feed).
 - Blank `Date` repeats the row above.
 - `End` ≤ `Start` → sleep crossed midnight.
@@ -100,7 +102,8 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
 - "Last 5 days": the 5 most recent days with data **before today** (`RECENT_DAYS` in `App.jsx`). Shown as `RecentDaysTable`:
   a day-by-day table of **actual numbers** (user request: no averages), newest day first, rows = total sleep, night sleep,
   naps (+ lengths), nap time, awake during the day, time to fall asleep (each nap / bedtime / day total), morning wake-up,
-  bedtime, night wakings (+ awake time, feeds), fell asleep on her own (x of y) — values from `dayDetails`. Only **Total sleep**
+  naps extended (x of y answered), bedtime, night wakings (+ awake time, feeds), fell asleep on her own (x of y) — values from
+  `dayDetails`. Only **Total sleep**
   and **Awake during the day** get an "Average" column at the end. Sticky first column; scrolls sideways on phones.
   The same 5 days drive the sleep timeline, the friends windows and the Sleep per day reference line.
 - Sleep per day: shaded last-5 days + dashed 5-day average line with label; dotted 7-day rolling average excludes today.
@@ -119,6 +122,7 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
   (bedtime → expected wake-up), from `expectedWakeUp`.
 - Editing: each listed entry has ✎ (loads it into the form → "Save changes"/"Cancel edit") and × (delete). "Show day" filter.
   The form has "Night wakings" rows (Woke at / Back asleep at / 🍼 Feed) for nights; list durations subtract wakings.
+  Naps have "Was the nap extended?" Yes/No (form chips; Now card finish step for naps); list shows "extended"/"not extended".
 - Daytime sleep tank: today's naps (`daytimeTank`; a nap in progress counts up to now) vs target = 5-day average nap time (auto)
   or a fixed choice (localStorage `baby-sleep-nap-target`); "awake/asleep since"; refreshes every minute.
 - Last night card (`LastNightCard`, after the tank): tiles Asleep / **Awake during the night** (highlighted amber) / Wakings /

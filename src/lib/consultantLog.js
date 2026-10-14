@@ -102,6 +102,7 @@ export function consultantLogToSessions(rows) {
           method: String(row[c + 5] ?? '').trim(),
           mood: String(row[c + 6] ?? '').trim(),
           resettled: norm(row[c + 7]) === 'да',
+          extended: norm(row[c + 7]) === 'да' ? true : norm(row[c + 7]) === 'не' ? false : undefined,
           notes: '',
         });
         lastWake = finish;

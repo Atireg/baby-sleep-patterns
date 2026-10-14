@@ -14,6 +14,7 @@ const ROWS = [
   { label: 'Night sleep', value: (d) => dur(d.nightMinutes) },
   { label: 'Naps', value: (d) => (d.naps ? <>{d.naps}<small>{d.napLengths.map(formatDuration).join(' · ')}</small></> : '0') },
   { label: 'Nap time', value: (d) => dur(d.napMinutes) },
+  { label: 'Naps extended', value: (d) => (d.napsAnswered ? `${d.extendedNaps} of ${d.napsAnswered}` : '–') },
   { label: 'Awake during the day', value: (d) => dur(d.awakeMinutes), avg: (d) => d.awakeMinutes },
   { section: 'Time to fall asleep' },
   { label: 'Each nap', value: (d) => (d.napSettle.length ? d.napSettle.map(dur).join(' · ') : '–') },

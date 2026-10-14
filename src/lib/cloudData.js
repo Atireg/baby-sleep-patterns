@@ -54,6 +54,7 @@ export function sessionsToEntries(sessions) {
       asleep: formatClock(s.start),
       woke: formatClock(s.end),
       method: s.method ? methodLabel(s.method) : '',
+      extended: s.type === 'nap' && s.extended != null ? s.extended : null,
       mood: s.mood ? moodLabel(s.mood) : '',
       notes: s.notes ?? '',
     };

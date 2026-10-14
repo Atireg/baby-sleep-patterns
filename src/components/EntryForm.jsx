@@ -12,7 +12,7 @@ const minutes = (hhmm) => +hhmm.slice(0, 2) * 60 + +hhmm.slice(3, 5);
 const span = (from, to) => (minutes(to) - minutes(from) + 1440) % 1440;
 // Time actually asleep: the whole span minus any night wakings.
 const duration = (e) => span(e.asleep, e.woke) - (e.wakings ?? []).reduce((sum, w) => sum + span(w.from, w.to), 0);
-const EMPTY = { settle: '', asleep: '', woke: '', method: '', mood: '', notes: '', wakings: [] };
+const EMPTY = { settle: '', asleep: '', woke: '', method: '', mood: '', notes: '', wakings: [], extended: '' };
 const SHOW = 6;
 
 /** Form for adding sleeps by hand, plus the list of entries with export / delete. */
@@ -131,6 +131,24 @@ export default function EntryForm({ entries, cloud, onAdd, onUpdate, onDelete, o
           <span>Notes <em>optional</em></span>
           <input type="text" value={values.notes} onChange={set('notes')} placeholder="e.g. short nap in the car" />
         </label>
+        {values.type === 'nap' && (
+          <fieldset className="yesno">
+            <legend>Was the nap extended?</legend>
+            <div className="yesno-buttons" role="group">
+              {[['yes', 'Yes'], ['no', 'No']].map(([v, label]) => (
+                <button
+                  key={v}
+                  type="button"
+                  className={`chip ${values.extended === v ? 'active' : ''}`}
+                  aria-pressed={values.extended === v}
+                  onClick={() => setValues((x) => ({ ...x, extended: x.extended === v ? '' : v }))}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+        )}
         {values.type === 'night' && (
           <fieldset className="wakings wide">
             <legend>Night wakings <em>optional — times she was awake during the night</em></legend>
@@ -197,6 +215,7 @@ export default function EntryForm({ entries, cloud, onAdd, onUpdate, onDelete, o
                 <span className="entry-dur">{formatDuration(duration(e))}</span>
                 <span className="entry-extra">
                   {[
+                    e.extended === true ? 'extended' : e.extended === false ? 'not extended' : '',
                     e.wakings?.length ? `woke ${e.wakings.length}× at night` : '',
                     e.wakings?.some((w) => w.feed) ? `🍼 ${e.wakings.filter((w) => w.feed).length} feed${e.wakings.filter((w) => w.feed).length === 1 ? '' : 's'}` : '',
                     e.method, e.mood, e.notes,

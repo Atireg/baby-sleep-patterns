@@ -182,7 +182,7 @@ describe('night wakings', () => {
     expect(pieces[1].settleMinutes).toBeUndefined();
     expect(pieces.every((p) => p.day === '2026-10-13')).toBe(true);
     // Export keeps the wakings so the file can be read back.
-    expect(entriesToRows([entry])[1].at(-1)).toBe('23:50-00:20, 04:00-04:15');
+    expect(entriesToRows([entry])[1][8]).toBe('23:50-00:20, 04:00-04:15');
     // Naps ignore wakings.
     expect(makeEntry({ ...base, type: 'nap', asleep: '09:00', woke: '10:00', wakings: [{ from: '09:30', to: '09:40' }] }).entry.wakings).toEqual([]);
   });
@@ -237,7 +237,7 @@ describe('night feeds', () => {
       day: '2026-10-13', type: 'night', asleep: '19:30', woke: '06:30',
       wakings: [{ from: '01:10', to: '01:45', feed: true }, { from: '04:30', to: '04:40' }],
     });
-    expect(entriesToRows([entry])[1].at(-1)).toBe('01:10-01:45 feed, 04:30-04:40');
+    expect(entriesToRows([entry])[1][8]).toBe('01:10-01:45 feed, 04:30-04:40');
     const n = lastNight(entriesToSessions([entry]), new Date(2026, 9, 14, 9, 0));
     expect(n.wakings.map((w) => [w.minutes, w.feed])).toEqual([[35, true], [10, false]]);
     expect(n.feeds).toBe(1);
@@ -358,5 +358,23 @@ describe('dayDetails', () => {
     });
     expect(r.morningWake).toEqual(new Date(2026, 9, 12, 6, 30));
     expect(r.bedtime).toEqual(new Date(2026, 9, 12, 19, 20));
+  });
+});
+
+describe('nap extended', () => {
+  it('stores yes/no for naps, exports and reads it back', async () => {
+    const { makeEntry, entriesToRows, entriesToSessions, entryToValues } = await import('./entries.js');
+    const { dayDetails } = await import('./insights.js');
+    const a = makeEntry({ day: '2026-10-13', type: 'nap', asleep: '09:00', woke: '10:00', extended: 'yes' }).entry;
+    const b = makeEntry({ day: '2026-10-13', type: 'nap', asleep: '13:00', woke: '14:00', extended: 'no' }).entry;
+    const c = makeEntry({ day: '2026-10-13', type: 'nap', asleep: '16:00', woke: '16:30' }).entry;
+    const n = makeEntry({ day: '2026-10-13', type: 'night', asleep: '19:30', woke: '06:30', extended: 'yes' }).entry;
+    expect([a.extended, b.extended, c.extended, n.extended]).toEqual([true, false, null, null]);
+    expect(entryToValues(a).extended).toBe('yes');
+    expect(entriesToRows([a, b, c]).slice(1).map((r) => r.at(-1))).toEqual(['Yes', 'No', '']);
+    const sessions = entriesToSessions([a, b, c, n]);
+    expect(sessions.filter((s) => s.type === 'nap').map((s) => s.extended)).toEqual([true, false, undefined]);
+    const day = dailyStats(sessions)[0];
+    expect(dayDetails(day, sessions)).toMatchObject({ extendedNaps: 1, napsAnswered: 2 });
   });
 });
