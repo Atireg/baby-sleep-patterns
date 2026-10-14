@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  METHODS, MOODS, dayAwakeTotal, expectedBedtime, expectedWakeUp, upcomingNap, upcomingWakeWindow, wakeWindowGrid,
+  METHODS, MOODS, dayAwakeTotal, expectedBedtime, expectedWakeUp, upcomingNap, upcomingWakeWindow,
 } from '../lib/insights.js';
 import { atTime, awakeSince as findAwakeSince, formatTimer, hhmm, liveToEntry, resolveWakings, sleepDay, typeAt } from '../lib/live.js';
-import { formatDay, formatDuration } from '../lib/sleepData.js';
+import { formatDuration } from '../lib/sleepData.js';
 
 /** Ticks every second while a timer is on screen. */
 function useTicker(active) {
@@ -40,7 +40,7 @@ function Chips({ options, value, onChange, label }) {
  * live: { type, settle, asleep, method, wakings: [{ from, to }], wakingFrom } or null (ISO times);
  * onChange persists it; onSave(entry) stores the finished sleep.
  */
-export default function LiveTracker({ live, onChange, onSave, sessions, busy, awakeAvg = null, recentKeys = [] }) {
+export default function LiveTracker({ live, onChange, onSave, sessions, busy, awakeAvg = null }) {
   // live may hold only { awakeFrom } (a manually started awake timer) — that still counts as idle.
   const state = live?.asleep ? (live.wakingFrom ? 'nightawake' : 'asleep') : live?.settle ? 'settling' : 'idle';
   const sleeping = state === 'asleep' || state === 'nightawake';
@@ -134,37 +134,6 @@ export default function LiveTracker({ live, onChange, onSave, sessions, busy, aw
         {awakeAvg != null && ` · 5-day avg ${formatDuration(awakeAvg)}`}
       </span>
     </p>
-  );
-  // Actual wake windows before each nap / bedtime on the last 5 days (newest first).
-  const grid = useMemo(() => {
-    const keys = [...recentKeys].reverse();
-    return { keys, rows: wakeWindowGrid(sessions, keys) };
-  }, [sessions, recentKeys]);
-  const nextKey = wakeWindow?.target ?? nap.position;
-  const wakeWindowTable = grid.rows.length > 0 && (
-    <details className="ww-table" open>
-      <summary>Wake windows · last {grid.keys.length} days</summary>
-      <div className="recent-table-wrap">
-        <table className="recent-table compact">
-          <thead>
-            <tr>
-              <th scope="col"><span className="sr-only">Before</span></th>
-              {grid.keys.map((d) => (
-                <th scope="col" key={d}>{formatDay(d, { weekday: 'short' })}<small>{formatDay(d, { day: 'numeric', month: 'short' })}</small></th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {grid.rows.map((row) => (
-              <tr key={row.key} className={row.key === nextKey ? 'next-row' : ''}>
-                <th scope="row">{row.key === 'bedtime' ? 'Bedtime' : `${ordinal(row.key)} nap`}{row.key === nextKey && <small>next</small>}</th>
-                {row.values.map((v, i) => <td key={grid.keys[i]}>{v == null ? '–' : formatDuration(v)}</td>)}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </details>
   );
   function ordinal(n) {
     return `${n}${n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2 && n !== 12 ? 'nd' : n % 10 === 3 && n !== 13 ? 'rd' : 'th'}`;
@@ -322,7 +291,6 @@ export default function LiveTracker({ live, onChange, onSave, sessions, busy, aw
             </div>
           )}
           {wakeWindowLine}
-          {wakeWindowTable}
           {idleType === 'nap' && napForecast}
           {bedtimeLine}
           <div className="live-actions">

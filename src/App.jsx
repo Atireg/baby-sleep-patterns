@@ -20,6 +20,7 @@ import RecentDaysTable from './components/RecentDaysTable.jsx';
 import DailyTotalsChart from './components/DailyTotalsChart.jsx';
 import NapCountChart from './components/NapCountChart.jsx';
 import SleepTimeline from './components/SleepTimeline.jsx';
+import WakeWindowsCard from './components/WakeWindowsCard.jsx';
 import WeeklyLineChart from './components/WeeklyLineChart.jsx';
 import MethodShareChart from './components/MethodShareChart.jsx';
 
@@ -213,7 +214,7 @@ export default function App() {
       />
       {notice && <p className="loaded" role="status">{notice}</p>}
 
-      <LiveTracker live={live} onChange={changeLive} onSave={saveLiveEntry} sessions={sessions} busy={busy} awakeAvg={awakeAvg} recentKeys={recentKeys} />
+      <LiveTracker live={live} onChange={changeLive} onSave={saveLiveEntry} sessions={sessions} busy={busy} awakeAvg={awakeAvg} />
       {(sessions.length > 0 || live?.asleep) && (
         <DaytimeTank sessions={tankSessions} autoTarget={stats?.avgNap ?? 0} />
       )}
@@ -224,6 +225,7 @@ export default function App() {
           onSaveNotes={(notes) => changeEntry(nightEntry, { ...nightEntry, notes })}
         />
       )}
+      {recentDays.length > 0 && <WakeWindowsCard sessions={sessions} dayKeys={recentKeys} />}
       {recentDays.length > 0 && <SleepTimeline sessions={sessions} dayKeys={recentKeys} friends={friends} />}
 
       {SHOW_FILE_UPLOAD && <FileDrop onFile={onFile} onSample={onSample} />}
