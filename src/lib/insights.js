@@ -353,3 +353,24 @@ export function expectedWakeUp(sessions, now = new Date(), days = 3) {
   });
   return { minutes: Math.round(mins.reduce((a, b) => a + b, 0) / mins.length), samples: mins.length };
 }
+
+/**
+ * Usual wake window before the next sleep, from the last `days` days before today:
+ * the average time awake before nap N (N = today's saved naps + 1), or before bedtime when
+ * those days had no nap N. Returns { target: N | 'bedtime', avgMinutes, samples } or null.
+ */
+export function upcomingWakeWindow(sessions, now = new Date(), days = 5) {
+  const pad = (n) => String(n).padStart(2, '0');
+  const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const napsToday = sessions.filter((s) => s.type === 'nap' && s.day === today && s.end <= now).length;
+  const previous = [...new Set(sessions.filter((s) => s.day < today).map((s) => s.day))].sort().slice(-days);
+  const windowsFor = (position) => previous
+    .map((d) => sessions.find((s) => s.day === d && s.position === position))
+    .filter((s) => s && s.wakeWindow != null && s.wakeWindow < 8 * 60)
+    .map((s) => s.wakeWindow);
+  for (const target of [napsToday + 1, 'bedtime']) {
+    const w = windowsFor(target);
+    if (w.length) return { target, avgMinutes: w.reduce((a, b) => a + b, 0) / w.length, samples: w.length };
+  }
+  return null;
+}

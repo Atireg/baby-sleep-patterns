@@ -54,7 +54,8 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
   `lastNight` (yesterday-dated night; wakings = gaps between its stretches, `feed` matched from `nightWakings`; `feeds` count),
   `friendsWindows`, `upcomingNap` (avg length of nap #N over the last 3 days with naps before today), `expectedBedtime`
   (avg first-stretch bedtime of the last 3 nights; after-midnight counts as +24h), `expectedWakeUp` (avg end of the last 3
-  completed nights), label translations (BG + EN).
+  completed nights), `upcomingWakeWindow` (avg wake window before nap N, else before bedtime, over the last 5 days),
+  label translations (BG + EN).
 - `src/lib/series.js` – gap handling: `breakGaps`, `segments`, `rollingMean` (calendar days), `allWeeks`.
 - `src/lib/theme.js` – resolves CSS color tokens for Plotly (`useChartTheme`), `baseLayout`, `durationAxis`, `rangeButtons`.
 - `src/components/` – `PlotlyChart` (lazy-loads Plotly, card wrapper), `DailyTotalsChart`, `NapCountChart`, `WeeklyLineChart`,
@@ -103,6 +104,8 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
   as a normal entry. Nights: "Night waking" / "Back asleep" record `live.wakings` (with "🍼 Mark as a feed" → `live.wakingFeed`);
   "Up for the day" ends the night at the waking time. Type auto by clock (18:00–05:59 = night), switchable. "Tapped late?" time field. "Edit times or type". Method chips.
   The sleep in progress counts in the tank (`tankSessions`) but not in charts until saved.
+  Wake-window line (idle): "⏱ Wake window before the Nth nap/bedtime: usually ~X · sleepy around HH:MM" (or "X over — time to
+  settle?") + bar of awake time vs the usual window (green, orange when over), from `upcomingWakeWindow`.
   Nap forecast (naps only): idle/settling "💤 Next: Nth nap · usually ~X"; during a nap "may wake around HH:MM" + progress bar
   (or "already X longer than usual"); N = today's saved naps + 1, from `upcomingNap`.
   Bedtime line (idle, and while settling a night): "🌙 Expected bedtime ~HH:MM · in X / about now (±10m) / X past the usual

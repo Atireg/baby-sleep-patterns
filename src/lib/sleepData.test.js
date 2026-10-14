@@ -300,3 +300,22 @@ describe('expectedWakeUp', () => {
     expect(expectedWakeUp([], new Date())).toBeNull();
   });
 });
+
+describe('upcomingWakeWindow', () => {
+  it('averages the wake window before the next nap (or bedtime) over 5 days', async () => {
+    const { upcomingWakeWindow } = await import('./insights.js');
+    const rows = [['Date', 'Fell asleep', 'Woke up', 'Type']];
+    // Previous days: up 06:30, nap 1 at 08:30 (2h), nap 2 two hours 30 after nap 1 ends, bedtime 4h after nap 2.
+    for (const [d, n2] of [['2026-10-08', '12:00'], ['2026-10-09', '12:00'], ['2026-10-10', '12:30'], ['2026-10-11', '12:30'], ['2026-10-12', '12:00']]) {
+      rows.push([d, '08:30', '09:30', 'Nap'], [d, n2, '14:00', 'Nap'], [d, '18:00', '06:30', 'Night']);
+    }
+    rows.push(['2026-10-13', '08:30', '09:30', 'Nap']);
+    const { sessions } = rowsToSessions(rows);
+    const mid = upcomingWakeWindow(sessions, new Date(2026, 9, 13, 10, 0));
+    expect(mid.target).toBe(2);
+    expect(mid.avgMinutes).toBe((150 * 3 + 180 * 2) / 5);
+    // After the usual number of naps the next sleep is bedtime.
+    const after = rowsToSessions([...rows, ['2026-10-13', '12:00', '14:00', 'Nap']]).sessions;
+    expect(upcomingWakeWindow(after, new Date(2026, 9, 13, 15, 0))).toMatchObject({ target: 'bedtime', avgMinutes: 240 });
+  });
+});

@@ -315,3 +315,5 @@ code { font-size: 0.85em; }
 .nap-progress-bar { height: 8px; border-radius: 999px; background: var(--grid); overflow: hidden; }
 .nap-progress-bar > div { height: 100%; border-radius: 999px; background: var(--series-2); transition: width 1s linear; }
 .nap-progress-bar.night > div { background: var(--series-1); }
+.nap-progress-bar.window > div { background: var(--series-3); }
+.nap-progress-bar.window.over > div { background: var(--series-2); }
