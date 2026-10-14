@@ -175,7 +175,7 @@ describe('night wakings', () => {
     expect(makeEntry({ ...base, wakings: [{ from: '02:00', to: '' }] }).error).toMatch(/both/);
     expect(makeEntry({ ...base, wakings: [{ from: '01:00', to: '01:30' }, { from: '01:20', to: '01:40' }] }).error).toMatch(/overlap/);
     const { entry } = makeEntry({ ...base, wakings: [{ from: '04:00', to: '04:15' }, { from: '23:50', to: '00:20' }, { from: '', to: '' }] });
-    expect(entry.wakings).toEqual([{ from: '23:50', to: '00:20' }, { from: '04:00', to: '04:15' }]);
+    expect(entry.wakings).toEqual([{ from: '23:50', to: '00:20', feed: false }, { from: '04:00', to: '04:15', feed: false }]);
     const pieces = entriesToSessions([entry]);
     expect(pieces.map((p) => p.minutes)).toEqual([260, 220, 135]); // 19:30–23:50, 00:20–04:00, 04:15–06:30
     expect(pieces[0].settleMinutes).toBe(15);
@@ -222,5 +222,25 @@ describe('friendsWindows', () => {
     const odd = rowsToSessions([...rows, ['2026-10-12', '11:00', '11:40', 'Nap']]).sessions;
     const w2 = friendsWindows(odd, ['2026-10-10', '2026-10-11', '2026-10-12'], { minMinutes: 200 });
     expect(w2).toEqual([{ from: 840, to: 1110, days: 3, of: 3 }]);
+  });
+});
+
+describe('night feeds', () => {
+  it('keeps feed marks through export and into the last-night summary', async () => {
+    const { makeEntry, entriesToSessions, entriesToRows } = await import('./entries.js');
+    const { lastNight } = await import('./insights.js');
+    const { parseWakings } = await import('./sleepData.js');
+    expect(parseWakings('01:10-01:45 feed, 04:30-04:40')).toEqual([
+      { from: 70, to: 105, feed: true }, { from: 270, to: 280, feed: false },
+    ]);
+    const { entry } = makeEntry({
+      day: '2026-10-13', type: 'night', asleep: '19:30', woke: '06:30',
+      wakings: [{ from: '01:10', to: '01:45', feed: true }, { from: '04:30', to: '04:40' }],
+    });
+    expect(entriesToRows([entry])[1].at(-1)).toBe('01:10-01:45 feed, 04:30-04:40');
+    const n = lastNight(entriesToSessions([entry]), new Date(2026, 9, 14, 9, 0));
+    expect(n.wakings.map((w) => [w.minutes, w.feed])).toEqual([[35, true], [10, false]]);
+    expect(n.feeds).toBe(1);
+    expect(n.awakeMinutes).toBe(45);
   });
 });

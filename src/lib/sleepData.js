@@ -103,6 +103,24 @@ export function parseRanges(text) {
   return ranges;
 }
 
+/**
+ * Night wakings text → [{ from, to, feed }] (minutes after midnight). A waking is a feed when the
+ * text right after its time range mentions feeding ("feed", "fed", "хран", "кърм", 🍼).
+ */
+export function parseWakings(text) {
+  const out = [];
+  const str = String(text ?? '');
+  const re = /(\d{1,2})[:.](\d{2})\s*[-–]\s*(\d{1,2})[:.](\d{2})([^,;\d]*)/g;
+  for (const m of str.matchAll(re)) {
+    out.push({
+      from: (+m[1] * 60 + +m[2]) % 1440,
+      to: (+m[3] * 60 + +m[4]) % 1440,
+      feed: /feed|fed|хран|кърм|🍼/i.test(m[5] ?? ''),
+    });
+  }
+  return out;
+}
+
 /** Absolute time for a clock time (minutes after midnight) at or after `after`, within 24h. */
 function atOrAfter(after, minutes) {
   const base = new Date(after.getFullYear(), after.getMonth(), after.getDate()).getTime() + minutes * MS_MIN;
@@ -181,8 +199,14 @@ export function rowsToSessions(rows) {
       ...optionalDetails(row, cols, start),
     };
     // A night with wakings ("02:10-02:40, 04:00-04:15") becomes several sleep stretches.
-    const wakings = type === 'night' && cols.wakings !== undefined ? parseRanges(row[cols.wakings]) : [];
-    sessions.push(...(wakings.length ? splitNight(session, wakings) : [session]));
+    const wakings = type === 'night' && cols.wakings !== undefined ? parseWakings(row[cols.wakings]) : [];
+    if (wakings.length) {
+      // Keep the waking details (e.g. feeds) on each stretch so summaries can show them.
+      const pieces = splitNight(session, wakings.map((w) => [w.from, w.to]));
+      sessions.push(...pieces.map((p) => ({ ...p, nightWakings: wakings })));
+    } else {
+      sessions.push(session);
+    }
   });
   annotateSessions(sessions);
 
