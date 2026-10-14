@@ -271,9 +271,41 @@ code { font-size: 0.85em; }
 .waking-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
 .waking-row label { flex: 1 1 140px; }
 .add-waking { justify-self: start; padding: 4px 8px; }
-.last-night { border-top: 1px solid var(--grid); padding-top: 12px; display: grid; gap: 4px; }
-.last-night h3 { margin: 0 0 2px; font-size: 0.95rem; }
-.last-night p { margin: 0; }
-.last-night-main strong { font-size: 1.4rem; }
-.night-wakings { margin: 2px 0 0; padding-left: 18px; font-size: 0.9rem; font-variant-numeric: tabular-nums; }
 .friends-tip { display: block; margin-top: 6px; color: var(--text-primary); }
+.feed-toggle { justify-self: center; font-size: 0.95rem; padding: 8px 16px; }
+.entry-form .feed-check { display: flex !important; flex: 0 0 auto !important; align-items: center; gap: 6px; min-height: 38px; font-size: 0.9rem; color: var(--text-primary); }
+.entry-form .feed-check input { width: 18px !important; height: 18px; min-height: 0 !important; padding: 0 !important; }
+
+/* Last night card */
+.night-card { gap: 14px; }
+.night-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+.night-stat { display: grid; gap: 2px; padding: 12px 14px; border-radius: 10px; background: var(--page); border: 1px solid var(--border); }
+.night-stat .label { font-size: 0.8rem; color: var(--text-secondary); }
+.night-stat strong { font-size: 1.6rem; font-variant-numeric: tabular-nums; }
+.night-stat.awake.has-awake { border: 2px solid var(--series-4); background: color-mix(in srgb, var(--series-4) 14%, var(--surface-1)); }
+.night-stat.awake.has-awake .label { color: var(--text-primary); font-weight: 600; }
+.night-bar-wrap { display: grid; gap: 4px; }
+.night-bar { position: relative; height: 34px; border-radius: 8px; background: var(--series-1); overflow: visible; }
+.night-awake {
+  position: absolute; top: -4px; bottom: -4px; min-width: 6px; border-radius: 4px; background: var(--series-4);
+  box-shadow: 0 0 0 2px var(--surface-1); display: flex; align-items: center; justify-content: center;
+}
+.night-feed { font-size: 0.9rem; line-height: 1; transform: translateY(-22px); }
+.night-bar-labels { position: relative; display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-secondary); font-variant-numeric: tabular-nums; min-height: 1.2em; }
+.night-awake-label { position: absolute; transform: translateX(-50%); color: var(--text-primary); font-weight: 600; }
+.night-waking-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.night-waking-list li { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 8px; background: var(--page); font-variant-numeric: tabular-nums; }
+.waking-no { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--series-4); color: #000; font-size: 0.75rem; font-weight: 700; }
+.waking-time { font-weight: 600; }
+.waking-dur { color: var(--text-secondary); }
+.feed-badge { font-size: 0.8rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); }
+.night-notes { display: grid; gap: 6px; }
+.night-notes label { font-size: 0.85rem; color: var(--text-secondary); }
+.night-notes textarea {
+  font: inherit; font-size: 0.95rem; color: var(--text-primary); background: var(--page); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 10px; resize: vertical;
+}
+.night-notes .form-actions { grid-column: auto; }
+.legend { list-style: none; display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; padding: 0; font-size: 0.85rem; color: var(--text-secondary); }
+.legend li { display: flex; align-items: center; gap: 6px; }
+.swatch { display: inline-block; width: 10px; height: 10px; border-radius: 3px; flex: none; }

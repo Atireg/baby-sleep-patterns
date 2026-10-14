@@ -138,6 +138,14 @@ export default function EntryForm({ entries, cloud, onAdd, onUpdate, onDelete, o
               <div className="waking-row" key={i}>
                 <label><span>Woke at</span><input type="time" value={w.from} onChange={setWaking(i, 'from')} /></label>
                 <label><span>Back asleep at</span><input type="time" value={w.to} onChange={setWaking(i, 'to')} /></label>
+                <label className="feed-check">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(w.feed)}
+                    onChange={(e) => setValues((v) => ({ ...v, wakings: v.wakings.map((x, j) => (j === i ? { ...x, feed: e.target.checked } : x)) }))}
+                  />
+                  <span>🍼 Feed</span>
+                </label>
                 <button type="button" className="icon-button" aria-label="Remove night waking" onClick={() => removeWaking(i)}>×</button>
               </div>
             ))}
@@ -190,6 +198,7 @@ export default function EntryForm({ entries, cloud, onAdd, onUpdate, onDelete, o
                 <span className="entry-extra">
                   {[
                     e.wakings?.length ? `woke ${e.wakings.length}× at night` : '',
+                    e.wakings?.some((w) => w.feed) ? `🍼 ${e.wakings.filter((w) => w.feed).length} feed${e.wakings.filter((w) => w.feed).length === 1 ? '' : 's'}` : '',
                     e.method, e.mood, e.notes,
                   ].filter(Boolean).join(' · ')}
                 </span>

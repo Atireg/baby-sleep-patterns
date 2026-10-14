@@ -117,12 +117,17 @@ export default function LiveTracker({ live, onChange, onSave, sessions, busy }) 
   const nightWaking = () => act(() => {
     const t = when();
     if (t <= lastResume) return setError('That’s before she was last asleep.');
-    onChange({ ...live, wakingFrom: t.toISOString() });
+    onChange({ ...live, wakingFrom: t.toISOString(), wakingFeed: false });
   });
   const backAsleep = () => act(() => {
     const t = when();
     if (t <= new Date(live.wakingFrom)) return setError('That’s before she woke up.');
-    onChange({ ...live, wakings: [...wakings, { from: live.wakingFrom, to: t.toISOString() }], wakingFrom: null });
+    onChange({
+      ...live,
+      wakings: [...wakings, { from: live.wakingFrom, to: t.toISOString(), feed: Boolean(live.wakingFeed) }],
+      wakingFrom: null,
+      wakingFeed: false,
+    });
   });
   const upForTheDay = () => {
     setError(null);
@@ -199,6 +204,7 @@ export default function LiveTracker({ live, onChange, onSave, sessions, busy }) 
               {wakings.length ? `back asleep since ${hhmm(lastResume)}` : `asleep since ${hhmm(since(live.asleep))}`}
               {!wakings.length && live.settle && ` · took ${formatDuration((since(live.asleep) - since(live.settle)) / 60000)} to settle`}
               {wakings.length > 0 && ` · ${formatDuration((now - since(live.asleep) - awakeAtNight(now)) / 60000)} asleep tonight, woke ${wakings.length}×`}
+              {wakings.some((w) => w.feed) && ` (${wakings.filter((w) => w.feed).length} feed${wakings.filter((w) => w.feed).length === 1 ? '' : 's'})`}
             </span>
           </div>
           <Chips label="How she fell asleep" options={METHODS} value={live.method} onChange={(m) => onChange({ ...live, method: m })} />
@@ -223,6 +229,14 @@ export default function LiveTracker({ live, onChange, onSave, sessions, busy }) 
               {' · '}slept {formatDuration((since(live.wakingFrom) - since(live.asleep) - awakeAtNight(since(live.wakingFrom))) / 60000)} so far
             </span>
           </div>
+          <button
+            type="button"
+            className={`chip feed-toggle ${live.wakingFeed ? 'active' : ''}`}
+            aria-pressed={Boolean(live.wakingFeed)}
+            onClick={() => onChange({ ...live, wakingFeed: !live.wakingFeed })}
+          >
+            🍼 {live.wakingFeed ? 'Feed ✓' : 'Mark as a feed'}
+          </button>
           <div className="live-actions">
             <button type="button" className="button big primary" onClick={backAsleep} disabled={busy}>Back asleep</button>
             <button type="button" className="button big" onClick={upForTheDay} disabled={busy}>Up for the day</button>

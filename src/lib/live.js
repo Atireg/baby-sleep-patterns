@@ -62,7 +62,7 @@ export function liveToEntry(live, woke, extra = {}) {
   // Night wakings that ended before she got up for the day.
   const wakings = (live.wakings ?? [])
     .filter((w) => new Date(w.to) < woke)
-    .map((w) => ({ from: hhmm(new Date(w.from)), to: hhmm(new Date(w.to)) }));
+    .map((w) => ({ from: hhmm(new Date(w.from)), to: hhmm(new Date(w.to)), feed: Boolean(w.feed) }));
   const checked = live.type === 'night' ? checkWakings(hhmm(asleep), hhmm(woke), wakings) : { wakings: [] };
   if (checked.error) return { error: checked.error };
   return {

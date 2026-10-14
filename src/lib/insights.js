@@ -221,17 +221,23 @@ export function lastNight(sessions, now = new Date()) {
   const key = `${y.getFullYear()}-${String(y.getMonth() + 1).padStart(2, '0')}-${String(y.getDate()).padStart(2, '0')}`;
   const pieces = sessions.filter((s) => s.type === 'night' && s.day === key && s.end <= now).sort((a, b) => a.start - b.start);
   if (!pieces.length) return null;
+  const details = pieces.find((p) => p.nightWakings)?.nightWakings ?? [];
+  const clockMin = (d) => d.getHours() * 60 + d.getMinutes();
   const wakings = [];
   for (let i = 1; i < pieces.length; i++) {
     const minutes = Math.round((pieces[i].start - pieces[i - 1].end) / 60000);
-    if (minutes > 0) wakings.push({ from: pieces[i - 1].end, to: pieces[i].start, minutes });
+    if (minutes <= 0) continue;
+    const from = pieces[i - 1].end;
+    wakings.push({ from, to: pieces[i].start, minutes, feed: details.some((w) => w.feed && w.from === clockMin(from)) });
   }
   return {
+    day: key,
     bedtime: pieces[0].start,
     wake: pieces.at(-1).end,
     sleptMinutes: pieces.reduce((sum, p) => sum + p.minutes, 0),
     wakings,
     awakeMinutes: wakings.reduce((sum, w) => sum + w.minutes, 0),
+    feeds: wakings.filter((w) => w.feed).length,
   };
 }
 

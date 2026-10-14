@@ -13,6 +13,7 @@ import { loadLocalLive, saveLocalLive, sleepDay } from './lib/live.js';
 import LiveTracker from './components/LiveTracker.jsx';
 import CloudBar from './components/CloudBar.jsx';
 import DaytimeTank from './components/DaytimeTank.jsx';
+import LastNightCard from './components/LastNightCard.jsx';
 import FileDrop from './components/FileDrop.jsx';
 import EntryForm from './components/EntryForm.jsx';
 import StatTiles from './components/StatTiles.jsx';
@@ -175,6 +176,11 @@ export default function App() {
   // Last night's summary for the tank card (recomputed when the date changes).
   const todayStamp = new Date().toDateString();
   const night = useMemo(() => lastNight(sessions, new Date()), [sessions, todayStamp]);
+  // The saved entry for last night (its first stretch), so notes can be added from the Last night card.
+  const nightEntry = useMemo(() => (night
+    ? formEntries.filter((e) => e.type === 'night' && e.day === night.day).sort((a, b) => a.asleep.localeCompare(b.asleep))
+      .find((e) => e.asleep >= '12:00') ?? formEntries.find((e) => e.type === 'night' && e.day === night.day) ?? null
+    : null), [night, formEntries]);
   const awake = useMemo(() => {
     const recent = new Set(recentDays.map((d) => d.day));
     return awakeStats(sessions.filter((x) => recent.has(x.day)));
@@ -210,7 +216,14 @@ export default function App() {
 
       <LiveTracker live={live} onChange={changeLive} onSave={saveLiveEntry} sessions={sessions} busy={busy} />
       {(sessions.length > 0 || live?.asleep) && (
-        <DaytimeTank sessions={tankSessions} autoTarget={stats?.avgNap ?? 0} night={night} />
+        <DaytimeTank sessions={tankSessions} autoTarget={stats?.avgNap ?? 0} />
+      )}
+      {(sessions.length > 0 || live?.asleep) && (
+        <LastNightCard
+          night={night}
+          entry={nightEntry}
+          onSaveNotes={(notes) => changeEntry(nightEntry, { ...nightEntry, notes })}
+        />
       )}
       {recentDays.length > 0 && <SleepTimeline sessions={sessions} dayKeys={recentKeys} friends={friends} />}
 

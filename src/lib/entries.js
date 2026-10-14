@@ -28,7 +28,7 @@ const newId = () => `${Date.now().toString(36)}-${Math.random().toString(36).sli
 /**
  * Validate form values. Returns { entry } or { error }.
  * Values: { day: 'YYYY-MM-DD', type: 'nap'|'night', settle, asleep, woke: 'HH:MM', method, mood, notes,
- *           wakings: [{ from: 'HH:MM', to: 'HH:MM' }] (nights only: times she was awake during the night) }
+ *           wakings: [{ from: 'HH:MM', to: 'HH:MM', feed }] (nights only: times she was awake; feed = woke to feed) }
  */
 export function makeEntry(values, id = newId()) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(values.day ?? '')) return { error: 'Choose a date.' };
@@ -73,10 +73,10 @@ export function checkWakings(asleep, woke, wakings) {
     }
     last = b;
   }
-  return { wakings: sorted.map((w) => ({ from: w.from, to: w.to })) };
+  return { wakings: sorted.map((w) => ({ from: w.from, to: w.to, feed: Boolean(w.feed) })) };
 }
 
-export const formatWakings = (wakings = []) => wakings.map((w) => `${w.from}-${w.to}`).join(', ');
+export const formatWakings = (wakings = []) => wakings.map((w) => `${w.from}-${w.to}${w.feed ? ' feed' : ''}`).join(', ');
 /** Entries as spreadsheet rows (header first), in the simple layout the site can read back. */
 export function entriesToRows(entries) {
   const sorted = [...entries].sort((a, b) => (a.day + a.asleep).localeCompare(b.day + b.asleep));
