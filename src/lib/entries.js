@@ -3,7 +3,7 @@ import { rowsToSessions } from './sleepData.js';
 
 const STORAGE_KEY = 'baby-sleep-entries-v1';
 
-export const EXPORT_HEADERS = ['Date', 'Settling start', 'Fell asleep', 'Woke up', 'Type', 'How fell asleep', 'Mood after', 'Notes'];
+export const EXPORT_HEADERS = ['Date', 'Settling start', 'Fell asleep', 'Woke up', 'Type', 'How fell asleep', 'Mood after', 'Notes', 'Night wakings'];
 
 export function loadEntries() {
   try {
@@ -27,34 +27,64 @@ const newId = () => `${Date.now().toString(36)}-${Math.random().toString(36).sli
 
 /**
  * Validate form values. Returns { entry } or { error }.
- * Values: { day: 'YYYY-MM-DD', type: 'nap'|'night', settle, asleep, woke: 'HH:MM', method, mood, notes }
+ * Values: { day: 'YYYY-MM-DD', type: 'nap'|'night', settle, asleep, woke: 'HH:MM', method, mood, notes,
+ *           wakings: [{ from: 'HH:MM', to: 'HH:MM' }] (nights only: times she was awake during the night) }
  */
 export function makeEntry(values, id = newId()) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(values.day ?? '')) return { error: 'Choose a date.' };
   if (!values.asleep) return { error: 'Enter when she fell asleep.' };
   if (!values.woke) return { error: 'Enter when she woke up.' };
   if (values.asleep === values.woke) return { error: 'Fell asleep and woke up can’t be the same time.' };
+  const type = values.type === 'night' ? 'night' : 'nap';
+  const checked = type === 'night' ? checkWakings(values.asleep, values.woke, values.wakings ?? []) : { wakings: [] };
+  if (checked.error) return { error: checked.error };
   return {
     entry: {
       id,
       day: values.day,
-      type: values.type === 'night' ? 'night' : 'nap',
+      type,
       settle: values.settle || '',
       asleep: values.asleep,
       woke: values.woke,
       method: values.method || '',
       mood: values.mood || '',
       notes: (values.notes || '').trim(),
+      wakings: checked.wakings,
     },
   };
 }
 
+const toMin = (hhmm) => +hhmm.slice(0, 2) * 60 + +hhmm.slice(3, 5);
+
+/** Night wakings must lie inside the night, in order, without overlapping. Blank rows are dropped. */
+export function checkWakings(asleep, woke, wakings) {
+  const list = wakings.filter((w) => w.from || w.to);
+  if (list.some((w) => !w.from || !w.to)) return { error: 'Each night waking needs both “woke at” and “back asleep at”.' };
+  // Minutes after falling asleep, so times after midnight compare correctly.
+  const rel = (t) => (toMin(t) - toMin(asleep) + 1440) % 1440;
+  const end = rel(woke);
+  const sorted = [...list].sort((a, b) => rel(a.from) - rel(b.from));
+  let last = 0;
+  for (const w of sorted) {
+    const a = rel(w.from);
+    const b = rel(w.to);
+    if (a <= last || b <= a || b >= end) {
+      return { error: `Night waking ${w.from}–${w.to} must be between falling asleep (${asleep}) and waking up (${woke}), and not overlap another.` };
+    }
+    last = b;
+  }
+  return { wakings: sorted.map((w) => ({ from: w.from, to: w.to })) };
+}
+
+export const formatWakings = (wakings = []) => wakings.map((w) => `${w.from}-${w.to}`).join(', ');
 /** Entries as spreadsheet rows (header first), in the simple layout the site can read back. */
 export function entriesToRows(entries) {
   const sorted = [...entries].sort((a, b) => (a.day + a.asleep).localeCompare(b.day + b.asleep));
   return [
     EXPORT_HEADERS,
-    ...sorted.map((e) => [e.day, e.settle, e.asleep, e.woke, e.type === 'night' ? 'Night' : 'Nap', e.method, e.mood, e.notes]),
+    ...sorted.map((e) => [
+      e.day, e.settle, e.asleep, e.woke, e.type === 'night' ? 'Night' : 'Nap', e.method, e.mood, e.notes, formatWakings(e.wakings),
+    ]),
   ];
 }
 
@@ -84,4 +114,5 @@ export function replaceEntry(list, updated) {
 export const entryToValues = (e) => ({
   day: e.day, type: e.type, settle: e.settle || '', asleep: e.asleep, woke: e.woke,
   method: e.method || '', mood: e.mood || '', notes: e.notes || '',
+  wakings: (e.wakings ?? []).map((w) => ({ ...w })),
 });

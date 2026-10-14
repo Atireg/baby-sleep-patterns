@@ -48,3 +48,14 @@ describe('awake timer', () => {
     expect(awakeSince(sessions, null, new Date(2026, 9, 14, 8, 0))).toBeNull();
   });
 });
+
+describe('live night wakings', () => {
+  it('saves wakings with the night', () => {
+    const iso = (d, h, m) => new Date(2026, 9, d, h, m).toISOString();
+    const live = { type: 'night', asleep: iso(13, 19, 30), wakings: [{ from: iso(14, 1, 10), to: iso(14, 1, 40) }], wakingFrom: iso(14, 6, 20) };
+    const { entry } = liveToEntry(live, new Date(2026, 9, 14, 6, 20));
+    expect(entry).toMatchObject({ day: '2026-10-13', asleep: '19:30', woke: '06:20', wakings: [{ from: '01:10', to: '01:40' }] });
+    const pieces = entriesToSessions([entry]);
+    expect(pieces.map((p) => p.minutes)).toEqual([340, 280]);
+  });
+});
