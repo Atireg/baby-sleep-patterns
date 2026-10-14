@@ -52,7 +52,8 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
   and `live.awakeFrom`; null while asleep or if >16h).
 - `src/lib/insights.js` – weekly aggregates (wake windows, settling, method), `napCountTrend`, `daytimeTank`, `awakeStats`,
   `lastNight` (yesterday-dated night; wakings = gaps between its stretches, `feed` matched from `nightWakings`; `feeds` count),
-  `friendsWindows`, `upcomingNap` (avg length of nap #N over the last 3 days with naps before today), label translations (BG + EN).
+  `friendsWindows`, `upcomingNap` (avg length of nap #N over the last 3 days with naps before today), `expectedBedtime`
+  (avg first-stretch bedtime of the last 3 nights; after-midnight counts as +24h), label translations (BG + EN).
 - `src/lib/series.js` – gap handling: `breakGaps`, `segments`, `rollingMean` (calendar days), `allWeeks`.
 - `src/lib/theme.js` – resolves CSS color tokens for Plotly (`useChartTheme`), `baseLayout`, `durationAxis`, `rangeButtons`.
 - `src/components/` – `PlotlyChart` (lazy-loads Plotly, card wrapper), `DailyTotalsChart`, `NapCountChart`, `WeeklyLineChart`,
@@ -103,6 +104,8 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
   The sleep in progress counts in the tank (`tankSessions`) but not in charts until saved.
   Nap forecast (naps only): idle/settling "💤 Next: Nth nap · usually ~X"; during a nap "may wake around HH:MM" + progress bar
   (or "already X longer than usual"); N = today's saved naps + 1, from `upcomingNap`.
+  Bedtime line (idle, and while settling a night): "🌙 Expected bedtime ~HH:MM · in X / about now (±10m) / X past the usual
+  time"; hidden once tonight's night is logged.
 - Editing: each listed entry has ✎ (loads it into the form → "Save changes"/"Cancel edit") and × (delete). "Show day" filter.
   The form has "Night wakings" rows (Woke at / Back asleep at / 🍼 Feed) for nights; list durations subtract wakings.
 - Daytime sleep tank: today's naps (`daytimeTank`; a nap in progress counts up to now) vs target = 5-day average nap time (auto)
