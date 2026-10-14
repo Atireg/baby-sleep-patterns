@@ -94,6 +94,8 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
   → "Last 5 days" tiles → charts.
 - Charts use Plotly (`plotly.js-cartesian-dist-min@3.7.0`, lazy-loaded chunk ~476 kB gzip) via `PlotlyChart`. Colors always come
   from CSS tokens in `src/styles.css` through `useChartTheme` (night = `--series-1` blue, nap = `--series-2` orange, light + dark).
+- Charts are view-only (user request: zoom was awkward on phones): `dragmode: false`, `fixedrange` axes in `baseLayout`, and no
+  mode bar / scroll zoom / double-click in `PlotlyChart`. Hover/tap tooltips and the Sleep per day 2w/1m/All buttons remain.
 - Lines must break across missing days/weeks (`connectgaps: false`, `breakGaps`); area fills are drawn per `segments`.
 - "Last 5 days": the 5 most recent days with data **before today** (`RECENT_DAYS` in `App.jsx`). Used by the summary tiles
   (incl. "Avg. awake time / day" = sum of the day's wake windows, complete days only, and "Avg. wake window"; `awakeStats`,
