@@ -271,6 +271,9 @@ code { font-size: 0.85em; }
 .waking-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
 .waking-row label { flex: 1 1 140px; }
 .add-waking { justify-self: start; padding: 4px 8px; }
+.live-wakings .waking-row { padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+.live-edit .live-wakings .waking-row label { flex: 1 1 100px; max-width: none; min-width: 0; }
+.live-edit .live-wakings .waking-row input { width: 100%; min-width: 0; }
 .friends-tip { display: block; margin-top: 6px; color: var(--text-primary); }
 .feed-toggle { justify-self: center; font-size: 0.95rem; padding: 8px 16px; }
 .entry-form .feed-check { display: flex !important; flex: 0 0 auto !important; align-items: center; gap: 6px; min-height: 38px; font-size: 0.9rem; color: var(--text-primary); }

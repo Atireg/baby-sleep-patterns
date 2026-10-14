@@ -49,7 +49,7 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
   in one transaction), `deleteEntry`, `watchLive`/`setLive`, `describeError`);
   `src/lib/cloudData.js` – pure helpers (month grouping, merge/dedupe, `sessionsToEntries` for importing a file).
 - `src/lib/live.js` – live tracking ("Now" card): local storage `baby-sleep-live-v1`, `sleepDay` (night after midnight → previous
-  date), `liveToEntry`, `atTime` (tapped-late times never in the future), `formatTimer`, `awakeSince` (later of last sleep end
+  date), `liveToEntry`, `atTime` (tapped-late times never in the future), `resolveWakings` (edited night wakings → ISO), `formatTimer`, `awakeSince` (later of last sleep end
   and `live.awakeFrom`; null while asleep or if >16h).
 - `src/lib/insights.js` – weekly aggregates (wake windows, settling, method), `napCountTrend`, `daytimeTank`, `awakeStats`,
   `lastNight` (yesterday-dated night; wakings = gaps between its stretches, `feed` matched from `nightWakings`; `feeds` count),
@@ -112,7 +112,8 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
 - "Now" card (mobile-first): big running awake timer when idle (from the last sleep's end, or "Start awake timer"/"reset" →
   `live.awakeFrom`). States: idle → settling → asleep → (nights) nightawake ↔ asleep → finish (confirm time, mood, notes) → Save
   as a normal entry. Nights: "Night waking" / "Back asleep" record `live.wakings` (with "🍼 Mark as a feed" → `live.wakingFeed`);
-  "Up for the day" ends the night at the waking time. Type auto by clock (18:00–05:59 = night), switchable. "Tapped late?" time field. "Edit times or type". Method chips.
+  "Up for the day" ends the night at the waking time. Type auto by clock (18:00–05:59 = night), switchable. "Tapped late?" time field. "Edit times or type" (nights: "…or night wakings" — edit/add/remove
+  wakings with 🍼 feed and the current "woke at"; `resolveWakings` reads HH:MM forward from bedtime, rejects bad order/future). Method chips.
   The sleep in progress counts in the tank (`tankSessions`) but not in charts until saved.
   Wake-window line (idle): "⏱ Wake window before the Nth nap/bedtime: usually ~X · sleepy around HH:MM" (or "X over — time to
   settle?") + bar of awake time vs the usual window (green, orange when over), from `upcomingWakeWindow`. Under it a collapsible
