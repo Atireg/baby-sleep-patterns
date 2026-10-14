@@ -309,3 +309,26 @@ export function upcomingNap(sessions, now = new Date(), days = 3) {
     days: previous.length,
   };
 }
+
+/**
+ * Expected bedtime: the average time she fell asleep for the night over the last `days` nights
+ * before today (first stretch of each night). Times after midnight count as late evening.
+ * Returns { minutes (after midnight, may exceed 1440), samples } or null.
+ */
+export function expectedBedtime(sessions, now = new Date(), days = 3) {
+  const pad = (n) => String(n).padStart(2, '0');
+  const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const firstByDay = new Map();
+  for (const s of sessions) {
+    if (s.type !== 'night' || s.day >= today) continue;
+    const cur = firstByDay.get(s.day);
+    if (!cur || s.start < cur.start) firstByDay.set(s.day, s);
+  }
+  const nights = [...firstByDay.keys()].sort().slice(-days).map((d) => firstByDay.get(d));
+  if (!nights.length) return null;
+  const mins = nights.map((s) => {
+    const m = s.start.getHours() * 60 + s.start.getMinutes();
+    return m < 12 * 60 ? m + 1440 : m;
+  });
+  return { minutes: Math.round(mins.reduce((a, b) => a + b, 0) / mins.length), samples: mins.length };
+}

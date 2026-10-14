@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { METHODS, MOODS, upcomingNap } from '../lib/insights.js';
+import { METHODS, MOODS, expectedBedtime, upcomingNap } from '../lib/insights.js';
 import { atTime, awakeSince as findAwakeSince, formatTimer, hhmm, liveToEntry, typeAt } from '../lib/live.js';
 import { formatDuration } from '../lib/sleepData.js';
 
@@ -47,6 +47,29 @@ export default function LiveTracker({ live, onChange, onSave, sessions, busy }) 
   // How long the next (or current) nap usually lasts, from the last 3 days. Recomputed once a minute.
   const minuteKey = Math.floor(now.getTime() / 60000);
   const nap = useMemo(() => upcomingNap(sessions, new Date(minuteKey * 60000)), [sessions, minuteKey]);
+  const bedtime = useMemo(() => {
+    const at = new Date(minuteKey * 60000);
+    const pad = (n) => String(n).padStart(2, '0');
+    const today = `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}`;
+    // Once tonight's sleep has been logged, bedtime has happened.
+    if (sessions.some((x) => x.type === 'night' && x.day === today)) return null;
+    const exp = expectedBedtime(sessions, at);
+    if (!exp) return null;
+    const when = new Date(at.getFullYear(), at.getMonth(), at.getDate(), 0, exp.minutes);
+    return { ...exp, when };
+  }, [sessions, minuteKey]);
+  const bedtimeLine = bedtime && (() => {
+    const diff = Math.round((bedtime.when - now) / 60000);
+    return (
+      <p className="nap-forecast bedtime-forecast">
+        🌙 Expected bedtime <strong>~{hhmm(bedtime.when)}</strong>
+        {diff > 10 && <> · in <strong>{formatDuration(diff)}</strong></>}
+        {Math.abs(diff) <= 10 && <> · <strong>about now</strong></>}
+        {diff < -10 && <> · {formatDuration(-diff)} past the usual time</>}
+        <span className="muted"> (avg of last {bedtime.samples === 1 ? 'night' : `${bedtime.samples} nights`})</span>
+      </p>
+    );
+  })();
   const ordinal = (n) => `${n}${n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2 && n !== 12 ? 'nd' : n % 10 === 3 && n !== 13 ? 'rd' : 'th'}`;
   const napForecast = (
     <p className="nap-forecast">
@@ -185,6 +208,7 @@ export default function LiveTracker({ live, onChange, onSave, sessions, busy }) 
             </div>
           )}
           {idleType === 'nap' && napForecast}
+          {bedtimeLine}
           <div className="live-actions">
             <button type="button" className="button big" onClick={startSettling} disabled={busy}>Start settling</button>
             <button type="button" className="button big primary" onClick={fellAsleep} disabled={busy}>Fell asleep</button>
@@ -201,7 +225,7 @@ export default function LiveTracker({ live, onChange, onSave, sessions, busy }) 
               {awakeSince && <> · awake {formatTimer(now - awakeSince)} in total</>}
             </span>
           </div>
-          {live.type === 'nap' && napForecast}
+          {live.type === 'nap' ? napForecast : bedtimeLine}
           <Chips label="How she's falling asleep" options={METHODS} value={live.method} onChange={(m) => onChange({ ...live, method: m })} />
           <div className="live-actions">
             <button type="button" className="button big primary" onClick={fellAsleep} disabled={busy}>Fell asleep</button>
