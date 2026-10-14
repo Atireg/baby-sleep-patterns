@@ -52,7 +52,7 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
   and `live.awakeFrom`; null while asleep or if >16h).
 - `src/lib/insights.js` – weekly aggregates (wake windows, settling, method), `napCountTrend`, `daytimeTank`, `awakeStats`,
   `lastNight` (yesterday-dated night; wakings = gaps between its stretches, `feed` matched from `nightWakings`; `feeds` count),
-  `friendsWindows`, `upcomingNap` (avg length of nap #N over the last 3 days with naps before today), `expectedBedtime`
+  `friendsWindows`, `settlingStats`, `upcomingNap` (avg length of nap #N over the last 3 days with naps before today), `expectedBedtime`
   (avg first-stretch bedtime of the last 3 nights; after-midnight counts as +24h), `expectedWakeUp` (avg end of the last 3
   completed nights), `upcomingWakeWindow` (avg wake window before nap N, else before bedtime, over the last 5 days),
   label translations (BG + EN).
@@ -98,8 +98,9 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
   mode bar / scroll zoom / double-click in `PlotlyChart`. Hover/tap tooltips and the Sleep per day 2w/1m/All buttons remain.
 - Lines must break across missing days/weeks (`connectgaps: false`, `breakGaps`); area fills are drawn per `segments`.
 - "Last 5 days": the 5 most recent days with data **before today** (`RECENT_DAYS` in `App.jsx`). Used by the summary tiles
-  (incl. "Avg. awake time / day" = sum of the day's wake windows, complete days only, and "Avg. wake window"; `awakeStats`,
-  windows ≥ 8h = missing data), the sleep timeline, the friends windows and the Sleep per day reference line.
+  (incl. "Avg. awake time / day" = sum of the day's wake windows, complete days only (`awakeStats`, windows ≥ 8h = missing data),
+  "Avg. time to fall asleep / nap" and "Avg. time settling / day" (naps + bedtime; `settlingStats`). "Longest stretch" and
+  "Avg. wake window" tiles were removed at the user's request), the sleep timeline, the friends windows and the Sleep per day reference line.
 - Sleep per day: shaded last-5 days + dashed 5-day average line with label; dotted 7-day rolling average excludes today.
 - "Now" card (mobile-first): big running awake timer when idle (from the last sleep's end, or "Start awake timer"/"reset" →
   `live.awakeFrom`). States: idle → settling → asleep → (nights) nightawake ↔ asleep → finish (confirm time, mood, notes) → Save

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { readWorkbook } from './lib/readWorkbook.js';
 import { dailyStats, dayKey, formatClock, formatDay, summary } from './lib/sleepData.js';
 import {
-  WAKE_WINDOW_SERIES, awakeStats, detailSummary, friendsWindows, lastNight, hasDetails, methodsByWeek, settlingByWeek, wakeWindowsByWeek,
+  WAKE_WINDOW_SERIES, awakeStats, detailSummary, settlingStats, friendsWindows, lastNight, hasDetails, methodsByWeek, settlingByWeek, wakeWindowsByWeek,
 } from './lib/insights.js';
 import { entriesToSessions, loadEntries, replaceEntry, saveEntries } from './lib/entries.js';
 import { entryKey, sessionsToEntries } from './lib/cloudData.js';
@@ -181,6 +181,10 @@ export default function App() {
     ? formEntries.filter((e) => e.type === 'night' && e.day === night.day).sort((a, b) => a.asleep.localeCompare(b.asleep))
       .find((e) => e.asleep >= '12:00') ?? formEntries.find((e) => e.type === 'night' && e.day === night.day) ?? null
     : null), [night, formEntries]);
+  const settling = useMemo(() => {
+    const recent = new Set(recentDays.map((d) => d.day));
+    return settlingStats(sessions.filter((x) => recent.has(x.day)));
+  }, [sessions, recentDays]);
   const awake = useMemo(() => {
     const recent = new Set(recentDays.map((d) => d.day));
     return awakeStats(sessions.filter((x) => recent.has(x.day)));
@@ -274,6 +278,7 @@ export default function App() {
             range={`${formatDay(recentDays[0].day, { day: 'numeric', month: 'short' })} – ${formatDay(recentDays.at(-1).day, { day: 'numeric', month: 'short' })}`}
             stats={stats}
             awake={awake}
+            settling={settling}
             details={insights?.summary}
           />}
           <DailyTotalsChart
