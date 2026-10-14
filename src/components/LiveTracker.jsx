@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { METHODS, MOODS, expectedBedtime, expectedWakeUp, upcomingNap } from '../lib/insights.js';
+import {
+  METHODS, MOODS, expectedBedtime, expectedWakeUp, upcomingNap, upcomingWakeWindow,
+} from '../lib/insights.js';
 import { atTime, awakeSince as findAwakeSince, formatTimer, hhmm, liveToEntry, typeAt } from '../lib/live.js';
 import { formatDuration } from '../lib/sleepData.js';
 
@@ -94,7 +96,33 @@ export default function LiveTracker({ live, onChange, onSave, sessions, busy }) 
       </div>
     );
   })();
-  const ordinal = (n) => `${n}${n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2 && n !== 12 ? 'nd' : n % 10 === 3 && n !== 13 ? 'rd' : 'th'}`;
+  // Usual wake window before the next nap (or bedtime), from the last 5 days.
+  const wakeWindow = useMemo(() => upcomingWakeWindow(sessions, new Date(minuteKey * 60000)), [sessions, minuteKey]);
+  const wakeWindowLine = wakeWindow && (() => {
+    const label = wakeWindow.target === 'bedtime' ? 'bedtime' : `the ${ordinal(wakeWindow.target)} nap`;
+    const awakeMin = awakeSince ? (now - awakeSince) / 60000 : null;
+    const share = awakeMin == null ? 0 : Math.min(1, awakeMin / wakeWindow.avgMinutes);
+    const due = awakeSince ? new Date(awakeSince.getTime() + wakeWindow.avgMinutes * 60000) : null;
+    return (
+      <div className="nap-progress">
+        <p className="nap-forecast window-forecast">
+          ⏱ Wake window before {label}: usually <strong>~{formatDuration(wakeWindow.avgMinutes)}</strong>
+          {due && awakeMin < wakeWindow.avgMinutes && <> · sleepy around <strong>{hhmm(due)}</strong></>}
+          {due && awakeMin >= wakeWindow.avgMinutes && <> · <strong>{formatDuration(awakeMin - wakeWindow.avgMinutes)} over</strong> — time to settle?</>}
+          <span className="muted"> (last {wakeWindow.samples === 1 ? 'day' : `${wakeWindow.samples} days`})</span>
+        </p>
+        {awakeMin != null && (
+          <div className={`nap-progress-bar window ${awakeMin >= wakeWindow.avgMinutes ? 'over' : ''}`} role="progressbar"
+            aria-label="Awake time against the usual wake window" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(share * 100)}>
+            <div style={{ width: `${share * 100}%` }} />
+          </div>
+        )}
+      </div>
+    );
+  })();
+  function ordinal(n) {
+    return `${n}${n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2 && n !== 12 ? 'nd' : n % 10 === 3 && n !== 13 ? 'rd' : 'th'}`;
+  }
   const napForecast = (
     <p className="nap-forecast">
       💤 Next: <strong>{ordinal(nap.position)} nap</strong>
@@ -231,6 +259,7 @@ export default function LiveTracker({ live, onChange, onSave, sessions, busy }) 
               <button type="button" className="button" onClick={startAwake} disabled={busy}>Start awake timer</button>
             </div>
           )}
+          {wakeWindowLine}
           {idleType === 'nap' && napForecast}
           {bedtimeLine}
           <div className="live-actions">
