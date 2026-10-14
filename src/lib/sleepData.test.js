@@ -338,3 +338,25 @@ describe('settlingStats', () => {
     expect(settlingStats([]).avgPerNap).toBeNull();
   });
 });
+
+describe('dayDetails', () => {
+  it('gives the actual numbers for a day', async () => {
+    const { dayDetails } = await import('./insights.js');
+    const { sessions } = rowsToSessions([
+      ['Date', 'Settling start', 'Fell asleep', 'Woke up', 'Type', 'How fell asleep', 'Night wakings'],
+      ['2026-10-11', '', '19:00', '06:30', 'Night', '', ''],
+      ['2026-10-12', '08:50', '09:00', '10:00', 'Nap', 'Independently', ''],
+      ['2026-10-12', '', '13:00', '14:30', 'Nap', 'Patting', ''],
+      ['2026-10-12', '19:00', '19:20', '06:40', 'Night', 'Independently', '01:00-01:30 feed'],
+    ]);
+    const day = dailyStats(sessions).find((d) => d.day === '2026-10-12');
+    const r = dayDetails(day, sessions);
+    expect(r).toMatchObject({
+      naps: 2, napLengths: [60, 90], napSettle: [10, null], bedSettle: 20, settleTotal: 30,
+      awakeMinutes: 150 + 180 + 290, nightWakings: 1, nightAwakeMinutes: 30, nightFeeds: 1,
+      independent: 2, withMethod: 3,
+    });
+    expect(r.morningWake).toEqual(new Date(2026, 9, 12, 6, 30));
+    expect(r.bedtime).toEqual(new Date(2026, 9, 12, 19, 20));
+  });
+});
