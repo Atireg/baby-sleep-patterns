@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { atTime, formatTimer, liveToEntry, sleepDay, typeAt } from './live.js';
+import { atTime, formatTimer, liveToEntry, resolveWakings, sleepDay, typeAt } from './live.js';
 import { entriesToSessions } from './entries.js';
 
 describe('live tracking', () => {
@@ -57,5 +57,27 @@ describe('live night wakings', () => {
     expect(entry).toMatchObject({ day: '2026-10-13', asleep: '19:30', woke: '06:20', wakings: [{ from: '01:10', to: '01:40' }] });
     const pieces = entriesToSessions([entry]);
     expect(pieces.map((p) => p.minutes)).toEqual([340, 280]);
+  });
+});
+
+describe('editing night wakings', () => {
+  const asleep = new Date(2026, 9, 13, 19, 30, 25);
+  const now = new Date(2026, 9, 14, 5, 0);
+  it('reads the times forward from bedtime, across midnight', () => {
+    const res = resolveWakings(asleep, [{ from: '23:50', to: '00:20', feed: true }, { from: '02:00', to: '02:15' }], '04:30', now);
+    expect(res.error).toBeUndefined();
+    expect(res.wakings.map((w) => [new Date(w.from), new Date(w.to), w.feed])).toEqual([
+      [new Date(2026, 9, 13, 23, 50), new Date(2026, 9, 14, 0, 20), true],
+      [new Date(2026, 9, 14, 2, 0), new Date(2026, 9, 14, 2, 15), false],
+    ]);
+    expect(new Date(res.wakingFrom)).toEqual(new Date(2026, 9, 14, 4, 30));
+  });
+  it('rejects missing, out-of-order, empty and future times', () => {
+    expect(resolveWakings(asleep, [{ from: '01:00', to: '' }], '', now).error).toMatch(/both times/);
+    expect(resolveWakings(asleep, [{ from: '02:00', to: '02:30' }, { from: '01:00', to: '01:10' }], '', now).error).toMatch(/future/);
+    expect(resolveWakings(asleep, [{ from: '01:00', to: '01:00' }], '', now).error).toMatch(/after/);
+    expect(resolveWakings(asleep, [{ from: '19:30', to: '20:00' }], '', now).error).toMatch(/after she fell asleep/);
+    expect(resolveWakings(asleep, [], '05:30', now).error).toMatch(/future/);
+    expect(resolveWakings(asleep, [], '', now)).toEqual({ wakings: [], wakingFrom: null });
   });
 });

@@ -104,3 +104,41 @@ export function awakeSince(sessions, live, now = new Date()) {
   if (manual && manual <= now && (!latest || manual > latest)) latest = manual;
   return latest && now - latest < 16 * 3600000 ? latest : null;
 }
+
+/** The first moment at or after `after` whose clock reads "HH:MM". */
+function atOrAfter(hhmmText, after) {
+  const [h, m] = hhmmText.split(':').map(Number);
+  const d = new Date(after);
+  d.setHours(h, m, 0, 0);
+  if (d < after) d.setDate(d.getDate() + 1);
+  return d;
+}
+
+/**
+ * Night wakings edited in the Now card ("HH:MM" rows) back to absolute times, read forward from
+ * `asleep`. `wakingFrom` is the waking in progress ("" when she is asleep). Returns
+ * { wakings: [{ from, to, feed }] (ISO), wakingFrom: ISO|null } or { error }.
+ */
+export function resolveWakings(asleep, rows, wakingFrom, now = new Date()) {
+  const wakings = [];
+  const minute = (d) => new Date(Math.floor(d / 60000) * 60000);
+  let cursor = minute(asleep);
+  for (const [i, row] of rows.entries()) {
+    const n = rows.length > 1 ? ` ${i + 1}` : '';
+    if (!row.from || !row.to) return { error: `Night waking${n}: fill in both times, or remove it.` };
+    const from = atOrAfter(row.from, cursor);
+    const to = atOrAfter(row.to, from);
+    if (+from === +cursor) return { error: `Night waking${n} must start after she ${i ? 'went back to sleep' : 'fell asleep'}.` };
+    if (+to === +from) return { error: `Night waking${n}: “Back asleep” must be after “Woke at”.` };
+    if (to > now) return { error: `Night waking${n} ends in the future — check the times and their order.` };
+    wakings.push({ from: from.toISOString(), to: to.toISOString(), feed: Boolean(row.feed) });
+    cursor = to;
+  }
+  let current = null;
+  if (wakingFrom) {
+    current = atOrAfter(wakingFrom, cursor);
+    if (+current === +cursor) return { error: 'She must have woken up after she last fell asleep.' };
+    if (current > now) return { error: '“Awake since” is in the future — check the time.' };
+  }
+  return { wakings, wakingFrom: current ? current.toISOString() : null };
+}

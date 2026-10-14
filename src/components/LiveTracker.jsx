@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   METHODS, MOODS, dayAwakeTotal, expectedBedtime, expectedWakeUp, upcomingNap, upcomingWakeWindow, wakeWindowGrid,
 } from '../lib/insights.js';
-import { atTime, awakeSince as findAwakeSince, formatTimer, hhmm, liveToEntry, sleepDay, typeAt } from '../lib/live.js';
+import { atTime, awakeSince as findAwakeSince, formatTimer, hhmm, liveToEntry, resolveWakings, sleepDay, typeAt } from '../lib/live.js';
 import { formatDay, formatDuration } from '../lib/sleepData.js';
 
 /** Ticks every second while a timer is on screen. */
@@ -181,7 +181,7 @@ export default function LiveTracker({ live, onChange, onSave, sessions, busy, aw
   const [finishing, setFinishing] = useState(null); // { woke, mood, notes }
   const [error, setError] = useState(null);
   const [type, setType] = useState(null); // manual override while idle
-  const [editTimes, setEditTimes] = useState(null); // { type, settle, asleep } as "HH:MM" while correcting
+  const [editTimes, setEditTimes] = useState(null); // { type, settle, asleep, wakings, wakingFrom } as "HH:MM" while correcting
 
   useEffect(() => { if (state === 'idle') { setFinishing(null); setEditTimes(null); } }, [state]);
 
@@ -191,8 +191,11 @@ export default function LiveTracker({ live, onChange, onSave, sessions, busy, aw
       type: live.type,
       settle: live.settle ? hhmm(new Date(live.settle)) : '',
       asleep: live.asleep ? hhmm(new Date(live.asleep)) : '',
+      wakings: (live.wakings ?? []).map((w) => ({ from: hhmm(new Date(w.from)), to: hhmm(new Date(w.to)), feed: Boolean(w.feed) })),
+      wakingFrom: live.wakingFrom ? hhmm(new Date(live.wakingFrom)) : '',
     });
   };
+  const setEditWaking = (i, patch) => setEditTimes((x) => ({ ...x, wakings: x.wakings.map((w, j) => (j === i ? { ...w, ...patch } : w)) }));
   const saveEditTimes = () => {
     const nowDate = new Date();
     const asleep = editTimes.asleep ? atTime(editTimes.asleep, nowDate) : null;
@@ -201,7 +204,20 @@ export default function LiveTracker({ live, onChange, onSave, sessions, busy, aw
     if (live.asleep && !asleep) return setError('Enter when she fell asleep.');
     if (!live.asleep && !settle) return setError('Enter when settling started.');
     if (asleep && nowDate - asleep > 16 * 3600000) return setError('That would mean she has been asleep for over 16 hours — check the time.');
-    onChange({ ...live, type: editTimes.type, settle: settle ? settle.toISOString() : null, asleep: asleep ? asleep.toISOString() : null });
+    // Night wakings only exist for a night she is (or was) asleep in.
+    const night = asleep && editTimes.type === 'night';
+    if (night && state === 'nightawake' && !editTimes.wakingFrom) return setError('Enter when she woke up, or tap “Back asleep”.');
+    const resolved = night ? resolveWakings(asleep, editTimes.wakings, editTimes.wakingFrom, nowDate) : { wakings: [], wakingFrom: null };
+    if (resolved.error) return setError(resolved.error);
+    onChange({
+      ...live,
+      type: editTimes.type,
+      settle: settle ? settle.toISOString() : null,
+      asleep: asleep ? asleep.toISOString() : null,
+      wakings: resolved.wakings,
+      wakingFrom: resolved.wakingFrom,
+      wakingFeed: resolved.wakingFrom ? live.wakingFeed ?? false : false,
+    });
     setEditTimes(null);
     setError(null);
   };
@@ -462,11 +478,51 @@ export default function LiveTracker({ live, onChange, onSave, sessions, busy, aw
             <span>Started settling</span>
             <input type="time" value={editTimes.settle} onChange={(e) => setEditTimes({ ...editTimes, settle: e.target.value })} />
           </label>
-          {state === 'asleep' && (
+          {sleeping && (
             <label>
               <span>Fell asleep</span>
               <input type="time" value={editTimes.asleep} onChange={(e) => setEditTimes({ ...editTimes, asleep: e.target.value })} />
             </label>
+          )}
+          {sleeping && editTimes.type === 'night' && (
+            <fieldset className="wakings live-wakings">
+              <legend>Night wakings</legend>
+              {editTimes.wakings.map((w, i) => (
+                <div className="waking-row" key={i}>
+                  <label><span>Woke at</span><input type="time" value={w.from} onChange={(e) => setEditWaking(i, { from: e.target.value })} /></label>
+                  <label><span>Back asleep at</span><input type="time" value={w.to} onChange={(e) => setEditWaking(i, { to: e.target.value })} /></label>
+                  <button
+                    type="button"
+                    className={`chip ${w.feed ? 'active' : ''}`}
+                    aria-pressed={w.feed}
+                    onClick={() => setEditWaking(i, { feed: !w.feed })}
+                  >
+                    {w.feed ? 'Feed ✓' : '🍼 Feed'}
+                  </button>
+                  <button
+                    type="button"
+                    className="icon-button"
+                    aria-label="Remove night waking"
+                    onClick={() => setEditTimes((x) => ({ ...x, wakings: x.wakings.filter((_, j) => j !== i) }))}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+              {state === 'nightawake' && (
+                <label>
+                  <span>Awake now — woke at</span>
+                  <input type="time" value={editTimes.wakingFrom} onChange={(e) => setEditTimes({ ...editTimes, wakingFrom: e.target.value })} />
+                </label>
+              )}
+              <button
+                type="button"
+                className="button ghost add-waking"
+                onClick={() => setEditTimes((x) => ({ ...x, wakings: [...x.wakings, { from: '', to: '', feed: false }] }))}
+              >
+                + Add night waking
+              </button>
+            </fieldset>
           )}
           <div className="live-actions">
             <button type="button" className="button primary" onClick={saveEditTimes}>Save times</button>
@@ -475,7 +531,9 @@ export default function LiveTracker({ live, onChange, onSave, sessions, busy, aw
         </div>
       )}
       {state !== 'idle' && !finishing && !editTimes && (
-        <button type="button" className="link-button" onClick={openEditTimes}>Edit times or type</button>
+        <button type="button" className="link-button" onClick={openEditTimes}>
+          {live.type === 'night' && sleeping ? 'Edit times, type or night wakings' : 'Edit times or type'}
+        </button>
       )}
       {!finishing && !editTimes && (
         <label className="live-at">
