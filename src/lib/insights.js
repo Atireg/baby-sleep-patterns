@@ -374,3 +374,20 @@ export function upcomingWakeWindow(sessions, now = new Date(), days = 5) {
   }
   return null;
 }
+
+/**
+ * Time to fall asleep (from "started settling" to asleep) for the summary tiles.
+ * - avgPerNap: mean settling time over naps with a settling time.
+ * - avgPerDay: mean of each day's total settling time (naps + bedtime), over days with any settling time.
+ * Night stretches after a waking have no settling time, so they don't count.
+ */
+export function settlingStats(sessions) {
+  const naps = sessions.filter((s) => s.type === 'nap' && s.settleMinutes != null);
+  const perDay = new Map();
+  for (const s of sessions) {
+    if (s.settleMinutes == null) continue;
+    perDay.set(s.day, (perDay.get(s.day) ?? 0) + s.settleMinutes);
+  }
+  const mean = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
+  return { avgPerNap: mean(naps.map((s) => s.settleMinutes)), avgPerDay: mean([...perDay.values()]), days: perDay.size };
+}

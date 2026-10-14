@@ -3,16 +3,16 @@ import { formatDuration } from '../lib/sleepData.js';
 const clock = (min) => `${String(Math.floor(min / 60) % 24).padStart(2, '0')}:${String(Math.round(min % 60)).padStart(2, '0')}`;
 const pct = (x) => `${Math.round(x * 100)}%`;
 
-export default function StatTiles({ title, range, stats, awake, details }) {
+export default function StatTiles({ title, range, stats, awake, settling, details }) {
   const tiles = [
     { label: 'Avg. total sleep / day', value: formatDuration(stats.avgTotal) },
     { label: 'Avg. night sleep', value: formatDuration(stats.avgNight) },
     { label: 'Avg. nap time', value: formatDuration(stats.avgNap) },
     { label: 'Avg. naps / day', value: stats.avgNaps.toFixed(1) },
-    { label: 'Longest stretch', value: formatDuration(stats.longest) },
   ];
   if (awake?.avgAwakePerDay != null) tiles.push({ label: 'Avg. awake time / day', value: formatDuration(awake.avgAwakePerDay) });
-  if (awake?.avgWakeWindow != null) tiles.push({ label: 'Avg. wake window', value: formatDuration(awake.avgWakeWindow) });
+  if (settling?.avgPerNap != null) tiles.push({ label: 'Avg. time to fall asleep / nap', value: formatDuration(settling.avgPerNap) });
+  if (settling?.avgPerDay != null) tiles.push({ label: 'Avg. time settling / day', value: formatDuration(settling.avgPerDay) });
   if (details) {
     if (details.avgMorningWake != null) tiles.push({ label: 'Avg. morning wake', value: clock(details.avgMorningWake) });
     if (details.avgBedtime != null) tiles.push({ label: 'Avg. bedtime (asleep)', value: clock(details.avgBedtime) });

@@ -132,10 +132,11 @@ export function consultantLogToSessions(rows) {
             const a = atOrAfter(start, from);
             const z = atOrAfter(a, to);
             if (a <= cursor || z > finish) continue;
-            daySessions.push({ ...night, start: cursor, end: a });
+            daySessions.push({ ...night, start: cursor, end: a, ...(cursor === start ? {} : { settleMinutes: null }) });
             cursor = z;
           }
-          if (finish > cursor) daySessions.push({ ...night, start: cursor, end: finish });
+          // Only the first stretch carries the bedtime settling time.
+          if (finish > cursor) daySessions.push({ ...night, start: cursor, end: finish, ...(cursor === start ? {} : { settleMinutes: null }) });
         }
       }
 

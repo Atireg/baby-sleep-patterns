@@ -319,3 +319,22 @@ describe('upcomingWakeWindow', () => {
     expect(upcomingWakeWindow(after, new Date(2026, 9, 13, 15, 0))).toMatchObject({ target: 'bedtime', avgMinutes: 240 });
   });
 });
+
+describe('settlingStats', () => {
+  it('averages settling per nap and per day', async () => {
+    const { settlingStats } = await import('./insights.js');
+    const { sessions } = rowsToSessions([
+      ['Date', 'Settling start', 'Fell asleep', 'Woke up', 'Type', 'Night wakings'],
+      ['2026-10-11', '08:50', '09:00', '10:00', 'Nap', ''], // 10
+      ['2026-10-11', '12:40', '13:00', '14:00', 'Nap', ''], // 20
+      ['2026-10-11', '19:00', '19:30', '06:30', 'Night', '01:00-01:30'], // 30 (later stretch has none)
+      ['2026-10-12', '08:55', '09:00', '10:00', 'Nap', ''], // 5
+      ['2026-10-12', '', '13:00', '14:00', 'Nap', ''], // unknown
+    ]);
+    const s = settlingStats(sessions);
+    expect(s.avgPerNap).toBeCloseTo((10 + 20 + 5) / 3);
+    expect(s.avgPerDay).toBe((60 + 5) / 2);
+    expect(s.days).toBe(2);
+    expect(settlingStats([]).avgPerNap).toBeNull();
+  });
+});
