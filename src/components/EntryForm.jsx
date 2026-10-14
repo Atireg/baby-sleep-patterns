@@ -9,8 +9,10 @@ const today = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 const minutes = (hhmm) => +hhmm.slice(0, 2) * 60 + +hhmm.slice(3, 5);
-const duration = (e) => (minutes(e.woke) - minutes(e.asleep) + 1440) % 1440;
-const EMPTY = { settle: '', asleep: '', woke: '', method: '', mood: '', notes: '' };
+const span = (from, to) => (minutes(to) - minutes(from) + 1440) % 1440;
+// Time actually asleep: the whole span minus any night wakings.
+const duration = (e) => span(e.asleep, e.woke) - (e.wakings ?? []).reduce((sum, w) => sum + span(w.from, w.to), 0);
+const EMPTY = { settle: '', asleep: '', woke: '', method: '', mood: '', notes: '', wakings: [] };
 const SHOW = 6;
 
 /** Form for adding sleeps by hand, plus the list of entries with export / delete. */
@@ -23,6 +25,11 @@ export default function EntryForm({ entries, cloud, onAdd, onUpdate, onDelete, o
   const [saving, setSaving] = useState(false);
   const formRef = useRef(null);
   const set = (key) => (e) => setValues((v) => ({ ...v, [key]: e.target.value }));
+  const setWaking = (i, key) => (e) => setValues((v) => ({
+    ...v, wakings: v.wakings.map((w, j) => (j === i ? { ...w, [key]: e.target.value } : w)),
+  }));
+  const addWaking = () => setValues((v) => ({ ...v, wakings: [...v.wakings, { from: '', to: '' }] }));
+  const removeWaking = (i) => setValues((v) => ({ ...v, wakings: v.wakings.filter((_, j) => j !== i) }));
 
   const startEdit = (entry) => {
     setEditing(entry);
@@ -124,6 +131,19 @@ export default function EntryForm({ entries, cloud, onAdd, onUpdate, onDelete, o
           <span>Notes <em>optional</em></span>
           <input type="text" value={values.notes} onChange={set('notes')} placeholder="e.g. short nap in the car" />
         </label>
+        {values.type === 'night' && (
+          <fieldset className="wakings wide">
+            <legend>Night wakings <em>optional — times she was awake during the night</em></legend>
+            {values.wakings.map((w, i) => (
+              <div className="waking-row" key={i}>
+                <label><span>Woke at</span><input type="time" value={w.from} onChange={setWaking(i, 'from')} /></label>
+                <label><span>Back asleep at</span><input type="time" value={w.to} onChange={setWaking(i, 'to')} /></label>
+                <button type="button" className="icon-button" aria-label="Remove night waking" onClick={() => removeWaking(i)}>×</button>
+              </div>
+            ))}
+            <button type="button" className="button ghost add-waking" onClick={addWaking}>+ Add night waking</button>
+          </fieldset>
+        )}
         <div className="form-actions">
           <button type="submit" className="button primary" disabled={saving}>
             {editing ? (saving ? 'Saving…' : 'Save changes') : 'Add entry'}
@@ -167,7 +187,12 @@ export default function EntryForm({ entries, cloud, onAdd, onUpdate, onDelete, o
                 <span className="entry-day">{formatDay(e.day)}</span>
                 <span className="entry-time">{e.asleep}–{e.woke}</span>
                 <span className="entry-dur">{formatDuration(duration(e))}</span>
-                <span className="entry-extra">{[e.method, e.mood, e.notes].filter(Boolean).join(' · ')}</span>
+                <span className="entry-extra">
+                  {[
+                    e.wakings?.length ? `woke ${e.wakings.length}× at night` : '',
+                    e.method, e.mood, e.notes,
+                  ].filter(Boolean).join(' · ')}
+                </span>
                 <button type="button" className="icon-button edit" aria-label="Edit entry" title="Edit" onClick={() => startEdit(e)}>✎</button>
                 <button type="button" className="icon-button" aria-label="Delete entry" onClick={() => (!cloud || window.confirm('Delete this sleep from the shared log?')) && onDelete(e.id)}>×</button>
               </li>

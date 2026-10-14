@@ -6,7 +6,9 @@
 //   rows "1".."5"        naps: settling start, asleep, woke, wake window, duration, how fell asleep, mood, re-settled
 //   row  "Вечерно заспиване"   bedtime: settling start, asleep, woke next morning, ...
 //   rows of daily summaries and free-text questions about the night.
-import { dayKey, parseDateCell, parseTimeCell } from './sleepData.js';
+import { dayKey, parseDateCell, parseRanges, parseTimeCell } from './sleepData.js';
+
+export { parseRanges };
 
 const MS_MIN = 60 * 1000;
 const MS_DAY = 24 * 60 * MS_MIN;
@@ -39,15 +41,6 @@ export function isConsultantLog(rows) {
 
 // Free-text answers follow a prompt such as "Напишете ...: 4:04 - 5:12".
 const answerText = (v) => String(v ?? '').replace(/^[^:]*:/, '').trim();
-
-/** "4:04 - 5:12, 24:08 - 24:55" -> [[244, 312], [8, 55]] (minutes after midnight). */
-export function parseRanges(text) {
-  const ranges = [];
-  for (const m of String(text).matchAll(/(\d{1,2})[:.](\d{2})\s*[-–]\s*(\d{1,2})[:.](\d{2})/g)) {
-    ranges.push([((+m[1] * 60 + +m[2]) % 1440), ((+m[3] * 60 + +m[4]) % 1440)]);
-  }
-  return ranges;
-}
 
 /** Absolute time for a clock time that falls at or after `after` (within 24h). */
 function atOrAfter(after, minutes) {

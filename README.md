@@ -1,4 +1,6 @@
-# baby-sleep-patterns
+# Nap Nap Hooray
+
+*Every snooze, celebrated.*
 
 **Live site:** https://atireg.github.io/baby-sleep-patterns/
 

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { readWorkbook } from './lib/readWorkbook.js';
 import { dailyStats, dayKey, formatClock, formatDay, summary } from './lib/sleepData.js';
 import {
-  WAKE_WINDOW_SERIES, awakeStats, detailSummary, hasDetails, methodsByWeek, settlingByWeek, wakeWindowsByWeek,
+  WAKE_WINDOW_SERIES, awakeStats, detailSummary, friendsWindows, lastNight, hasDetails, methodsByWeek, settlingByWeek, wakeWindowsByWeek,
 } from './lib/insights.js';
 import { entriesToSessions, loadEntries, replaceEntry, saveEntries } from './lib/entries.js';
 import { entryKey, sessionsToEntries } from './lib/cloudData.js';
@@ -23,6 +23,8 @@ import WeeklyLineChart from './components/WeeklyLineChart.jsx';
 import MethodShareChart from './components/MethodShareChart.jsx';
 
 const RECENT_DAYS = 5;
+// Excel upload is hidden for now (user request); flip to true to bring the upload card back.
+const SHOW_FILE_UPLOAD = false;
 const WAKE_COLORS = ['s1', 's2', 's3', 's4'];
 const SETTLING_SERIES = [
   { key: 'night', label: 'Bedtime', color: 'night' },
@@ -164,6 +166,15 @@ export default function App() {
     return days.filter((d) => d.day < today).slice(-RECENT_DAYS);
   }, [days]);
   const stats = useMemo(() => summary(recentDays), [recentDays]);
+  const recentKeys = useMemo(() => recentDays.map((d) => d.day), [recentDays]);
+  const friends = useMemo(() => friendsWindows(sessions, recentKeys), [sessions, recentKeys]);
+  const recentAvg = useMemo(
+    () => (stats && recentDays.length ? { avgMinutes: stats.avgTotal, from: recentDays[0].day, to: recentDays.at(-1).day } : null),
+    [stats, recentDays],
+  );
+  // Last night's summary for the tank card (recomputed when the date changes).
+  const todayStamp = new Date().toDateString();
+  const night = useMemo(() => lastNight(sessions, new Date()), [sessions, todayStamp]);
   const awake = useMemo(() => {
     const recent = new Set(recentDays.map((d) => d.day));
     return awakeStats(sessions.filter((x) => recent.has(x.day)));
@@ -183,8 +194,8 @@ export default function App() {
   return (
     <main>
       <header>
-        <h1>Baby Sleep Patterns</h1>
-        <p className="subtitle">Visualise and analyse your baby's sleep from an Excel log.</p>
+        <h1>Nap Nap Hooray</h1>
+        <p className="subtitle">Every snooze, celebrated.</p>
       </header>
 
       <CloudBar
@@ -198,8 +209,12 @@ export default function App() {
       {notice && <p className="loaded" role="status">{notice}</p>}
 
       <LiveTracker live={live} onChange={changeLive} onSave={saveLiveEntry} sessions={sessions} busy={busy} />
+      {(sessions.length > 0 || live?.asleep) && (
+        <DaytimeTank sessions={tankSessions} autoTarget={stats?.avgNap ?? 0} night={night} />
+      )}
+      {recentDays.length > 0 && <SleepTimeline sessions={sessions} dayKeys={recentKeys} friends={friends} />}
 
-      <FileDrop onFile={onFile} onSample={onSample} />
+      {SHOW_FILE_UPLOAD && <FileDrop onFile={onFile} onSample={onSample} />}
       {error && <p className="error" role="alert">{error}</p>}
 
       {cloud && data && (
@@ -248,8 +263,10 @@ export default function App() {
             awake={awake}
             details={insights?.summary}
           />}
-          <DaytimeTank sessions={tankSessions} autoTarget={stats?.avgNap ?? 0} />
-          <DailyTotalsChart days={days} />
+          <DailyTotalsChart
+            days={days}
+            recent={recentAvg}
+          />
           <NapCountChart days={days} />
           {insights && (
             <>
@@ -272,7 +289,6 @@ export default function App() {
               </div>
             </>
           )}
-          {recentDays.length > 0 && <SleepTimeline sessions={sessions} dayKeys={recentDays.map((d) => d.day)} />}
         </>
       )}
     </main>

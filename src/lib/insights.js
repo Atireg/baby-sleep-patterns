@@ -210,3 +210,68 @@ export function awakeStats(sessions) {
   const mean = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
   return { avgWakeWindow: mean(windows), avgAwakePerDay: mean(dayTotals), days: dayTotals.length };
 }
+
+/**
+ * Last night's sleep for the tank card: the night logged under yesterday's date
+ * (bedtime yesterday evening → wake-up this morning). Wakings are the gaps between its stretches.
+ * Returns { bedtime, wake, sleptMinutes, wakings: [{ from, to, minutes }], awakeMinutes } or null.
+ */
+export function lastNight(sessions, now = new Date()) {
+  const y = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+  const key = `${y.getFullYear()}-${String(y.getMonth() + 1).padStart(2, '0')}-${String(y.getDate()).padStart(2, '0')}`;
+  const pieces = sessions.filter((s) => s.type === 'night' && s.day === key && s.end <= now).sort((a, b) => a.start - b.start);
+  if (!pieces.length) return null;
+  const wakings = [];
+  for (let i = 1; i < pieces.length; i++) {
+    const minutes = Math.round((pieces[i].start - pieces[i - 1].end) / 60000);
+    if (minutes > 0) wakings.push({ from: pieces[i - 1].end, to: pieces[i].start, minutes });
+  }
+  return {
+    bedtime: pieces[0].start,
+    wake: pieces.at(-1).end,
+    sleptMinutes: pieces.reduce((sum, p) => sum + p.minutes, 0),
+    wakings,
+    awakeMinutes: wakings.reduce((sum, w) => sum + w.minutes, 0),
+  };
+}
+
+/**
+ * Good times to meet friends, from the given calendar days (e.g. the last 5 days):
+ * stretches between `from` and `to` (minutes after midnight) when she was awake on every day
+ * (or all but one, if no such stretch exists) and not within `bufferBefore` minutes of falling asleep.
+ * Returns up to `max` windows [{ from, to, days, of }] (minutes after midnight), longest first.
+ */
+export function friendsWindows(sessions, dayKeys, { from = 7 * 60, to = 19 * 60, minMinutes = 60, bufferBefore = 30, max = 2 } = {}) {
+  const n = dayKeys.length;
+  if (!n) return [];
+  const goodDays = new Array(to - from).fill(0);
+  for (const key of dayKeys) {
+    const [y, m, d] = key.split('-').map(Number);
+    const dayStart = new Date(y, m - 1, d).getTime();
+    const busy = new Array(to - from).fill(false);
+    for (const s of sessions) {
+      // Minutes of this calendar day covered by the sleep, plus the wind-down before it.
+      const a = Math.floor((s.start.getTime() - dayStart) / 60000) - bufferBefore;
+      const b = Math.ceil((s.end.getTime() - dayStart) / 60000);
+      for (let t = Math.max(a, from); t < Math.min(b, to); t++) busy[t - from] = true;
+    }
+    busy.forEach((isBusy, i) => { if (!isBusy) goodDays[i] += 1; });
+  }
+  for (const need of n > 1 ? [n, n - 1] : [n]) {
+    const windows = [];
+    let start = null;
+    for (let i = 0; i <= goodDays.length; i++) {
+      const ok = i < goodDays.length && goodDays[i] >= need;
+      if (ok && start === null) start = i;
+      if (!ok && start !== null) {
+        // Round inwards to 5 minutes so the suggestion reads nicely and stays inside the window.
+        const a = Math.ceil((from + start) / 5) * 5;
+        const b = Math.floor((from + i) / 5) * 5;
+        if (b - a >= minMinutes) windows.push({ from: a, to: b, days: need, of: n });
+        start = null;
+      }
+    }
+    if (windows.length) return windows.sort((p, q) => (q.to - q.from) - (p.to - p.from)).slice(0, max).sort((p, q) => p.from - q.from);
+  }
+  return [];
+}

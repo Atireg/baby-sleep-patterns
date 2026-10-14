@@ -29,7 +29,8 @@ const H = 210;
 const R = 22;
 
 /** Today's naps filling a tank whose capacity is the daytime-sleep target. */
-export default function DaytimeTank({ sessions, autoTarget }) {
+/** night: lastNight() summary of the previous night, or null. */
+export default function DaytimeTank({ sessions, autoTarget, night }) {
   const now = useNow();
   const [custom, setCustom] = useState(loadTarget);
   const target = custom ?? (autoTarget > 0 ? Math.round(autoTarget) : 150);
@@ -124,6 +125,36 @@ export default function DaytimeTank({ sessions, autoTarget }) {
             </select>
           </label>
         </div>
+      </div>
+
+      <div className="last-night">
+        <h3>🌙 Last night</h3>
+        {night ? (
+          <>
+            <p className="last-night-main">
+              <strong>{formatDuration(night.sleptMinutes)}</strong> asleep
+              <span className="muted"> · {formatClock(night.bedtime)} → {formatClock(night.wake)}</span>
+            </p>
+            {night.wakings.length === 0 ? (
+              <p className="muted">Slept through — no night wakings logged.</p>
+            ) : (
+              <>
+                <p className="muted">
+                  Awake {night.wakings.length}× during the night, {formatDuration(night.awakeMinutes)} in total:
+                </p>
+                <ul className="night-wakings">
+                  {night.wakings.map((w) => (
+                    <li key={w.from.getTime()}>
+                      {formatClock(w.from)}–{formatClock(w.to)} <span className="muted">({formatDuration(w.minutes)})</span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </>
+        ) : (
+          <p className="muted">No night logged for last night yet.</p>
+        )}
       </div>
     </section>
   );

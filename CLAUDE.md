@@ -3,7 +3,8 @@
 Project notes for Claude. **Keep this file clean and current: update it after every fix or feature** (remove stale notes, don't just append).
 
 ## Project
-Website (React + Vite) that visualises and analyses baby sleep patterns from an Excel sleep log.
+**Nap Nap Hooray** ("Every snooze, celebrated.") — website (React + Vite) for logging and visualising a baby's sleep.
+The repo/URL keep the old name `baby-sleep-patterns`.
 Runs in the browser. Signed out: files and form entries stay on the device. Signed in with Google: entries live in
 a shared Firebase (Firestore) log so the file only has to be imported once and every device sees the same data.
 
@@ -35,18 +36,21 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
 
 ## Layout
 - `static/` – Vite `publicDir` (served at site root): `sample-sleep-log.xlsx` (demo data + template, 5→4→3 naps), `favicon.svg`.
-- `src/lib/sleepData.js` – simple-layout parser, `annotateSessions` (nap position + wake window), daily stats. No xlsx dependency.
+- `src/lib/sleepData.js` – simple-layout parser, `parseRanges`, `splitNight` (night → stretches around wakings),
+  `annotateSessions` (nap position + wake window), daily stats. No xlsx dependency.
 - `src/lib/consultantLog.js` – parser for the Bulgarian sleep-consultant template.
 - `src/lib/readWorkbook.js` – reads the first sheet via SheetJS (`xlsx`) and picks the parser by format.
-- `src/lib/entries.js` – sleeps entered on the site: validation (`makeEntry(values, id?)`), `replaceEntry` (edit by id, refuses
-  duplicates), `entryToValues`, localStorage (`baby-sleep-entries-v1`), conversion, Excel export rows.
+- `src/lib/entries.js` – sleeps entered on the site: validation (`makeEntry(values, id?)`, `checkWakings`), `replaceEntry` (edit by
+  id, refuses duplicates), `entryToValues`, localStorage (`baby-sleep-entries-v1`), conversion, Excel export rows.
+  Entry shape: `{ id, day, type, settle, asleep, woke, method, mood, notes, wakings: [{ from, to }] }` (HH:MM; wakings nights only).
 - `src/lib/cloud.js` – Firebase wrapper (sign-in, live `watchEntries`, `addEntries`, `updateEntry` (moves between month docs
   in one transaction), `deleteEntry`, `watchLive`/`setLive`, `describeError`);
   `src/lib/cloudData.js` – pure helpers (month grouping, merge/dedupe, `sessionsToEntries` for importing a file).
 - `src/lib/live.js` – live tracking ("Now" card): local storage `baby-sleep-live-v1`, `sleepDay` (night after midnight → previous
   date), `liveToEntry`, `atTime` (tapped-late times never in the future), `formatTimer`, `awakeSince` (later of last sleep end
   and `live.awakeFrom`; null while asleep or if >16h).
-- `src/lib/insights.js` – weekly aggregates (wake windows, settling, method), `napCountTrend`, label translations (BG + EN accepted).
+- `src/lib/insights.js` – weekly aggregates (wake windows, settling, method), `napCountTrend`, `daytimeTank`, `awakeStats`,
+  `lastNight` (yesterday-dated night; wakings = gaps between its stretches), `friendsWindows`, label translations (BG + EN).
 - `src/lib/series.js` – gap handling: `breakGaps`, `segments`, `rollingMean` (calendar days), `allWeeks`.
 - `src/lib/theme.js` – resolves CSS color tokens for Plotly (`useChartTheme`), `baseLayout`, `durationAxis`, `rangeButtons`.
 - `src/components/` – `PlotlyChart` (lazy-loads Plotly, card wrapper), `DailyTotalsChart`, `NapCountChart`, `WeeklyLineChart`,
@@ -56,6 +60,8 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
 - `scripts/make-sample.mjs` – deterministic sample data generator.
 
 ## Excel formats
+Excel **upload is hidden for now** (user request): `SHOW_FILE_UPLOAD = false` in `App.jsx` hides `FileDrop`; parsers stay.
+"Download as Excel" of entries still works.
 Two layouts are auto-detected (`isConsultantLog` = column A contains "Сутрешно събуждане:").
 
 ### 1. Consultant template (the user's real log, sheet "Таблица сън")
@@ -70,7 +76,7 @@ Two layouts are auto-detected (`isConsultantLog` = column A contains "Сутре
 
 ### 2. Simple layout (also the entry-form export format)
 Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`Start`, `Woke up`/`End`, optional `Type` (Night/Nap),
-`Settling start`, `How fell asleep`, `Mood after`, `Notes`.
+`Settling start`, `How fell asleep`, `Mood after`, `Notes`, `Night wakings` ("01:10-01:45, 04:30-04:40"; splits the night).
 - Blank `Date` repeats the row above.
 - `End` ≤ `Start` → sleep crossed midnight.
 - A row's date = the evening the night began; Night rows starting before 12:00 are moved to the next calendar day.
@@ -78,27 +84,29 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
 - Stats are grouped by the row's date ("sleep day"); the timeline groups by calendar day.
 
 ## Conventions
+- Page order: CloudBar → **Now** card → **Daytime sleep tank** (+ Last night) → **Sleep timeline** → (upload, hidden) → entry form
+  → "Last 5 days" tiles → charts.
 - Charts use Plotly (`plotly.js-cartesian-dist-min@3.7.0`, lazy-loaded chunk ~476 kB gzip) via `PlotlyChart`. Colors always come
   from CSS tokens in `src/styles.css` through `useChartTheme` (night = `--series-1` blue, nap = `--series-2` orange, light + dark).
 - Lines must break across missing days/weeks (`connectgaps: false`, `breakGaps`); area fills are drawn per `segments`.
-- Summary tiles average the last 5 days with data **before today** (today is incomplete; `RECENT_DAYS` in `App.jsx`),
-  heading shows the date range; hidden if there's no earlier data. Charts show everything, including today.
-  Includes "Avg. awake time / day" (sum of the day's wake windows, morning wake → bedtime; only complete days) and
-  "Avg. wake window" (`awakeStats` in insights.js; windows ≥ 8h treated as missing data).
-- "Now" card (top of page, mobile-first): big running awake timer when idle (from the last sleep's end, or "Start awake timer"
-  / "reset" → `live.awakeFrom`); live states: idle (no settle/asleep), settling, asleep. Start settling → Fell asleep (running timer) → Woke up (confirm time, mood, notes) → Save
-  as a normal entry. Type auto by clock (18:00–05:59 = night), switchable. "Tapped late?" time field. Method chips while settling/asleep.
-  Unedited wake time uses the exact tap time. The sleep in progress counts in the tank (`tankSessions`) but not in charts until saved.
-- Editing: each listed entry has ✎ (loads it into the form → "Save changes"/"Cancel edit") and × (delete). "Show day" date filter
-  finds older entries. The Now card has "Edit times or type" for the sleep in progress.
-- "Daytime sleep tank" (below the summary tiles): today's naps (`daytimeTank` in insights.js; a nap in progress counts up to now)
-  vs a target = 5-day average nap time (auto) or a fixed choice saved in localStorage `baby-sleep-nap-target`.
-  Also shows "awake since" / "asleep since"; refreshes every minute.
-- Sleep timeline: only the same 5 days as the summary tiles (last 5 days with data, excluding today), newest first,
-  one row per calendar day (`dayKeys` prop); pieces of sleeps on other calendar days (e.g. after midnight into today) are not shown.
-- Charts use a loaded file + saved entries (local, or the cloud log when signed in) combined; file sleeps already saved are
-  not double-counted. Signed in, a loaded file shows a "Save to shared log" prompt; local entries can be moved to the cloud.
-- Importing the consultant log to the cloud keeps times, settling, method and mood but not the free-text day notes. The daily breakdown table was removed at the user's request — don't re-add it.
+- "Last 5 days": the 5 most recent days with data **before today** (`RECENT_DAYS` in `App.jsx`). Used by the summary tiles
+  (incl. "Avg. awake time / day" = sum of the day's wake windows, complete days only, and "Avg. wake window"; `awakeStats`,
+  windows ≥ 8h = missing data), the sleep timeline, the friends windows and the Sleep per day reference line.
+- Sleep per day: shaded last-5 days + dashed 5-day average line with label; dotted 7-day rolling average excludes today.
+- "Now" card (mobile-first): big running awake timer when idle (from the last sleep's end, or "Start awake timer"/"reset" →
+  `live.awakeFrom`). States: idle → settling → asleep → (nights) nightawake ↔ asleep → finish (confirm time, mood, notes) → Save
+  as a normal entry. Nights: "Night waking" / "Back asleep" record `live.wakings`; "Up for the day" ends the night at the waking
+  time. Type auto by clock (18:00–05:59 = night), switchable. "Tapped late?" time field. "Edit times or type". Method chips.
+  The sleep in progress counts in the tank (`tankSessions`) but not in charts until saved.
+- Editing: each listed entry has ✎ (loads it into the form → "Save changes"/"Cancel edit") and × (delete). "Show day" filter.
+  The form has "Night wakings" rows (Woke at / Back asleep at) for nights; list durations subtract wakings.
+- Daytime sleep tank: today's naps (`daytimeTank`; a nap in progress counts up to now) vs target = 5-day average nap time (auto)
+  or a fixed choice (localStorage `baby-sleep-nap-target`); "awake/asleep since"; refreshes every minute. Bottom: "🌙 Last night"
+  (hours asleep, bedtime → wake, each night waking and total awake).
+- Sleep timeline: the last-5 days, newest first, calendar-day rows (`dayKeys`); green bands + tip = good times to meet friends
+  (`friendsWindows`: 07:00–19:00, awake and not within 30 min of a sleep on all days, else all-but-one; ≥ 60 min; top 2).
+- Charts use saved entries (local, or the cloud log when signed in) + a loaded file (when upload is enabled), not double-counted.
+- The daily breakdown table was removed at the user's request — don't re-add it.
 
 ## Known caveats
 - `xlsx@0.18.5` from npm (the SheetJS CDN build is blocked in the cloud env). It has known advisories for malicious files; acceptable since users only parse their own files locally. Switch to the CDN tarball when possible.

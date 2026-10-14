@@ -35,11 +35,13 @@ function Chips({ options, value, onChange, label }) {
 
 /**
  * "Now" card for logging on the go: Start settling → Fell asleep → Woke up.
- * live: { type, settle, asleep, method } or null; onChange persists it; onSave(entry) stores the finished sleep.
+ * live: { type, settle, asleep, method, wakings: [{ from, to }], wakingFrom } or null (ISO times);
+ * onChange persists it; onSave(entry) stores the finished sleep.
  */
 export default function LiveTracker({ live, onChange, onSave, sessions, busy }) {
   // live may hold only { awakeFrom } (a manually started awake timer) — that still counts as idle.
-  const state = live?.asleep ? 'asleep' : live?.settle ? 'settling' : 'idle';
+  const state = live?.asleep ? (live.wakingFrom ? 'nightawake' : 'asleep') : live?.settle ? 'settling' : 'idle';
+  const sleeping = state === 'asleep' || state === 'nightawake';
   const now = useTicker(true);
   const awakeSince = findAwakeSince(sessions, live, now);
   const [at, setAt] = useState(''); // optional "tapped late" time
@@ -108,6 +110,27 @@ export default function LiveTracker({ live, onChange, onSave, sessions, busy }) 
   };
 
   const startAwake = () => act(() => onChange({ awakeFrom: when().toISOString() }));
+
+  // Night wakings: she wakes during the night, then either goes back to sleep or is up for the day.
+  const wakings = live?.wakings ?? [];
+  const lastResume = wakings.length ? new Date(wakings.at(-1).to) : live?.asleep ? new Date(live.asleep) : null;
+  const nightWaking = () => act(() => {
+    const t = when();
+    if (t <= lastResume) return setError('That’s before she was last asleep.');
+    onChange({ ...live, wakingFrom: t.toISOString() });
+  });
+  const backAsleep = () => act(() => {
+    const t = when();
+    if (t <= new Date(live.wakingFrom)) return setError('That’s before she woke up.');
+    onChange({ ...live, wakings: [...wakings, { from: live.wakingFrom, to: t.toISOString() }], wakingFrom: null });
+  });
+  const upForTheDay = () => {
+    setError(null);
+    const t = new Date(live.wakingFrom);
+    setFinishing({ woke: hhmm(t), tapped: t, mood: '', notes: '' });
+  };
+  const awakeAtNight = (until) => wakings.reduce((sum, w) => sum + (new Date(w.to) - new Date(w.from)), 0)
+    + (live?.wakingFrom ? until - new Date(live.wakingFrom) : 0);
   const since = (iso) => new Date(iso);
   const typeLabel = (t) => (t === 'night' ? 'Night' : 'Nap');
 
@@ -171,30 +194,55 @@ export default function LiveTracker({ live, onChange, onSave, sessions, busy }) 
       {state === 'asleep' && !finishing && (
         <>
           <div className="live-timer asleep">
-            <span className="timer">{formatTimer(now - since(live.asleep))}</span>
+            <span className="timer">{formatTimer(now - lastResume)}</span>
             <span className="timer-label">
-              asleep since {hhmm(since(live.asleep))}
-              {live.settle && ` · took ${formatDuration((since(live.asleep) - since(live.settle)) / 60000)} to settle`}
+              {wakings.length ? `back asleep since ${hhmm(lastResume)}` : `asleep since ${hhmm(since(live.asleep))}`}
+              {!wakings.length && live.settle && ` · took ${formatDuration((since(live.asleep) - since(live.settle)) / 60000)} to settle`}
+              {wakings.length > 0 && ` · ${formatDuration((now - since(live.asleep) - awakeAtNight(now)) / 60000)} asleep tonight, woke ${wakings.length}×`}
             </span>
           </div>
           <Chips label="How she fell asleep" options={METHODS} value={live.method} onChange={(m) => onChange({ ...live, method: m })} />
           <div className="live-actions">
-            <button type="button" className="button big primary" onClick={() => { setError(null); const t = new Date(); setFinishing({ woke: hhmm(t), tapped: t, mood: '', notes: '' }); }}>
-              Woke up
+            <button type="button" className="button big primary" onClick={() => { setError(null); const t = when(); setAt(''); setFinishing({ woke: hhmm(t), tapped: t, mood: '', notes: '' }); }}>
+              {live.type === 'night' ? 'Up for the day' : 'Woke up'}
             </button>
+            {live.type === 'night' && (
+              <button type="button" className="button big" onClick={nightWaking} disabled={busy}>Night waking</button>
+            )}
             <button type="button" className="button ghost" onClick={cancel}>Cancel</button>
           </div>
         </>
       )}
 
-      {state === 'asleep' && finishing && (
+      {state === 'nightawake' && !finishing && (
+        <>
+          <div className="live-timer awake">
+            <span className="timer">{formatTimer(now - since(live.wakingFrom))}</span>
+            <span className="timer-label">
+              awake during the night since {hhmm(since(live.wakingFrom))}
+              {' · '}slept {formatDuration((since(live.wakingFrom) - since(live.asleep) - awakeAtNight(since(live.wakingFrom))) / 60000)} so far
+            </span>
+          </div>
+          <div className="live-actions">
+            <button type="button" className="button big primary" onClick={backAsleep} disabled={busy}>Back asleep</button>
+            <button type="button" className="button big" onClick={upForTheDay} disabled={busy}>Up for the day</button>
+          </div>
+        </>
+      )}
+
+      {sleeping && finishing && (
         <div className="live-finish">
           <label>
             <span>Woke up at</span>
             <input type="time" value={finishing.woke} onChange={(e) => setFinishing({ ...finishing, woke: e.target.value })} />
           </label>
           <p className="muted">
-            Slept {formatDuration(Math.max(0, (atTime(finishing.woke || hhmm(now), new Date()) - since(live.asleep)) / 60000))}
+            Slept {formatDuration(Math.max(0, (() => {
+              const woke = atTime(finishing.woke || hhmm(now), new Date());
+              const awake = wakings.filter((w) => new Date(w.to) <= woke).reduce((sum, w) => sum + (new Date(w.to) - new Date(w.from)), 0);
+              return (woke - since(live.asleep) - awake) / 60000;
+            })()))}
+            {wakings.length > 0 && ` with ${wakings.length} night waking${wakings.length === 1 ? '' : 's'}`}
             {' '}({hhmm(since(live.asleep))}–{finishing.woke})
           </p>
           <Chips label="Mood after" options={MOODS} value={finishing.mood} onChange={(m) => setFinishing({ ...finishing, mood: m })} />

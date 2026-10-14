@@ -265,3 +265,15 @@ code { font-size: 0.85em; }
 .live-timer.awake .timer { color: var(--text-primary); }
 .live-start-awake { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; }
 .timer-label .link-button { font-size: inherit; }
+.wakings { display: grid; gap: 8px; border: 1px dashed var(--border) !important; border-radius: 10px; padding: 10px 12px !important; grid-column: 1 / -1; }
+.wakings legend { font-size: 0.8rem; color: var(--text-secondary); padding: 0 4px; }
+.wakings legend em { font-style: normal; color: var(--text-muted); }
+.waking-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+.waking-row label { flex: 1 1 140px; }
+.add-waking { justify-self: start; padding: 4px 8px; }
+.last-night { border-top: 1px solid var(--grid); padding-top: 12px; display: grid; gap: 4px; }
+.last-night h3 { margin: 0 0 2px; font-size: 0.95rem; }
+.last-night p { margin: 0; }
+.last-night-main strong { font-size: 1.4rem; }
+.night-wakings { margin: 2px 0 0; padding-left: 18px; font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+.friends-tip { display: block; margin-top: 6px; color: var(--text-primary); }

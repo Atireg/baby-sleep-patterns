@@ -166,3 +166,61 @@ describe('awakeStats', () => {
     expect(s.avgWakeWindow).toBeCloseTo((120 + 180 + 240 + 150) / 4);
   });
 });
+
+describe('night wakings', () => {
+  it('validates wakings and splits the night into stretches', async () => {
+    const { makeEntry, entriesToSessions, entriesToRows } = await import('./entries.js');
+    const base = { day: '2026-10-13', type: 'night', asleep: '19:30', woke: '06:30', settle: '19:15' };
+    expect(makeEntry({ ...base, wakings: [{ from: '18:00', to: '18:30' }] }).error).toMatch(/between/);
+    expect(makeEntry({ ...base, wakings: [{ from: '02:00', to: '' }] }).error).toMatch(/both/);
+    expect(makeEntry({ ...base, wakings: [{ from: '01:00', to: '01:30' }, { from: '01:20', to: '01:40' }] }).error).toMatch(/overlap/);
+    const { entry } = makeEntry({ ...base, wakings: [{ from: '04:00', to: '04:15' }, { from: '23:50', to: '00:20' }, { from: '', to: '' }] });
+    expect(entry.wakings).toEqual([{ from: '23:50', to: '00:20' }, { from: '04:00', to: '04:15' }]);
+    const pieces = entriesToSessions([entry]);
+    expect(pieces.map((p) => p.minutes)).toEqual([260, 220, 135]); // 19:30–23:50, 00:20–04:00, 04:15–06:30
+    expect(pieces[0].settleMinutes).toBe(15);
+    expect(pieces[1].settleMinutes).toBeUndefined();
+    expect(pieces.every((p) => p.day === '2026-10-13')).toBe(true);
+    // Export keeps the wakings so the file can be read back.
+    expect(entriesToRows([entry])[1].at(-1)).toBe('23:50-00:20, 04:00-04:15');
+    // Naps ignore wakings.
+    expect(makeEntry({ ...base, type: 'nap', asleep: '09:00', woke: '10:00', wakings: [{ from: '09:30', to: '09:40' }] }).entry.wakings).toEqual([]);
+  });
+});
+
+describe('lastNight', () => {
+  it('summarises yesterday evening’s night with its wakings', async () => {
+    const { lastNight } = await import('./insights.js');
+    const { makeEntry, entriesToSessions } = await import('./entries.js');
+    const { entry } = makeEntry({ day: '2026-10-13', type: 'night', asleep: '19:30', woke: '06:30', wakings: [{ from: '02:00', to: '02:40' }] });
+    const now = new Date(2026, 9, 14, 9, 0);
+    const n = lastNight(entriesToSessions([entry]), now);
+    expect(n.sleptMinutes).toBe(11 * 60 - 40);
+    expect(n.awakeMinutes).toBe(40);
+    expect(n.wakings).toHaveLength(1);
+    expect(n.bedtime).toEqual(new Date(2026, 9, 13, 19, 30));
+    expect(n.wake).toEqual(new Date(2026, 9, 14, 6, 30));
+    expect(lastNight(entriesToSessions([entry]), new Date(2026, 9, 16, 9, 0))).toBeNull();
+  });
+});
+
+describe('friendsWindows', () => {
+  it('finds stretches she is awake and rested on every day', async () => {
+    const { friendsWindows } = await import('./insights.js');
+    const rows = [['Date', 'Fell asleep', 'Woke up', 'Type']];
+    for (const d of ['2026-10-10', '2026-10-11', '2026-10-12']) {
+      rows.push([d, '09:00', '10:00', 'Nap'], [d, '13:00', '14:00', 'Nap'], [d, '19:00', '07:00', 'Night']);
+    }
+    const { sessions } = rowsToSessions(rows);
+    const w = friendsWindows(sessions, ['2026-10-10', '2026-10-11', '2026-10-12']);
+    // Awake 10:00–13:00 but wind-down from 12:30; 14:00–19:00 with wind-down from 18:30.
+    expect(w).toEqual([
+      { from: 600, to: 750, days: 3, of: 3 },
+      { from: 840, to: 1110, days: 3, of: 3 },
+    ]);
+    // One odd day (nap at 11:00) falls back to "most days".
+    const odd = rowsToSessions([...rows, ['2026-10-12', '11:00', '11:40', 'Nap']]).sessions;
+    const w2 = friendsWindows(odd, ['2026-10-10', '2026-10-11', '2026-10-12'], { minMinutes: 200 });
+    expect(w2).toEqual([{ from: 840, to: 1110, days: 3, of: 3 }]);
+  });
+});

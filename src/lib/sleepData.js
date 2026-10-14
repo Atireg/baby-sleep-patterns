@@ -14,6 +14,7 @@ const HEADER_ALIASES = {
   settle: ['settlingstart', 'settlestart', 'startedsettling', 'settling', 'puttosleep'],
   method: ['howfellasleep', 'method', 'settlingmethod'],
   mood: ['moodafter', 'mood', 'moodafterwaking'],
+  wakings: ['nightwakings', 'nightwaking', 'wakings', 'awakeatnight'],
 };
 
 const normalizeHeader = (h) => String(h ?? '').toLowerCase().replace(/[^a-z]/g, '');
@@ -93,6 +94,44 @@ function parseType(value, startMinutes) {
 export const dayKey = ({ y, m, d }) =>
   `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 
+/** "4:04 - 5:12, 24:08 - 24:55" -> [[244, 312], [8, 55]] (minutes after midnight; 24:xx allowed). */
+export function parseRanges(text) {
+  const ranges = [];
+  for (const m of String(text ?? '').matchAll(/(\d{1,2})[:.](\d{2})\s*[-–]\s*(\d{1,2})[:.](\d{2})/g)) {
+    ranges.push([(+m[1] * 60 + +m[2]) % 1440, (+m[3] * 60 + +m[4]) % 1440]);
+  }
+  return ranges;
+}
+
+/** Absolute time for a clock time (minutes after midnight) at or after `after`, within 24h. */
+function atOrAfter(after, minutes) {
+  const base = new Date(after.getFullYear(), after.getMonth(), after.getDate()).getTime() + minutes * MS_MIN;
+  return new Date(base < after.getTime() ? base + MS_DAY : base);
+}
+
+/**
+ * Split a night into sleep stretches around the times she was awake.
+ * ranges: [[fromMinutes, toMinutes], ...]; ranges outside the night or out of order are ignored.
+ * Only the first stretch keeps the settling time (it describes bedtime).
+ */
+export function splitNight(session, ranges) {
+  const pieces = [];
+  let cursor = session.start;
+  for (const [from, to] of ranges) {
+    const a = atOrAfter(session.start, from);
+    const z = atOrAfter(a, to);
+    if (a <= cursor || z >= session.end) continue;
+    pieces.push({ ...session, start: cursor, end: a });
+    cursor = z;
+  }
+  pieces.push({ ...session, start: cursor, end: session.end });
+  return pieces.map((p, i) => {
+    const piece = { ...p, minutes: Math.round((p.end - p.start) / MS_MIN) };
+    if (i > 0) delete piece.settleMinutes;
+    return piece;
+  });
+}
+
 /**
  * Convert a 2D array (first row = headers) into sleep sessions.
  * Returns { sessions, errors } where errors are human-readable row problems.
@@ -132,7 +171,7 @@ export function rowsToSessions(rows) {
     let endMs = base + end * MS_MIN;
     if (endMs <= startMs) endMs += MS_DAY;
 
-    sessions.push({
+    const session = {
       day: dayKey(date),
       start: new Date(startMs),
       end: new Date(endMs),
@@ -140,7 +179,10 @@ export function rowsToSessions(rows) {
       type,
       notes: cols.notes !== undefined ? String(row[cols.notes] ?? '') : '',
       ...optionalDetails(row, cols, start),
-    });
+    };
+    // A night with wakings ("02:10-02:40, 04:00-04:15") becomes several sleep stretches.
+    const wakings = type === 'night' && cols.wakings !== undefined ? parseRanges(row[cols.wakings]) : [];
+    sessions.push(...(wakings.length ? splitNight(session, wakings) : [session]));
   });
   annotateSessions(sessions);
 

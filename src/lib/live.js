@@ -1,6 +1,7 @@
 // The sleep currently being tracked live ("Now" card): settling → asleep → woke up.
 // Shape: { type: 'nap'|'night', settle: ISO|null, asleep: ISO|null, method: string }
 import { inferType } from './sleepData.js';
+import { checkWakings } from './entries.js';
 
 const LOCAL_KEY = 'baby-sleep-live-v1';
 const pad = (n) => String(n).padStart(2, '0');
@@ -58,6 +59,12 @@ export function liveToEntry(live, woke, extra = {}) {
   if (hhmm(woke) === hhmm(asleep) && woke - asleep < 60000) return { error: 'That sleep was shorter than a minute — tap Cancel to discard it.' };
   if (woke - asleep > 16 * 3600000) return { error: 'That would be a sleep of more than 16 hours — check the times.' };
   const settle = live.settle ? new Date(live.settle) : null;
+  // Night wakings that ended before she got up for the day.
+  const wakings = (live.wakings ?? [])
+    .filter((w) => new Date(w.to) < woke)
+    .map((w) => ({ from: hhmm(new Date(w.from)), to: hhmm(new Date(w.to)) }));
+  const checked = live.type === 'night' ? checkWakings(hhmm(asleep), hhmm(woke), wakings) : { wakings: [] };
+  if (checked.error) return { error: checked.error };
   return {
     entry: {
       id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
@@ -69,6 +76,7 @@ export function liveToEntry(live, woke, extra = {}) {
       method: live.method || '',
       mood: extra.mood || '',
       notes: (extra.notes || '').trim(),
+      wakings: checked.wakings,
     },
   };
 }
