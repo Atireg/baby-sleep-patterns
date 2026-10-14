@@ -378,3 +378,18 @@ describe('nap extended', () => {
     expect(dayDetails(day, sessions)).toMatchObject({ extendedNaps: 1, napsAnswered: 2 });
   });
 });
+
+describe('dayAwakeTotal', () => {
+  it('counts morning wake-up to bedtime minus naps', async () => {
+    const { dayAwakeTotal } = await import('./insights.js');
+    const { sessions } = rowsToSessions([
+      ['Date', 'Fell asleep', 'Woke up', 'Type'],
+      ['2026-10-12', '19:30', '06:30', 'Night'],
+      ['2026-10-13', '09:00', '10:15', 'Nap'],
+      ['2026-10-13', '13:00', '14:15', 'Nap'],
+    ]);
+    const r = dayAwakeTotal(sessions, '2026-10-13', new Date(2026, 9, 13, 19, 30));
+    expect(r).toMatchObject({ minutes: 13 * 60 - 150, napMinutes: 150 });
+    expect(dayAwakeTotal(sessions, '2026-10-14', new Date(2026, 9, 14, 19, 30))).toBeNull();
+  });
+});

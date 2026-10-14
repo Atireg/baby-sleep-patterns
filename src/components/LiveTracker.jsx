@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  METHODS, MOODS, expectedBedtime, expectedWakeUp, upcomingNap, upcomingWakeWindow,
+  METHODS, MOODS, dayAwakeTotal, expectedBedtime, expectedWakeUp, upcomingNap, upcomingWakeWindow,
 } from '../lib/insights.js';
-import { atTime, awakeSince as findAwakeSince, formatTimer, hhmm, liveToEntry, typeAt } from '../lib/live.js';
+import { atTime, awakeSince as findAwakeSince, formatTimer, hhmm, liveToEntry, sleepDay, typeAt } from '../lib/live.js';
 import { formatDuration } from '../lib/sleepData.js';
 
 /** Ticks every second while a timer is on screen. */
@@ -40,7 +40,7 @@ function Chips({ options, value, onChange, label }) {
  * live: { type, settle, asleep, method, wakings: [{ from, to }], wakingFrom } or null (ISO times);
  * onChange persists it; onSave(entry) stores the finished sleep.
  */
-export default function LiveTracker({ live, onChange, onSave, sessions, busy }) {
+export default function LiveTracker({ live, onChange, onSave, sessions, busy, awakeAvg = null }) {
   // live may hold only { awakeFrom } (a manually started awake timer) — that still counts as idle.
   const state = live?.asleep ? (live.wakingFrom ? 'nightawake' : 'asleep') : live?.settle ? 'settling' : 'idle';
   const sleeping = state === 'asleep' || state === 'nightawake';
@@ -120,6 +120,21 @@ export default function LiveTracker({ live, onChange, onSave, sessions, busy }) 
       </div>
     );
   })();
+  // During the night: how long she was awake during the day that just ended (wake-up → bedtime, minus naps).
+  const dayAwake = useMemo(() => {
+    if (!live?.asleep || live.type !== 'night') return null;
+    const bed = new Date(live.asleep);
+    return dayAwakeTotal(sessions, sleepDay('night', bed), bed);
+  }, [sessions, live?.asleep, live?.type]);
+  const dayAwakeLine = dayAwake && (
+    <p className="nap-forecast day-awake">
+      🌤 Awake today: <strong>{formatDuration(dayAwake.minutes)}</strong>
+      <span className="muted">
+        {' '}({hhmm(dayAwake.wake)} → {hhmm(dayAwake.bedtime)}{dayAwake.napMinutes ? `, minus ${formatDuration(dayAwake.napMinutes)} of naps` : ''})
+        {awakeAvg != null && ` · 5-day avg ${formatDuration(awakeAvg)}`}
+      </span>
+    </p>
+  );
   function ordinal(n) {
     return `${n}${n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2 && n !== 12 ? 'nd' : n % 10 === 3 && n !== 13 ? 'rd' : 'th'}`;
   }
@@ -317,6 +332,7 @@ export default function LiveTracker({ live, onChange, onSave, sessions, busy }) 
             );
           })()}
           {wakeUpLine}
+          {dayAwakeLine}
           <Chips label="How she fell asleep" options={METHODS} value={live.method} onChange={(m) => onChange({ ...live, method: m })} />
           <div className="live-actions">
             <button type="button" className="button big primary" onClick={() => { setError(null); const t = when(); setAt(''); setFinishing({ woke: hhmm(t), tapped: t, mood: '', notes: '' }); }}>
@@ -340,6 +356,7 @@ export default function LiveTracker({ live, onChange, onSave, sessions, busy }) 
             </span>
           </div>
           {wakeUpLine}
+          {dayAwakeLine}
           <button
             type="button"
             className={`chip feed-toggle ${live.wakingFeed ? 'active' : ''}`}
