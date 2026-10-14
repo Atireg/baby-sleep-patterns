@@ -63,7 +63,7 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
 - `src/lib/theme.js` – resolves CSS color tokens for Plotly (`useChartTheme`), `baseLayout`, `durationAxis`, `rangeButtons`.
 - `src/components/` – `PlotlyChart` (lazy-loads Plotly, card wrapper), `DailyTotalsChart`, `NapCountChart`, `WeeklyLineChart`,
   `MethodShareChart`, `SleepTimeline`, `RecentDaysTable`, `FileDrop`, `EntryForm`, `CloudBar` (sign-in status),
-  `DaytimeTank` (custom SVG, not Plotly), `LastNightCard`, `LiveTracker` ("Now" card).
+  `DaytimeTank` (custom SVG, not Plotly), `LastNightCard`, `LiveTracker` ("Now" card), `WakeWindowsCard`.
 - Tests: `src/lib/*.test.js` (Vitest).
 - `scripts/make-sample.mjs` – deterministic sample data generator.
 
@@ -94,7 +94,7 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
 - Stats are grouped by the row's date ("sleep day"); the timeline groups by calendar day.
 
 ## Conventions
-- Page order: CloudBar → **Now** card → **Daytime sleep tank** → **Last night** card → **Sleep timeline** → (upload, hidden) → entry form
+- Page order: CloudBar → **Now** card → **Daytime sleep tank** → **Last night** card → **Wake windows** card → **Sleep timeline** → (upload, hidden) → entry form
   → "Last 5 days" table → charts.
 - Charts use Plotly (`plotly.js-cartesian-dist-min@3.7.0`, lazy-loaded chunk ~476 kB gzip) via `PlotlyChart`. Colors always come
   from CSS tokens in `src/styles.css` through `useChartTheme` (night = `--series-1` blue, nap = `--series-2` orange, light + dark).
@@ -116,9 +116,7 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
   wakings with 🍼 feed and the current "woke at"; `resolveWakings` reads HH:MM forward from bedtime, rejects bad order/future). Method chips.
   The sleep in progress counts in the tank (`tankSessions`) but not in charts until saved.
   Wake-window line (idle): "⏱ Wake window before the Nth nap/bedtime: usually ~X · sleepy around HH:MM" (or "X over — time to
-  settle?") + bar of awake time vs the usual window (green, orange when over), from `upcomingWakeWindow`. Under it a collapsible
-  "Wake windows · last 5 days" table (rows 1st nap … / Bedtime, columns = the Last-5 days newest first, actual values from
-  `wakeWindowGrid`; the upcoming row highlighted "next"). `.card` uses `grid-template-columns: minmax(0, 1fr)` so wide tables
+  settle?") + bar of awake time vs the usual window (green, orange when over), from `upcomingWakeWindow`. `.card` uses `grid-template-columns: minmax(0, 1fr)` so wide tables
   scroll inside cards instead of stretching them.
   Nap forecast (naps only): idle/settling "💤 Next: Nth nap · usually ~X"; during a nap "may wake around HH:MM" + progress bar
   (or "already X longer than usual"); N = today's saved naps + 1, from `upcomingNap`.
@@ -135,6 +133,8 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
 - Last night card (`LastNightCard`, after the tank): tiles Asleep / **Awake during the night** (highlighted amber) / Wakings /
   Feeds 🍼; bedtime → morning bar (blue asleep, amber awake, 🍼 feeds); numbered waking list; "Notes about last night" saved into
   that night's entry `notes` (via the same update path as editing; disabled when the night isn't a saved entry).
+- Wake windows card (`WakeWindowsCard`, before the timeline): table rows 1st nap … / Bedtime, columns = the Last-5 days newest
+  first, actual values from `wakeWindowGrid`; today's upcoming row (`upcomingWakeWindow` target) highlighted "next".
 - Sleep timeline: the last-5 days, newest first, calendar-day rows (`dayKeys`); green bands + tip = good times to meet friends
   (`friendsWindows`: 07:00–19:00, awake and not within 30 min of a sleep on all days, else all-but-one; ≥ 60 min; top 2).
 - Charts use saved entries (local, or the cloud log when signed in) + a loaded file (when upload is enabled), not double-counted.
