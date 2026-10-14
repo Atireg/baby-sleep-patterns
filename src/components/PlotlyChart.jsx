@@ -4,11 +4,14 @@ let plotlyPromise;
 // Plotly is large, so load it on first use instead of with the page.
 const loadPlotly = () => (plotlyPromise ??= import('plotly.js-cartesian-dist-min').then((m) => m.default ?? m));
 
+// Charts are view-only: no zoom, pan or toolbar (hover/tap still shows details).
 const CONFIG = {
   responsive: true,
   displaylogo: false,
-  displayModeBar: 'hover',
-  modeBarButtonsToRemove: ['lasso2d', 'select2d', 'autoScale2d', 'toggleSpikelines'],
+  displayModeBar: false,
+  scrollZoom: false,
+  doubleClick: false,
+  showAxisDragHandles: false,
 };
 
 /** Card with a title and a Plotly chart. */

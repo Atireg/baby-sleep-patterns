@@ -47,6 +47,7 @@ export function baseLayout(t, overrides = {}) {
     gridcolor: t.grid,
     linecolor: t.baseline,
     zeroline: false,
+    fixedrange: true, // no zoom/pan: it fights with page scrolling on phones
     tickfont: { color: t.muted, size: 11 },
     title: { font: { color: t.textSecondary, size: 12 } },
     automargin: true,
@@ -57,6 +58,7 @@ export function baseLayout(t, overrides = {}) {
     font: { family: 'system-ui, -apple-system, "Segoe UI", sans-serif', size: 12, color: t.textSecondary },
     margin: { l: 8, r: 8, t: 8, b: 8 },
     hovermode: 'x unified',
+    dragmode: false,
     hoverlabel: { bgcolor: t.surface, bordercolor: t.grid, font: { color: t.text, size: 12 } },
     legend: { orientation: 'h', x: 0, y: 1.02, yanchor: 'bottom', traceorder: 'normal', font: { color: t.textSecondary }, bgcolor: 'rgba(0,0,0,0)' },
     barcornerradius: 4,

@@ -72,8 +72,8 @@ export default function DailyTotalsChart({ days, recent }) {
     <PlotlyChart
       title="Sleep per day"
       subtitle={recent
-        ? `Average over the last 5 days (${formatDay(recent.from, { day: 'numeric', month: 'short' })} – ${formatDay(recent.to, { day: 'numeric', month: 'short' })}, excluding today): ${formatDuration(recent.avgMinutes)} of sleep a day (dashed line, shaded days). Drag to zoom, double-click to reset.`
-        : 'Night sleep and naps per day, with the 7-day average of total sleep. Drag to zoom, double-click to reset.'}
+        ? `Average over the last 5 days (${formatDay(recent.from, { day: 'numeric', month: 'short' })} – ${formatDay(recent.to, { day: 'numeric', month: 'short' })}, excluding today): ${formatDuration(recent.avgMinutes)} of sleep a day (dashed line, shaded days).`
+        : 'Night sleep and naps per day, with the 7-day average of total sleep.'}
       data={data}
       layout={layout}
       height={360}
