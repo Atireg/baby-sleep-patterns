@@ -148,3 +148,21 @@ describe('editing entries', () => {
     expect(replaceEntry([b], edited).error).toMatch(/no longer exists/);
   });
 });
+
+describe('awakeStats', () => {
+  it('averages wake windows and full-day awake time', async () => {
+    const { awakeStats } = await import('./insights.js');
+    const { sessions } = rowsToSessions([
+      ['Date', 'Fell asleep', 'Woke up', 'Type'],
+      ['2026-10-11', '19:00', '07:00', 'Night'],
+      ['2026-10-12', '09:00', '10:00', 'Nap'], // 2h awake after 07:00
+      ['2026-10-12', '13:00', '14:00', 'Nap'], // 3h
+      ['2026-10-12', '18:00', '06:00', 'Night'], // 4h → day total 9h
+      ['2026-10-13', '08:30', '09:30', 'Nap'], // 2h30 (day without bedtime: not counted in the day total)
+    ]);
+    const s = awakeStats(sessions);
+    expect(s.avgAwakePerDay).toBe(9 * 60);
+    expect(s.days).toBe(1);
+    expect(s.avgWakeWindow).toBeCloseTo((120 + 180 + 240 + 150) / 4);
+  });
+});

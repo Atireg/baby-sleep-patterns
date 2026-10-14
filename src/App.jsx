@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { readWorkbook } from './lib/readWorkbook.js';
 import { dailyStats, dayKey, formatClock, formatDay, summary } from './lib/sleepData.js';
 import {
-  WAKE_WINDOW_SERIES, detailSummary, hasDetails, methodsByWeek, settlingByWeek, wakeWindowsByWeek,
+  WAKE_WINDOW_SERIES, awakeStats, detailSummary, hasDetails, methodsByWeek, settlingByWeek, wakeWindowsByWeek,
 } from './lib/insights.js';
 import { entriesToSessions, loadEntries, replaceEntry, saveEntries } from './lib/entries.js';
 import { entryKey, sessionsToEntries } from './lib/cloudData.js';
@@ -164,6 +164,10 @@ export default function App() {
     return days.filter((d) => d.day < today).slice(-RECENT_DAYS);
   }, [days]);
   const stats = useMemo(() => summary(recentDays), [recentDays]);
+  const awake = useMemo(() => {
+    const recent = new Set(recentDays.map((d) => d.day));
+    return awakeStats(sessions.filter((x) => recent.has(x.day)));
+  }, [sessions, recentDays]);
   const detailed = useMemo(() => hasDetails(sessions), [sessions]);
   const insights = useMemo(() => {
     if (!detailed) return null;
@@ -241,6 +245,7 @@ export default function App() {
             title={`Last ${recentDays.length} day${recentDays.length === 1 ? '' : 's'} (excluding today)`}
             range={`${formatDay(recentDays[0].day, { day: 'numeric', month: 'short' })} – ${formatDay(recentDays.at(-1).day, { day: 'numeric', month: 'short' })}`}
             stats={stats}
+            awake={awake}
             details={insights?.summary}
           />}
           <DaytimeTank sessions={tankSessions} autoTarget={stats?.avgNap ?? 0} />
