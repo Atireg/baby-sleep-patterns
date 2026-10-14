@@ -52,14 +52,14 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
   and `live.awakeFrom`; null while asleep or if >16h).
 - `src/lib/insights.js` – weekly aggregates (wake windows, settling, method), `napCountTrend`, `daytimeTank`, `awakeStats`,
   `lastNight` (yesterday-dated night; wakings = gaps between its stretches, `feed` matched from `nightWakings`; `feeds` count),
-  `friendsWindows`, `settlingStats`, `upcomingNap` (avg length of nap #N over the last 3 days with naps before today), `expectedBedtime`
+  `friendsWindows`, `settlingStats`, `dayDetails` (one day's actual numbers), `upcomingNap` (avg length of nap #N over the last 3 days with naps before today), `expectedBedtime`
   (avg first-stretch bedtime of the last 3 nights; after-midnight counts as +24h), `expectedWakeUp` (avg end of the last 3
   completed nights), `upcomingWakeWindow` (avg wake window before nap N, else before bedtime, over the last 5 days),
   label translations (BG + EN).
 - `src/lib/series.js` – gap handling: `breakGaps`, `segments`, `rollingMean` (calendar days), `allWeeks`.
 - `src/lib/theme.js` – resolves CSS color tokens for Plotly (`useChartTheme`), `baseLayout`, `durationAxis`, `rangeButtons`.
 - `src/components/` – `PlotlyChart` (lazy-loads Plotly, card wrapper), `DailyTotalsChart`, `NapCountChart`, `WeeklyLineChart`,
-  `MethodShareChart`, `SleepTimeline`, `StatTiles`, `FileDrop`, `EntryForm`, `CloudBar` (sign-in status),
+  `MethodShareChart`, `SleepTimeline`, `RecentDaysTable`, `FileDrop`, `EntryForm`, `CloudBar` (sign-in status),
   `DaytimeTank` (custom SVG, not Plotly), `LastNightCard`, `LiveTracker` ("Now" card).
 - Tests: `src/lib/*.test.js` (Vitest).
 - `scripts/make-sample.mjs` – deterministic sample data generator.
@@ -91,16 +91,18 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
 
 ## Conventions
 - Page order: CloudBar → **Now** card → **Daytime sleep tank** → **Last night** card → **Sleep timeline** → (upload, hidden) → entry form
-  → "Last 5 days" tiles → charts.
+  → "Last 5 days" table → charts.
 - Charts use Plotly (`plotly.js-cartesian-dist-min@3.7.0`, lazy-loaded chunk ~476 kB gzip) via `PlotlyChart`. Colors always come
   from CSS tokens in `src/styles.css` through `useChartTheme` (night = `--series-1` blue, nap = `--series-2` orange, light + dark).
 - Charts are view-only (user request: zoom was awkward on phones): `dragmode: false`, `fixedrange` axes in `baseLayout`, and no
   mode bar / scroll zoom / double-click in `PlotlyChart`. Hover/tap tooltips and the Sleep per day 2w/1m/All buttons remain.
 - Lines must break across missing days/weeks (`connectgaps: false`, `breakGaps`); area fills are drawn per `segments`.
-- "Last 5 days": the 5 most recent days with data **before today** (`RECENT_DAYS` in `App.jsx`). Used by the summary tiles
-  (incl. "Avg. awake time / day" = sum of the day's wake windows, complete days only (`awakeStats`, windows ≥ 8h = missing data),
-  "Avg. time to fall asleep / nap" and "Avg. time settling / day" (naps + bedtime; `settlingStats`). "Longest stretch" and
-  "Avg. wake window" tiles were removed at the user's request), the sleep timeline, the friends windows and the Sleep per day reference line.
+- "Last 5 days": the 5 most recent days with data **before today** (`RECENT_DAYS` in `App.jsx`). Shown as `RecentDaysTable`:
+  a day-by-day table of **actual numbers** (user request: no averages), newest day first, rows = total sleep, night sleep,
+  naps (+ lengths), nap time, awake during the day, time to fall asleep (each nap / bedtime / day total), morning wake-up,
+  bedtime, night wakings (+ awake time, feeds), fell asleep on her own (x of y) — values from `dayDetails`. Only **Total sleep**
+  and **Awake during the day** get an "Average" column at the end. Sticky first column; scrolls sideways on phones.
+  The same 5 days drive the sleep timeline, the friends windows and the Sleep per day reference line.
 - Sleep per day: shaded last-5 days + dashed 5-day average line with label; dotted 7-day rolling average excludes today.
 - "Now" card (mobile-first): big running awake timer when idle (from the last sleep's end, or "Start awake timer"/"reset" →
   `live.awakeFrom`). States: idle → settling → asleep → (nights) nightawake ↔ asleep → finish (confirm time, mood, notes) → Save
@@ -125,7 +127,7 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
 - Sleep timeline: the last-5 days, newest first, calendar-day rows (`dayKeys`); green bands + tip = good times to meet friends
   (`friendsWindows`: 07:00–19:00, awake and not within 30 min of a sleep on all days, else all-but-one; ≥ 60 min; top 2).
 - Charts use saved entries (local, or the cloud log when signed in) + a loaded file (when upload is enabled), not double-counted.
-- The daily breakdown table was removed at the user's request — don't re-add it.
+- The old full-history daily breakdown table was removed at the user's request — don't re-add it (the 5-day table above is separate).
 
 ## Known caveats
 - `xlsx@0.18.5` from npm (the SheetJS CDN build is blocked in the cloud env). It has known advisories for malicious files; acceptable since users only parse their own files locally. Switch to the CDN tarball when possible.

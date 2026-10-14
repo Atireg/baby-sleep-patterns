@@ -317,3 +317,19 @@ code { font-size: 0.85em; }
 .nap-progress-bar.night > div { background: var(--series-1); }
 .nap-progress-bar.window > div { background: var(--series-3); }
 .nap-progress-bar.window.over > div { background: var(--series-2); }
+
+/* Last 5 days table */
+.recent-days { gap: 12px; }
+.recent-table-wrap { overflow-x: auto; margin: 0 -4px; }
+.recent-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; font-variant-numeric: tabular-nums; }
+.recent-table th, .recent-table td { padding: 7px 8px; text-align: right; border-bottom: 1px solid var(--grid); vertical-align: top; white-space: nowrap; }
+.recent-table thead th { color: var(--text-primary); font-weight: 600; }
+.recent-table th small, .recent-table td small { display: block; font-weight: 400; font-size: 0.75rem; color: var(--text-secondary); white-space: normal; }
+.recent-table tbody th[scope="row"] { text-align: left; font-weight: 500; color: var(--text-secondary); white-space: normal; min-width: 110px; }
+.recent-table thead th:first-child, .recent-table tbody th[scope="row"] { position: sticky; left: 0; background: var(--surface-1); z-index: 1; }
+.recent-table tr.strong td, .recent-table tr.strong th[scope="row"] { font-weight: 700; color: var(--text-primary); }
+.recent-table .section-row th { text-align: left; padding-top: 14px; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); border-bottom: 1px solid var(--baseline); }
+.recent-table .avg-col { background: color-mix(in srgb, var(--accent) 8%, transparent); border-left: 1px solid var(--grid); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.scroll-hint { display: none; }
+@media (max-width: 640px) { .scroll-hint { display: inline; font-weight: 600; } }

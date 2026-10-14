@@ -391,3 +391,47 @@ export function settlingStats(sessions) {
   const mean = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
   return { avgPerNap: mean(naps.map((s) => s.settleMinutes)), avgPerDay: mean([...perDay.values()]), days: perDay.size };
 }
+
+/**
+ * Actual numbers for one sleep day (no averages), for the "Last 5 days" table.
+ * day: a dailyStats() record; sessions: all sessions (needed for the morning wake-up from the night before).
+ */
+export function dayDetails(day, sessions) {
+  const naps = day.sessions.filter((s) => s.type === 'nap').sort((a, b) => a.start - b.start);
+  const nightPieces = day.sessions.filter((s) => s.type === 'night').sort((a, b) => a.start - b.start);
+  const bed = nightPieces[0] ?? null;
+  // Morning wake-up = end of the night that was logged under the previous date.
+  const [y, m, d] = day.day.split('-').map(Number);
+  const prev = new Date(y, m - 1, d - 1);
+  const prevKey = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}-${String(prev.getDate()).padStart(2, '0')}`;
+  const prevNight = sessions.filter((s) => s.type === 'night' && s.day === prevKey).sort((a, b) => a.end - b.end).at(-1);
+  // Awake time: the day's wake windows (before each nap and before bedtime), only if all are known.
+  const windows = [...naps, ...(bed ? [bed] : [])].map((s) => (s.wakeWindow != null && s.wakeWindow < 8 * 60 ? s.wakeWindow : null));
+  const settles = naps.map((s) => s.settleMinutes ?? null);
+  const known = [...settles, bed?.settleMinutes ?? null].filter((v) => v != null);
+  const wakings = [];
+  for (let i = 1; i < nightPieces.length; i++) {
+    wakings.push({ minutes: Math.round((nightPieces[i].start - nightPieces[i - 1].end) / 60000) });
+  }
+  const details = nightPieces.find((p) => p.nightWakings)?.nightWakings ?? [];
+  const firsts = [...naps, ...(bed ? [bed] : [])];
+  return {
+    day: day.day,
+    totalMinutes: day.totalMinutes,
+    nightMinutes: day.nightMinutes,
+    naps: naps.length,
+    napMinutes: day.napMinutes,
+    napLengths: naps.map((s) => s.minutes),
+    awakeMinutes: bed && windows.length && windows.every((w) => w != null) ? windows.reduce((a, b) => a + b, 0) : null,
+    napSettle: settles,
+    bedSettle: bed?.settleMinutes ?? null,
+    settleTotal: known.length ? known.reduce((a, b) => a + b, 0) : null,
+    bedtime: bed?.start ?? null,
+    morningWake: prevNight?.end ?? null,
+    nightWakings: wakings.length,
+    nightAwakeMinutes: wakings.reduce((a, w) => a + w.minutes, 0),
+    nightFeeds: details.filter((w) => w.feed).length,
+    independent: firsts.filter((s) => methodLabel(s.method) === 'Independently').length,
+    withMethod: firsts.filter((s) => s.method).length,
+  };
+}
