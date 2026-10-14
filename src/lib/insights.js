@@ -437,3 +437,20 @@ export function dayDetails(day, sessions) {
     withMethod: firsts.filter((s) => s.method).length,
   };
 }
+
+/**
+ * Total time awake during a day, for the night view of the Now card:
+ * morning wake-up (end of the previous date's night) → bedtime, minus that day's naps.
+ * Returns { minutes, wake, bedtime, napMinutes } or null when the morning wake-up isn't logged.
+ */
+export function dayAwakeTotal(sessions, day, bedtime) {
+  const [y, m, d] = day.split('-').map(Number);
+  const prev = new Date(y, m - 1, d - 1);
+  const prevKey = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}-${String(prev.getDate()).padStart(2, '0')}`;
+  const wake = sessions.filter((s) => s.type === 'night' && s.day === prevKey).reduce((w, s) => (!w || s.end > w ? s.end : w), null);
+  if (!wake || bedtime <= wake) return null;
+  const napMinutes = sessions
+    .filter((s) => s.type === 'nap' && s.day === day && s.start >= wake && s.end <= bedtime)
+    .reduce((sum, s) => sum + s.minutes, 0);
+  return { minutes: Math.round((bedtime - wake) / 60000) - napMinutes, wake, bedtime, napMinutes };
+}

@@ -56,6 +56,7 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
   `friendsWindows`, `settlingStats`, `dayDetails` (one day's actual numbers), `upcomingNap` (avg length of nap #N over the last 3 days with naps before today), `expectedBedtime`
   (avg first-stretch bedtime of the last 3 nights; after-midnight counts as +24h), `expectedWakeUp` (avg end of the last 3
   completed nights), `upcomingWakeWindow` (avg wake window before nap N, else before bedtime, over the last 5 days),
+  `dayAwakeTotal` (morning wake-up → bedtime minus naps for one day),
   label translations (BG + EN).
 - `src/lib/series.js` – gap handling: `breakGaps`, `segments`, `rollingMean` (calendar days), `allWeeks`.
 - `src/lib/theme.js` – resolves CSS color tokens for Plotly (`useChartTheme`), `baseLayout`, `durationAxis`, `rangeButtons`.
@@ -119,7 +120,8 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
   Bedtime line (idle, and while settling a night): "🌙 Expected bedtime ~HH:MM · in X / about now (±10m) / X past the usual
   time"; hidden once tonight's night is logged.
   Wake-up line (night asleep / night waking): "☀️ Expected wake-up ~HH:MM · in X / about now / X past" + night progress bar
-  (bedtime → expected wake-up), from `expectedWakeUp`.
+  (bedtime → expected wake-up), from `expectedWakeUp`. Below it (night asleep / night waking): "🌤 Awake today: X (wake → bedtime,
+  minus naps) · 5-day avg Y" (`dayAwakeTotal`; avg = mean of the Last 5 days table's awake values, passed as `awakeAvg`).
 - Editing: each listed entry has ✎ (loads it into the form → "Save changes"/"Cancel edit") and × (delete). "Show day" filter.
   The form has "Night wakings" rows (Woke at / Back asleep at / 🍼 Feed) for nights; list durations subtract wakings.
   Naps have "Was the nap extended?" Yes/No (form chips; Now card finish step for naps); list shows "extended"/"not extended".

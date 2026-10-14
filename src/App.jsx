@@ -182,6 +182,10 @@ export default function App() {
       .find((e) => e.asleep >= '12:00') ?? formEntries.find((e) => e.type === 'night' && e.day === night.day) ?? null
     : null), [night, formEntries]);
   const recentDetails = useMemo(() => recentDays.map((d) => dayDetails(d, sessions)), [recentDays, sessions]);
+  const awakeAvg = useMemo(() => {
+    const known = recentDetails.map((d) => d.awakeMinutes).filter((v) => v != null);
+    return known.length ? known.reduce((a, b) => a + b, 0) / known.length : null;
+  }, [recentDetails]);
   const detailed = useMemo(() => hasDetails(sessions), [sessions]);
   const insights = useMemo(() => {
     if (!detailed) return null;
@@ -209,7 +213,7 @@ export default function App() {
       />
       {notice && <p className="loaded" role="status">{notice}</p>}
 
-      <LiveTracker live={live} onChange={changeLive} onSave={saveLiveEntry} sessions={sessions} busy={busy} />
+      <LiveTracker live={live} onChange={changeLive} onSave={saveLiveEntry} sessions={sessions} busy={busy} awakeAvg={awakeAvg} />
       {(sessions.length > 0 || live?.asleep) && (
         <DaytimeTank sessions={tankSessions} autoTarget={stats?.avgNap ?? 0} />
       )}
