@@ -332,3 +332,24 @@ export function expectedBedtime(sessions, now = new Date(), days = 3) {
   });
   return { minutes: Math.round(mins.reduce((a, b) => a + b, 0) / mins.length), samples: mins.length };
 }
+
+/**
+ * Expected morning wake-up: the average time the last `days` completed nights ended
+ * (last stretch of each night). Returns { minutes (after midnight), samples } or null.
+ */
+export function expectedWakeUp(sessions, now = new Date(), days = 3) {
+  const lastByDay = new Map();
+  for (const s of sessions) {
+    if (s.type !== 'night' || s.end > now) continue;
+    const cur = lastByDay.get(s.day);
+    if (!cur || s.end > cur.end) lastByDay.set(s.day, s);
+  }
+  const nights = [...lastByDay.keys()].sort().slice(-days).map((d) => lastByDay.get(d));
+  if (!nights.length) return null;
+  // Morning times; a (rare) wake-up after noon counts as the previous evening.
+  const mins = nights.map((s) => {
+    const m = s.end.getHours() * 60 + s.end.getMinutes();
+    return m > 12 * 60 ? m - 1440 : m;
+  });
+  return { minutes: Math.round(mins.reduce((a, b) => a + b, 0) / mins.length), samples: mins.length };
+}

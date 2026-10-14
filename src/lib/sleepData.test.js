@@ -284,3 +284,19 @@ describe('expectedBedtime', () => {
     expect(expectedBedtime([], new Date())).toBeNull();
   });
 });
+
+describe('expectedWakeUp', () => {
+  it('averages when the last 3 nights ended', async () => {
+    const { expectedWakeUp } = await import('./insights.js');
+    const { sessions } = rowsToSessions([
+      ['Date', 'Fell asleep', 'Woke up', 'Type', 'Night wakings'],
+      ['2026-10-09', '19:30', '05:00', 'Night', ''], // older: ignored
+      ['2026-10-10', '19:30', '06:30', 'Night', '01:00-01:20'],
+      ['2026-10-11', '19:30', '06:45', 'Night', ''],
+      ['2026-10-12', '19:30', '07:00', 'Night', ''],
+    ]);
+    // During the night of the 13th (not saved yet) → based on the three previous nights.
+    expect(expectedWakeUp(sessions, new Date(2026, 9, 14, 2, 0))).toEqual({ minutes: 6 * 60 + 45, samples: 3 });
+    expect(expectedWakeUp([], new Date())).toBeNull();
+  });
+});

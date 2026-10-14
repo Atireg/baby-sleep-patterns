@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { METHODS, MOODS, expectedBedtime, upcomingNap } from '../lib/insights.js';
+import { METHODS, MOODS, expectedBedtime, expectedWakeUp, upcomingNap } from '../lib/insights.js';
 import { atTime, awakeSince as findAwakeSince, formatTimer, hhmm, liveToEntry, typeAt } from '../lib/live.js';
 import { formatDuration } from '../lib/sleepData.js';
 
@@ -68,6 +68,30 @@ export default function LiveTracker({ live, onChange, onSave, sessions, busy }) 
         {diff < -10 && <> · {formatDuration(-diff)} past the usual time</>}
         <span className="muted"> (avg of last {bedtime.samples === 1 ? 'night' : `${bedtime.samples} nights`})</span>
       </p>
+    );
+  })();
+  // Expected morning wake-up during a night, from when the last 3 nights ended.
+  const wakeUp = useMemo(() => expectedWakeUp(sessions, new Date(minuteKey * 60000)), [sessions, minuteKey]);
+  const wakeUpLine = live?.asleep && live.type === 'night' && wakeUp && (() => {
+    const start = new Date(live.asleep);
+    const when = new Date(start.getFullYear(), start.getMonth(), start.getDate(), 0, wakeUp.minutes);
+    if (when <= start) when.setDate(when.getDate() + 1);
+    const left = Math.round((when - now) / 60000);
+    const share = Math.min(1, Math.max(0, (now - start) / (when - start)));
+    return (
+      <div className="nap-progress">
+        <p className="nap-forecast wake-forecast">
+          ☀️ Expected wake-up <strong>~{hhmm(when)}</strong>
+          {left > 10 && <> · in <strong>{formatDuration(left)}</strong></>}
+          {Math.abs(left) <= 10 && <> · <strong>about now</strong></>}
+          {left < -10 && <> · {formatDuration(-left)} past the usual time</>}
+          <span className="muted"> (avg of last {wakeUp.samples === 1 ? 'night' : `${wakeUp.samples} nights`})</span>
+        </p>
+        <div className="nap-progress-bar night" role="progressbar" aria-label="Night so far"
+          aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(share * 100)}>
+          <div style={{ width: `${share * 100}%` }} />
+        </div>
+      </div>
     );
   })();
   const ordinal = (n) => `${n}${n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2 && n !== 12 ? 'nd' : n % 10 === 3 && n !== 13 ? 'rd' : 'th'}`;
@@ -263,6 +287,7 @@ export default function LiveTracker({ live, onChange, onSave, sessions, busy }) 
               </div>
             );
           })()}
+          {wakeUpLine}
           <Chips label="How she fell asleep" options={METHODS} value={live.method} onChange={(m) => onChange({ ...live, method: m })} />
           <div className="live-actions">
             <button type="button" className="button big primary" onClick={() => { setError(null); const t = when(); setAt(''); setFinishing({ woke: hhmm(t), tapped: t, mood: '', notes: '' }); }}>
@@ -285,6 +310,7 @@ export default function LiveTracker({ live, onChange, onSave, sessions, busy }) 
               {' · '}slept {formatDuration((since(live.wakingFrom) - since(live.asleep) - awakeAtNight(since(live.wakingFrom))) / 60000)} so far
             </span>
           </div>
+          {wakeUpLine}
           <button
             type="button"
             className={`chip feed-toggle ${live.wakingFeed ? 'active' : ''}`}
