@@ -314,3 +314,4 @@ code { font-size: 0.85em; }
 .nap-progress { display: grid; gap: 6px; }
 .nap-progress-bar { height: 8px; border-radius: 999px; background: var(--grid); overflow: hidden; }
 .nap-progress-bar > div { height: 100%; border-radius: 999px; background: var(--series-2); transition: width 1s linear; }
+.nap-progress-bar.night > div { background: var(--series-1); }
