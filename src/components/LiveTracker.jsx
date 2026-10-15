@@ -120,6 +120,27 @@ export default function LiveTracker({ live, onChange, onSave, onEditAwake, sessi
       </div>
     );
   })();
+  // After she falls asleep: how long she had been awake before it (and the usual for that nap / bedtime).
+  const windowBefore = useMemo(() => {
+    if (!live?.asleep) return null;
+    const asleepAt = new Date(live.asleep);
+    const from = findAwakeSince(sessions, { awakeFrom: live.awakeFrom ?? null }, asleepAt);
+    const minutes = from ? Math.round((asleepAt - from) / 60000) : null;
+    if (minutes == null || minutes <= 0 || minutes >= 8 * 60) return null;
+    const usual = upcomingWakeWindow(sessions, asleepAt);
+    // Only compare with the same kind of sleep (the usual before a nap vs before bedtime).
+    const matches = usual && (usual.target === 'bedtime') === (live.type === 'night');
+    return { from, minutes, usual: matches ? usual : null };
+  }, [sessions, live?.asleep, live?.awakeFrom, live?.type]);
+  const windowBeforeLine = windowBefore && (
+    <p className="nap-forecast window-before">
+      ⏱ Wake window before {live.type === 'night' ? 'bedtime' : 'this nap'}: <strong>{formatDuration(windowBefore.minutes)}</strong>
+      <span className="muted">
+        {' '}({hhmm(windowBefore.from)} → {hhmm(new Date(live.asleep))})
+        {windowBefore.usual && ` · usually ~${formatDuration(windowBefore.usual.avgMinutes)}`}
+      </span>
+    </p>
+  );
   // During the night: how long she was awake during the day that just ended (wake-up → bedtime, minus naps).
   const dayAwake = useMemo(() => {
     if (!live?.asleep || live.type !== 'night') return null;
@@ -202,7 +223,7 @@ export default function LiveTracker({ live, onChange, onSave, onEditAwake, sessi
   const fellAsleep = () => act(() => {
     const t = when();
     if (live?.settle && t < new Date(live.settle)) return setError('That’s before settling started.');
-    onChange({ type: live?.type ?? idleType, settle: live?.settle ?? null, asleep: t.toISOString(), method: live?.method ?? '' });
+    onChange({ type: live?.type ?? idleType, settle: live?.settle ?? null, asleep: t.toISOString(), method: live?.method ?? '', awakeFrom: live?.awakeFrom ?? null });
     setType(null);
   });
   const cancel = () => {
@@ -356,6 +377,7 @@ export default function LiveTracker({ live, onChange, onSave, onEditAwake, sessi
               {wakings.some((w) => w.feed) && ` (${wakings.filter((w) => w.feed).length} feed${wakings.filter((w) => w.feed).length === 1 ? '' : 's'})`}
             </span>
           </div>
+          {windowBeforeLine}
           {live.type === 'nap' && nap.avgMinutes != null && (() => {
             const elapsed = (now - since(live.asleep)) / 60000;
             const share = Math.min(1, elapsed / nap.avgMinutes);
