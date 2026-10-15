@@ -1,7 +1,7 @@
 // The sleep currently being tracked live ("Now" card): settling → asleep → woke up.
 // Shape: { type: 'nap'|'night', settle: ISO|null, asleep: ISO|null, method: string }
 import { inferType } from './sleepData.js';
-import { checkWakings, toYesNo } from './entries.js';
+import { checkWakings, entriesToSessions, toYesNo } from './entries.js';
 
 const LOCAL_KEY = 'baby-sleep-live-v1';
 const pad = (n) => String(n).padStart(2, '0');
@@ -141,4 +141,24 @@ export function resolveWakings(asleep, rows, wakingFrom, now = new Date()) {
     if (current > now) return { error: '“Awake since” is in the future — check the time.' };
   }
   return { wakings, wakingFrom: current ? current.toISOString() : null };
+}
+
+/**
+ * The Now card after a sleep was added, edited or deleted in the sleep log (entry = the saved
+ * entry, or null for a delete), so the log always wins:
+ * - a manually started awake timer is dropped — the awake timer then runs from the logged sleeps;
+ * - a sleep in progress that the logged entry covers (it started within the entry's times) is
+ *   finished, so the Now card stops tracking it.
+ */
+export function liveAfterLogEdit(live, entry) {
+  if (!live) return live;
+  const started = live.asleep ?? live.settle;
+  if (!started) return null; // only a manual awake timer
+  const pieces = entry ? entriesToSessions([entry]) : [];
+  if (pieces.length) {
+    const t = new Date(started);
+    const from = pieces[0].start.getTime() - 60000;
+    if (t >= from && t < pieces.at(-1).end) return null;
+  }
+  return live.awakeFrom ? { ...live, awakeFrom: null } : live;
 }

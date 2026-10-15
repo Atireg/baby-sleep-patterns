@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { atTime, formatTimer, liveToEntry, resolveWakings, sleepDay, typeAt } from './live.js';
+import { atTime, formatTimer, liveAfterLogEdit, liveToEntry, resolveWakings, sleepDay, typeAt } from './live.js';
 import { entriesToSessions } from './entries.js';
 
 describe('live tracking', () => {
@@ -79,5 +79,25 @@ describe('editing night wakings', () => {
     expect(resolveWakings(asleep, [{ from: '19:30', to: '20:00' }], '', now).error).toMatch(/after she fell asleep/);
     expect(resolveWakings(asleep, [], '05:30', now).error).toMatch(/future/);
     expect(resolveWakings(asleep, [], '', now)).toEqual({ wakings: [], wakingFrom: null });
+  });
+});
+
+describe('Now card follows sleep-log edits', () => {
+  const nap = { id: 'x', day: '2026-10-14', type: 'nap', settle: '', asleep: '13:00', woke: '14:10', method: '', mood: '', notes: '', wakings: [], extended: null };
+  const iso = (h, m) => new Date(2026, 9, 14, h, m).toISOString();
+  it('drops a manual awake timer', () => {
+    expect(liveAfterLogEdit({ awakeFrom: iso(14, 30) }, nap)).toBeNull();
+    expect(liveAfterLogEdit({ awakeFrom: iso(14, 30) }, null)).toBeNull();
+    expect(liveAfterLogEdit(null, nap)).toBeNull();
+  });
+  it('finishes a tracked sleep the logged entry covers', () => {
+    expect(liveAfterLogEdit({ type: 'nap', settle: null, asleep: iso(13, 0) }, nap)).toBeNull();
+    expect(liveAfterLogEdit({ type: 'nap', settle: iso(13, 20), asleep: null }, nap)).toBeNull();
+  });
+  it('keeps a tracked sleep the entry does not cover', () => {
+    const live = { type: 'nap', settle: null, asleep: iso(15, 0), awakeFrom: iso(14, 30) };
+    expect(liveAfterLogEdit(live, nap)).toEqual({ ...live, awakeFrom: null });
+    const plain = { type: 'nap', settle: null, asleep: iso(15, 0) };
+    expect(liveAfterLogEdit(plain, nap)).toBe(plain);
   });
 });
