@@ -1,13 +1,11 @@
 import { useMemo } from 'react';
-import { formatClock, formatDay, formatDuration } from '../lib/sleepData.js';
+import { formatDay, formatDuration, hhmm } from '../lib/format.js';
+import { MS_DAY, MS_HOUR, dateKey, minutesBetween, minutesToClock } from '../lib/time.js';
 import { methodLabel, moodLabel } from '../lib/insights.js';
 import { baseLayout, useChartTheme, withAlpha } from '../lib/theme.js';
 import PlotlyChart from './PlotlyChart.jsx';
 
-const MS_DAY = 24 * 60 * 60 * 1000;
 const midnight = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
-const keyOf = (date) =>
-  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
 /** Split sessions at midnight so each piece sits on its own calendar-day row (hours 0–24). */
 export function toPieces(sessions) {
@@ -17,7 +15,7 @@ export function toPieces(sessions) {
     while (from < s.end.getTime()) {
       const dayStart = midnight(new Date(from)).getTime();
       const to = Math.min(s.end.getTime(), dayStart + MS_DAY);
-      pieces.push({ session: s, row: keyOf(new Date(from)), from: (from - dayStart) / 3.6e6, to: (to - dayStart) / 3.6e6 });
+      pieces.push({ session: s, row: dateKey(new Date(from)), from: (from - dayStart) / MS_HOUR, to: (to - dayStart) / MS_HOUR });
       from = to;
     }
   }
@@ -27,7 +25,7 @@ export function toPieces(sessions) {
 function hoverText(s) {
   const lines = [
     `<b>${s.type === 'night' ? 'Night sleep' : 'Nap'}</b> · ${formatDay(s.day)}`,
-    `${formatClock(s.start)} – ${formatClock(s.end)} (${formatDuration(Math.round((s.end - s.start) / 60000))})`,
+    `${hhmm(s.start)} – ${hhmm(s.end)} (${formatDuration(minutesBetween(s.start, s.end))})`,
   ];
   if (s.wakeWindow != null) lines.push(`Awake before: ${formatDuration(s.wakeWindow)}`);
   if (s.settleMinutes != null) lines.push(`Took to fall asleep: ${formatDuration(s.settleMinutes)}`);
@@ -37,7 +35,6 @@ function hoverText(s) {
 }
 
 /** dayKeys: the calendar days to show as rows (shown newest first). */
-const clock = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 
 /** friends: suggested windows [{ from, to, days, of }] in minutes after midnight (see friendsWindows). */
 export default function SleepTimeline({ sessions, dayKeys, friends = [] }) {
@@ -77,10 +74,10 @@ export default function SleepTimeline({ sessions, dayKeys, friends = [] }) {
         })),
         annotations: friends.map((w) => ({
           xref: 'x', yref: 'paper', x: (w.from + w.to) / 120, y: 0, yanchor: 'top', yshift: -4, showarrow: false,
-          text: `👋 ${clock(w.from)}–${clock(w.to)}`, font: { size: 11, color: t.text },
+          text: `👋 ${minutesToClock(w.from)}–${minutesToClock(w.to)}`, font: { size: 11, color: t.text },
         })),
         xaxis: {
-          range: [0, 24], tickvals: hourTicks, ticktext: hourTicks.map((h) => `${String(h).padStart(2, '0')}:00`),
+          range: [0, 24], tickvals: hourTicks, ticktext: hourTicks.map((h) => minutesToClock(h * 60)),
           showgrid: true, side: 'top', fixedrange: true,
         },
         yaxis: {
@@ -99,7 +96,7 @@ export default function SleepTimeline({ sessions, dayKeys, friends = [] }) {
         Last 5 days (excluding today), newest first. Each row is a calendar day, midnight to midnight; hover a bar for details.
         <span className="friends-tip">
           {friends.length
-            ? <>👋 <strong>Good time to meet friends:</strong> {friends.map((w) => `${clock(w.from)}–${clock(w.to)}`).join(' or ')}
+            ? <>👋 <strong>Good time to meet friends:</strong> {friends.map((w) => `${minutesToClock(w.from)}–${minutesToClock(w.to)}`).join(' or ')}
               {' '}— she was awake and not due for a nap {friends[0].days === friends[0].of ? `on all ${friends[0].of} days` : `on ${friends[0].days} of ${friends[0].of} days`} (green band).</>
             : '👋 No reliable awake stretch of an hour or more in the last few days — try right after a nap.'}
         </span>

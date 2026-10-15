@@ -1,14 +1,8 @@
-// Helpers for time series with missing days.
+// Helpers for time series with missing days. Day steps get +1h slack (DST days are 23h or 25h long).
+import { MS_DAY, MS_HOUR, dateKey, keyToDate } from './time.js';
 
-const MS_DAY = 24 * 60 * 60 * 1000;
-const toTime = (day) => {
-  const [y, m, d] = day.split('-').map(Number);
-  return new Date(y, m - 1, d).getTime();
-};
-const toDay = (t) => {
-  const d = new Date(t);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
+const toTime = (day) => keyToDate(day).getTime();
+const toDay = (t) => dateKey(new Date(t));
 
 /**
  * Insert a null point after any jump longer than `maxGapDays`, so Plotly breaks the line
@@ -18,7 +12,7 @@ export function breakGaps(xs, ys, maxGapDays = 1) {
   const x = [];
   const y = [];
   xs.forEach((day, i) => {
-    if (i && toTime(day) - toTime(xs[i - 1]) > maxGapDays * MS_DAY + 3.6e6) {
+    if (i && toTime(day) - toTime(xs[i - 1]) > maxGapDays * MS_DAY + MS_HOUR) {
       x.push(toDay(toTime(xs[i - 1]) + MS_DAY));
       y.push(null);
     }
@@ -40,7 +34,7 @@ export function rollingMean(days, value, window = 7) {
 /** Every Monday from the first to the last week key, inclusive. */
 export function allWeeks(firstWeek, lastWeek) {
   const weeks = [];
-  for (let t = toTime(firstWeek); t <= toTime(lastWeek) + 3.6e6; t += 7 * MS_DAY) weeks.push(toDay(t));
+  for (let t = toTime(firstWeek); t <= toTime(lastWeek) + MS_HOUR; t += 7 * MS_DAY) weeks.push(toDay(t));
   return weeks;
 }
 

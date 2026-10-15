@@ -2,18 +2,17 @@ import { useRef, useState } from 'react';
 import { utils, writeFile } from 'xlsx';
 import { entriesToRows, entryToValues, makeEntry } from '../lib/entries.js';
 import { METHODS, MOODS } from '../lib/insights.js';
-import { countsAsSleep, formatDay, formatDuration } from '../lib/sleepData.js';
+import { formatDay, formatDuration } from '../lib/format.js';
+import { countsAsSleep } from '../lib/sleepData.js';
+import { YesNoChips } from './Chips.jsx';
+import WakingRows from './WakingRows.jsx';
+import { clockSpan, dateKey } from '../lib/time.js';
 
-const today = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
-const minutes = (hhmm) => +hhmm.slice(0, 2) * 60 + +hhmm.slice(3, 5);
-const span = (from, to) => (minutes(to) - minutes(from) + 1440) % 1440;
+const today = () => dateKey(new Date());
 // Time asleep: the whole span minus night wakings (short feeds still count as sleep).
-const duration = (e) => span(e.asleep, e.woke) - (e.wakings ?? [])
-  .filter((w) => !countsAsSleep(w.feed, span(w.from, w.to)))
-  .reduce((sum, w) => sum + span(w.from, w.to), 0);
+const duration = (e) => clockSpan(e.asleep, e.woke) - (e.wakings ?? [])
+  .filter((w) => !countsAsSleep(w.feed, clockSpan(w.from, w.to)))
+  .reduce((sum, w) => sum + clockSpan(w.from, w.to), 0);
 const EMPTY = { settle: '', asleep: '', woke: '', method: '', mood: '', notes: '', wakings: [], extended: '' };
 const SHOW = 6;
 
@@ -27,11 +26,6 @@ export default function EntryForm({ entries, cloud, onAdd, onUpdate, onDelete, o
   const [saving, setSaving] = useState(false);
   const formRef = useRef(null);
   const set = (key) => (e) => setValues((v) => ({ ...v, [key]: e.target.value }));
-  const setWaking = (i, key) => (e) => setValues((v) => ({
-    ...v, wakings: v.wakings.map((w, j) => (j === i ? { ...w, [key]: e.target.value } : w)),
-  }));
-  const addWaking = () => setValues((v) => ({ ...v, wakings: [...v.wakings, { from: '', to: '' }] }));
-  const removeWaking = (i) => setValues((v) => ({ ...v, wakings: v.wakings.filter((_, j) => j !== i) }));
 
   const startEdit = (entry) => {
     setEditing(entry);
@@ -136,40 +130,13 @@ export default function EntryForm({ entries, cloud, onAdd, onUpdate, onDelete, o
         {values.type === 'nap' && (
           <fieldset className="yesno">
             <legend>Was the nap extended?</legend>
-            <div className="yesno-buttons" role="group">
-              {[['yes', 'Yes'], ['no', 'No']].map(([v, label]) => (
-                <button
-                  key={v}
-                  type="button"
-                  className={`chip ${values.extended === v ? 'active' : ''}`}
-                  aria-pressed={values.extended === v}
-                  onClick={() => setValues((x) => ({ ...x, extended: x.extended === v ? '' : v }))}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+            <YesNoChips label="Was the nap extended?" value={values.extended} onChange={(v) => setValues((x) => ({ ...x, extended: v }))} />
           </fieldset>
         )}
         {values.type === 'night' && (
           <fieldset className="wakings wide">
             <legend>Night wakings <em>optional — times she was awake during the night</em></legend>
-            {values.wakings.map((w, i) => (
-              <div className="waking-row" key={i}>
-                <label><span>Woke at</span><input type="time" value={w.from} onChange={setWaking(i, 'from')} /></label>
-                <label><span>Back asleep at</span><input type="time" value={w.to} onChange={setWaking(i, 'to')} /></label>
-                <label className="feed-check">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(w.feed)}
-                    onChange={(e) => setValues((v) => ({ ...v, wakings: v.wakings.map((x, j) => (j === i ? { ...x, feed: e.target.checked } : x)) }))}
-                  />
-                  <span>🍼 Feed</span>
-                </label>
-                <button type="button" className="icon-button" aria-label="Remove night waking" onClick={() => removeWaking(i)}>×</button>
-              </div>
-            ))}
-            <button type="button" className="button ghost add-waking" onClick={addWaking}>+ Add night waking</button>
+            <WakingRows wakings={values.wakings} onChange={(wakings) => setValues((v) => ({ ...v, wakings }))} />
           </fieldset>
         )}
         <div className="form-actions">

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { upcomingWakeWindow, wakeWindowGrid } from '../lib/insights.js';
-import { formatDay, formatDuration } from '../lib/sleepData.js';
+import { formatDay, formatDuration } from '../lib/format.js';
 
 const ordinal = (n) => `${n}${n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2 && n !== 12 ? 'nd' : n % 10 === 3 && n !== 13 ? 'rd' : 'th'}`;
 

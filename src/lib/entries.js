@@ -1,29 +1,21 @@
 // Sleeps entered by hand on the website. Stored in this browser only (localStorage).
 import { rowsToSessions } from './sleepData.js';
+import { clockSpan } from './time.js';
+import { readStored, writeStored } from './storage.js';
 
 const STORAGE_KEY = 'baby-sleep-entries-v1';
 
 export const EXPORT_HEADERS = ['Date', 'Settling start', 'Fell asleep', 'Woke up', 'Type', 'How fell asleep', 'Mood after', 'Notes', 'Night wakings', 'Nap extended'];
 
 export function loadEntries() {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+  const stored = readStored(STORAGE_KEY, []);
+  return Array.isArray(stored) ? stored : [];
 }
 
-export function saveEntries(entries) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-    return true;
-  } catch {
-    return false;
-  }
-}
+/** Returns false when the browser blocks storage. */
+export const saveEntries = (entries) => writeStored(STORAGE_KEY, entries);
 
-const newId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+export const newId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 
 /**
  * Validate form values. Returns { entry } or { error }.
@@ -59,14 +51,12 @@ export function makeEntry(values, id = newId()) {
 /** 'yes' / true → true, 'no' / false → false, anything else → null. */
 export const toYesNo = (v) => (v === true || v === 'yes' ? true : v === false || v === 'no' ? false : null);
 
-const toMin = (hhmm) => +hhmm.slice(0, 2) * 60 + +hhmm.slice(3, 5);
-
 /** Night wakings must lie inside the night, in order, without overlapping. Blank rows are dropped. */
 export function checkWakings(asleep, woke, wakings) {
   const list = wakings.filter((w) => w.from || w.to);
   if (list.some((w) => !w.from || !w.to)) return { error: 'Each night waking needs both “woke at” and “back asleep at”.' };
   // Minutes after falling asleep, so times after midnight compare correctly.
-  const rel = (t) => (toMin(t) - toMin(asleep) + 1440) % 1440;
+  const rel = (t) => clockSpan(asleep, t);
   const end = rel(woke);
   const sorted = [...list].sort((a, b) => rel(a.from) - rel(b.from));
   let last = 0;

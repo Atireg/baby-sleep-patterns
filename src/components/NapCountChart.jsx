@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { formatDay } from '../lib/sleepData.js';
+import { formatDay } from '../lib/format.js';
 import { napCountTrend } from '../lib/insights.js';
 import { baseLayout, useChartTheme, withAlpha } from '../lib/theme.js';
 import PlotlyChart from './PlotlyChart.jsx';

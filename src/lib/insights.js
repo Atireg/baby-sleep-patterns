@@ -1,6 +1,29 @@
 // Weekly aggregates for the consultant-log insights (settling, wake windows, how sleep started).
 import { allWeeks } from './series.js';
 import { countsAsSleep } from './sleepData.js';
+import { MS_HOUR, MS_MIN, dateKey, keyToDate, mean, minutesBetween, shiftDay, sum } from './time.js';
+
+/** Gaps of 8h or more aren't wake windows (e.g. missing data); they are ignored. */
+export const MAX_WAKE_WINDOW = 8 * 60;
+const knownWindow = (s) => (s.wakeWindow != null && s.wakeWindow < MAX_WAKE_WINDOW ? s.wakeWindow : null);
+
+/**
+ * The night wakings of one night: the gaps between its stretches (sorted), with the feed flag matched
+ * from the logged wakings. Short feeds count as sleep (`countedAsSleep`).
+ */
+function nightGaps(pieces) {
+  const details = pieces.find((p) => p.nightWakings)?.nightWakings ?? [];
+  const gaps = [];
+  for (let i = 1; i < pieces.length; i++) {
+    const from = pieces[i - 1].end;
+    const minutes = minutesBetween(from, pieces[i].start);
+    if (minutes <= 0) continue;
+    const feed = details.some((w) => w.feed && w.from === from.getHours() * 60 + from.getMinutes());
+    gaps.push({ from, to: pieces[i].start, minutes, feed, countedAsSleep: countsAsSleep(feed, minutes) });
+  }
+  return gaps;
+}
+const awakeAtNight = (gaps) => gaps.filter((w) => !w.countedAsSleep).reduce((sum, w) => sum + w.minutes, 0);
 
 export const METHOD_LABELS = {
   'на ръце': 'Held in arms',
@@ -27,10 +50,7 @@ export const moodLabel = (m) => (m ? MOOD_LABELS[m.toLowerCase()] ?? englishLabe
 
 /** Monday of the week containing `day` (YYYY-MM-DD). */
 export function weekKey(day) {
-  const [y, m, d] = day.split('-').map(Number);
-  const date = new Date(y, m - 1, d);
-  date.setDate(date.getDate() - ((date.getDay() + 6) % 7));
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  return shiftDay(day, -((keyToDate(day).getDay() + 6) % 7));
 }
 
 // Each night may be split into several pieces; only the first carries bedtime details.
@@ -55,8 +75,6 @@ function byWeek(sessions) {
   // Include empty weeks so charts show the gap instead of joining across it.
   return keys.length ? allWeeks(keys[0], keys.at(-1)).map((w) => [w, weeks.get(w) ?? []]) : [];
 }
-
-const mean = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
 
 /** Does this data set carry the extra consultant fields? */
 export const hasDetails = (sessions) => sessions.some((s) => s.method !== undefined || s.settleMinutes != null);
@@ -86,7 +104,7 @@ export function wakeWindowsByWeek(sessions) {
     values: Object.fromEntries(
       WAKE_WINDOW_SERIES.map(({ key }) => [
         key,
-        mean(list.filter((s) => s.position === key && s.wakeWindow != null && s.wakeWindow < 8 * 60).map((s) => s.wakeWindow)),
+        mean(list.filter((s) => s.position === key).map(knownWindow).filter((w) => w != null)),
       ]),
     ),
   }));
@@ -102,29 +120,6 @@ export function methodsByWeek(sessions) {
     }
     return { key: week, counts };
   });
-}
-
-// Without a morning-wake column, use when each night's last stretch ended.
-function morningWakes(sessions) {
-  const lastEnd = new Map();
-  for (const s of sessions) if (s.type === 'night') lastEnd.set(s.day, s.end);
-  return [...lastEnd.values()].map((d) => d.getHours() * 60 + d.getMinutes());
-}
-
-/** Overall shares for the headline numbers. */
-export function detailSummary(sessions, dayMeta = []) {
-  const firsts = firstPieces(sessions);
-  const withMethod = firsts.filter((s) => s.method);
-  const naps = firsts.filter((s) => s.type === 'nap' && s.mood);
-  const clock = (xs) => mean(xs.filter((x) => x != null));
-  return {
-    independentShare: withMethod.length ? withMethod.filter((s) => methodLabel(s.method) === 'Independently').length / withMethod.length : null,
-    cryingAfterNapShare: naps.length ? naps.filter((s) => ['Crying', 'Fussy'].includes(moodLabel(s.mood))).length / naps.length : null,
-    avgBedtime: clock(firsts.filter((s) => s.type === 'night').map((s) => s.start.getHours() * 60 + s.start.getMinutes())),
-    avgMorningWake: dayMeta.some((d) => d.morningWake != null)
-      ? clock(dayMeta.map((d) => d.morningWake))
-      : clock(morningWakes(sessions)),
-  };
 }
 
 /**
@@ -167,10 +162,10 @@ export function napCountTrend(days, window = 7) {
  * Returns { naps, napMinutes, target, fill (0..1+), remaining, over, awakeSince, asleepSince }.
  */
 export function daytimeTank(sessions, now, targetMinutes) {
-  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const today = dateKey(now);
   const naps = sessions.filter((s) => s.type === 'nap' && s.day === today).sort((a, b) => a.start - b.start);
   // A nap still in progress only counts up to now.
-  const napMinutes = naps.reduce((sum, s) => sum + Math.max(0, Math.round((Math.min(s.end, now) - s.start) / 60000)), 0);
+  const napMinutes = naps.reduce((sum, s) => sum + Math.max(0, minutesBetween(s.start, Math.min(s.end, now))), 0);
   const target = Math.max(1, Math.round(targetMinutes || 0));
   const current = sessions.find((s) => s.start <= now && s.end > now);
   const ended = sessions.filter((s) => s.end <= now).sort((a, b) => b.end - a.end)[0];
@@ -182,34 +177,8 @@ export function daytimeTank(sessions, now, targetMinutes) {
     remaining: Math.max(0, target - napMinutes),
     over: Math.max(0, napMinutes - target),
     asleepSince: current ? current.start : null,
-    awakeSince: !current && ended && now - ended.end < 12 * 3600000 ? ended.end : null,
+    awakeSince: !current && ended && now - ended.end < 12 * MS_HOUR ? ended.end : null,
   };
-}
-
-/**
- * Awake-time averages for the summary tiles.
- * - avgWakeWindow: mean time awake before each nap and before bedtime.
- * - avgAwakePerDay: mean total awake time from morning wake-up to falling asleep for the night,
- *   counted only for days where every wake window of the day is known (naps + bedtime).
- */
-export function awakeStats(sessions) {
-  const windows = [];
-  const byDay = new Map();
-  for (const s of sessions) {
-    if (s.position === undefined || s.position === null) continue; // later night stretches aren't daytime
-    // 8h+ "windows" mean a missing entry, not a real wake window.
-    const w = s.wakeWindow != null && s.wakeWindow < 8 * 60 ? s.wakeWindow : null;
-    if (!byDay.has(s.day)) byDay.set(s.day, []);
-    byDay.get(s.day).push({ ...s, wakeWindow: w });
-    if (w != null) windows.push(w);
-  }
-  const dayTotals = [];
-  for (const list of byDay.values()) {
-    const complete = list.some((s) => s.position === 'bedtime') && list.every((s) => s.wakeWindow != null);
-    if (complete) dayTotals.push(list.reduce((sum, s) => sum + s.wakeWindow, 0));
-  }
-  const mean = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
-  return { avgWakeWindow: mean(windows), avgAwakePerDay: mean(dayTotals), days: dayTotals.length };
 }
 
 /**
@@ -218,28 +187,17 @@ export function awakeStats(sessions) {
  * Returns { bedtime, wake, sleptMinutes, wakings: [{ from, to, minutes }], awakeMinutes } or null.
  */
 export function lastNight(sessions, now = new Date()) {
-  const y = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
-  const key = `${y.getFullYear()}-${String(y.getMonth() + 1).padStart(2, '0')}-${String(y.getDate()).padStart(2, '0')}`;
+  const key = shiftDay(dateKey(now), -1);
   const pieces = sessions.filter((s) => s.type === 'night' && s.day === key && s.end <= now).sort((a, b) => a.start - b.start);
   if (!pieces.length) return null;
-  const details = pieces.find((p) => p.nightWakings)?.nightWakings ?? [];
-  const clockMin = (d) => d.getHours() * 60 + d.getMinutes();
-  const wakings = [];
-  for (let i = 1; i < pieces.length; i++) {
-    const minutes = Math.round((pieces[i].start - pieces[i - 1].end) / 60000);
-    if (minutes <= 0) continue;
-    const from = pieces[i - 1].end;
-    const feed = details.some((w) => w.feed && w.from === clockMin(from));
-    wakings.push({ from, to: pieces[i].start, minutes, feed, countedAsSleep: countsAsSleep(feed, minutes) });
-  }
+  const wakings = nightGaps(pieces);
   return {
     day: key,
     bedtime: pieces[0].start,
     wake: pieces.at(-1).end,
     sleptMinutes: pieces.reduce((sum, p) => sum + p.minutes, 0),
     wakings,
-    // Short feeds count as sleep, not as time awake.
-    awakeMinutes: wakings.filter((w) => !w.countedAsSleep).reduce((sum, w) => sum + w.minutes, 0),
+    awakeMinutes: awakeAtNight(wakings),
     feeds: wakings.filter((w) => w.feed).length,
   };
 }
@@ -255,13 +213,12 @@ export function friendsWindows(sessions, dayKeys, { from = 7 * 60, to = 19 * 60,
   if (!n) return [];
   const goodDays = new Array(to - from).fill(0);
   for (const key of dayKeys) {
-    const [y, m, d] = key.split('-').map(Number);
-    const dayStart = new Date(y, m - 1, d).getTime();
+    const dayStart = keyToDate(key).getTime();
     const busy = new Array(to - from).fill(false);
     for (const s of sessions) {
       // Minutes of this calendar day covered by the sleep, plus the wind-down before it.
-      const a = Math.floor((s.start.getTime() - dayStart) / 60000) - bufferBefore;
-      const b = Math.ceil((s.end.getTime() - dayStart) / 60000);
+      const a = Math.floor((s.start.getTime() - dayStart) / MS_MIN) - bufferBefore;
+      const b = Math.ceil((s.end.getTime() - dayStart) / MS_MIN);
       for (let t = Math.max(a, from); t < Math.min(b, to); t++) busy[t - from] = true;
     }
     busy.forEach((isBusy, i) => { if (!isBusy) goodDays[i] += 1; });
@@ -291,8 +248,7 @@ export function friendsWindows(sessions, dayKeys, { from = 7 * 60, to = 19 * 60,
  * Returns { position, avgMinutes (null if those days had no nap N), samples, days }.
  */
 export function upcomingNap(sessions, now = new Date(), days = 3) {
-  const pad = (n) => String(n).padStart(2, '0');
-  const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const today = dateKey(now);
   const napsByDay = new Map();
   for (const s of sessions) {
     if (s.type !== 'nap' || s.end > now) continue;
@@ -307,7 +263,7 @@ export function upcomingNap(sessions, now = new Date(), days = 3) {
     .map((s) => s.minutes);
   return {
     position,
-    avgMinutes: lengths.length ? lengths.reduce((a, b) => a + b, 0) / lengths.length : null,
+    avgMinutes: mean(lengths),
     samples: lengths.length,
     days: previous.length,
   };
@@ -319,8 +275,7 @@ export function upcomingNap(sessions, now = new Date(), days = 3) {
  * Returns { minutes (after midnight, may exceed 1440), samples } or null.
  */
 export function expectedBedtime(sessions, now = new Date(), days = 3) {
-  const pad = (n) => String(n).padStart(2, '0');
-  const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const today = dateKey(now);
   const firstByDay = new Map();
   for (const s of sessions) {
     if (s.type !== 'night' || s.day >= today) continue;
@@ -333,7 +288,7 @@ export function expectedBedtime(sessions, now = new Date(), days = 3) {
     const m = s.start.getHours() * 60 + s.start.getMinutes();
     return m < 12 * 60 ? m + 1440 : m;
   });
-  return { minutes: Math.round(mins.reduce((a, b) => a + b, 0) / mins.length), samples: mins.length };
+  return { minutes: Math.round(mean(mins)), samples: mins.length };
 }
 
 /**
@@ -354,7 +309,7 @@ export function expectedWakeUp(sessions, now = new Date(), days = 3) {
     const m = s.end.getHours() * 60 + s.end.getMinutes();
     return m > 12 * 60 ? m - 1440 : m;
   });
-  return { minutes: Math.round(mins.reduce((a, b) => a + b, 0) / mins.length), samples: mins.length };
+  return { minutes: Math.round(mean(mins)), samples: mins.length };
 }
 
 /**
@@ -363,36 +318,18 @@ export function expectedWakeUp(sessions, now = new Date(), days = 3) {
  * those days had no nap N. Returns { target: N | 'bedtime', avgMinutes, samples } or null.
  */
 export function upcomingWakeWindow(sessions, now = new Date(), days = 5) {
-  const pad = (n) => String(n).padStart(2, '0');
-  const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const today = dateKey(now);
   const napsToday = sessions.filter((s) => s.type === 'nap' && s.day === today && s.end <= now).length;
   const previous = [...new Set(sessions.filter((s) => s.day < today).map((s) => s.day))].sort().slice(-days);
   const windowsFor = (position) => previous
     .map((d) => sessions.find((s) => s.day === d && s.position === position))
-    .filter((s) => s && s.wakeWindow != null && s.wakeWindow < 8 * 60)
-    .map((s) => s.wakeWindow);
+    .map((s) => s && knownWindow(s))
+    .filter((w) => w != null);
   for (const target of [napsToday + 1, 'bedtime']) {
     const w = windowsFor(target);
-    if (w.length) return { target, avgMinutes: w.reduce((a, b) => a + b, 0) / w.length, samples: w.length };
+    if (w.length) return { target, avgMinutes: mean(w), samples: w.length };
   }
   return null;
-}
-
-/**
- * Time to fall asleep (from "started settling" to asleep) for the summary tiles.
- * - avgPerNap: mean settling time over naps with a settling time.
- * - avgPerDay: mean of each day's total settling time (naps + bedtime), over days with any settling time.
- * Night stretches after a waking have no settling time, so they don't count.
- */
-export function settlingStats(sessions) {
-  const naps = sessions.filter((s) => s.type === 'nap' && s.settleMinutes != null);
-  const perDay = new Map();
-  for (const s of sessions) {
-    if (s.settleMinutes == null) continue;
-    perDay.set(s.day, (perDay.get(s.day) ?? 0) + s.settleMinutes);
-  }
-  const mean = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
-  return { avgPerNap: mean(naps.map((s) => s.settleMinutes)), avgPerDay: mean([...perDay.values()]), days: perDay.size };
 }
 
 /**
@@ -404,22 +341,13 @@ export function dayDetails(day, sessions) {
   const nightPieces = day.sessions.filter((s) => s.type === 'night').sort((a, b) => a.start - b.start);
   const bed = nightPieces[0] ?? null;
   // Morning wake-up = end of the night that was logged under the previous date.
-  const [y, m, d] = day.day.split('-').map(Number);
-  const prev = new Date(y, m - 1, d - 1);
-  const prevKey = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}-${String(prev.getDate()).padStart(2, '0')}`;
+  const prevKey = shiftDay(day.day, -1);
   const prevNight = sessions.filter((s) => s.type === 'night' && s.day === prevKey).sort((a, b) => a.end - b.end).at(-1);
   // Awake time: the day's wake windows (before each nap and before bedtime), only if all are known.
-  const windows = [...naps, ...(bed ? [bed] : [])].map((s) => (s.wakeWindow != null && s.wakeWindow < 8 * 60 ? s.wakeWindow : null));
+  const windows = [...naps, ...(bed ? [bed] : [])].map(knownWindow);
   const settles = naps.map((s) => s.settleMinutes ?? null);
   const known = [...settles, bed?.settleMinutes ?? null].filter((v) => v != null);
-  const details = nightPieces.find((p) => p.nightWakings)?.nightWakings ?? [];
-  const wakings = [];
-  for (let i = 1; i < nightPieces.length; i++) {
-    const from = nightPieces[i - 1].end;
-    const minutes = Math.round((nightPieces[i].start - from) / 60000);
-    const feed = details.some((w) => w.feed && w.from === from.getHours() * 60 + from.getMinutes());
-    wakings.push({ minutes, asSleep: countsAsSleep(feed, minutes) });
-  }
+  const wakings = nightGaps(nightPieces);
   const firsts = [...naps, ...(bed ? [bed] : [])];
   return {
     day: day.day,
@@ -428,15 +356,15 @@ export function dayDetails(day, sessions) {
     naps: naps.length,
     napMinutes: day.napMinutes,
     napLengths: naps.map((s) => s.minutes),
-    awakeMinutes: bed && windows.length && windows.every((w) => w != null) ? windows.reduce((a, b) => a + b, 0) : null,
+    awakeMinutes: bed && windows.length && windows.every((w) => w != null) ? sum(windows) : null,
     napSettle: settles,
     bedSettle: bed?.settleMinutes ?? null,
-    settleTotal: known.length ? known.reduce((a, b) => a + b, 0) : null,
+    settleTotal: known.length ? sum(known) : null,
     bedtime: bed?.start ?? null,
     morningWake: prevNight?.end ?? null,
     nightWakings: wakings.length,
-    nightAwakeMinutes: wakings.filter((w) => !w.asSleep).reduce((a, w) => a + w.minutes, 0),
-    nightFeeds: details.filter((w) => w.feed).length,
+    nightAwakeMinutes: awakeAtNight(wakings),
+    nightFeeds: wakings.filter((w) => w.feed).length,
     extendedNaps: naps.filter((s) => s.extended === true).length,
     napsAnswered: naps.filter((s) => s.extended != null).length,
     independent: firsts.filter((s) => methodLabel(s.method) === 'Independently').length,
@@ -450,15 +378,13 @@ export function dayDetails(day, sessions) {
  * Returns { minutes, wake, bedtime, napMinutes } or null when the morning wake-up isn't logged.
  */
 export function dayAwakeTotal(sessions, day, bedtime) {
-  const [y, m, d] = day.split('-').map(Number);
-  const prev = new Date(y, m - 1, d - 1);
-  const prevKey = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}-${String(prev.getDate()).padStart(2, '0')}`;
+  const prevKey = shiftDay(day, -1);
   const wake = sessions.filter((s) => s.type === 'night' && s.day === prevKey).reduce((w, s) => (!w || s.end > w ? s.end : w), null);
   if (!wake || bedtime <= wake) return null;
   const napMinutes = sessions
     .filter((s) => s.type === 'nap' && s.day === day && s.start >= wake && s.end <= bedtime)
     .reduce((sum, s) => sum + s.minutes, 0);
-  return { minutes: Math.round((bedtime - wake) / 60000) - napMinutes, wake, bedtime, napMinutes };
+  return { minutes: minutesBetween(wake, bedtime) - napMinutes, wake, bedtime, napMinutes };
 }
 
 /**
@@ -471,7 +397,7 @@ export function wakeWindowGrid(sessions, dayKeys) {
   let maxNap = 0;
   for (const s of sessions) {
     if (!dayKeys.includes(s.day) || s.position == null) continue;
-    byKey.set(`${s.day}|${s.position}`, s.wakeWindow != null && s.wakeWindow < 8 * 60 ? s.wakeWindow : null);
+    byKey.set(`${s.day}|${s.position}`, knownWindow(s));
     if (typeof s.position === 'number') maxNap = Math.max(maxNap, s.position);
   }
   const keys = [...Array.from({ length: maxNap }, (_, i) => i + 1), 'bedtime'];

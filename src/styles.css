@@ -280,8 +280,6 @@ code { font-size: 0.85em; }
 .live-edit .live-wakings .waking-row input { width: 100%; min-width: 0; }
 .friends-tip { display: block; margin-top: 6px; color: var(--text-primary); }
 .feed-toggle { justify-self: center; font-size: 0.95rem; padding: 8px 16px; }
-.entry-form .feed-check { display: flex !important; flex: 0 0 auto !important; align-items: center; gap: 6px; min-height: 38px; font-size: 0.9rem; color: var(--text-primary); }
-.entry-form .feed-check input { width: 18px !important; height: 18px; min-height: 0 !important; padding: 0 !important; }
 
 /* Last night card */
 .night-card { gap: 14px; }
@@ -342,8 +340,7 @@ code { font-size: 0.85em; }
 @media (max-width: 640px) { .scroll-hint { display: inline; font-weight: 600; } }
 .yesno { border: 0; padding: 0; margin: 0; display: grid; gap: 4px; }
 .yesno legend { font-size: 0.8rem; color: var(--text-secondary); padding: 0; margin-bottom: 4px; }
-.yesno-buttons { display: flex; gap: 6px; }
-.yesno-buttons .chip { min-width: 64px; min-height: 38px; }
+.yesno .chip { min-width: 64px; min-height: 38px; }
 .live-yesno { display: grid; gap: 6px; font-size: 0.85rem; color: var(--text-secondary); }
 .recent-table.compact { font-size: 0.82rem; }
 .recent-table.compact th, .recent-table.compact td { padding: 5px 6px; }
