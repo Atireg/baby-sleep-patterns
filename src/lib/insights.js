@@ -1,5 +1,6 @@
 // Weekly aggregates for the consultant-log insights (settling, wake windows, how sleep started).
 import { allWeeks } from './series.js';
+import { countsAsSleep } from './sleepData.js';
 
 export const METHOD_LABELS = {
   'на ръце': 'Held in arms',
@@ -228,7 +229,8 @@ export function lastNight(sessions, now = new Date()) {
     const minutes = Math.round((pieces[i].start - pieces[i - 1].end) / 60000);
     if (minutes <= 0) continue;
     const from = pieces[i - 1].end;
-    wakings.push({ from, to: pieces[i].start, minutes, feed: details.some((w) => w.feed && w.from === clockMin(from)) });
+    const feed = details.some((w) => w.feed && w.from === clockMin(from));
+    wakings.push({ from, to: pieces[i].start, minutes, feed, countedAsSleep: countsAsSleep(feed, minutes) });
   }
   return {
     day: key,
@@ -236,7 +238,8 @@ export function lastNight(sessions, now = new Date()) {
     wake: pieces.at(-1).end,
     sleptMinutes: pieces.reduce((sum, p) => sum + p.minutes, 0),
     wakings,
-    awakeMinutes: wakings.reduce((sum, w) => sum + w.minutes, 0),
+    // Short feeds count as sleep, not as time awake.
+    awakeMinutes: wakings.filter((w) => !w.countedAsSleep).reduce((sum, w) => sum + w.minutes, 0),
     feeds: wakings.filter((w) => w.feed).length,
   };
 }
@@ -409,11 +412,14 @@ export function dayDetails(day, sessions) {
   const windows = [...naps, ...(bed ? [bed] : [])].map((s) => (s.wakeWindow != null && s.wakeWindow < 8 * 60 ? s.wakeWindow : null));
   const settles = naps.map((s) => s.settleMinutes ?? null);
   const known = [...settles, bed?.settleMinutes ?? null].filter((v) => v != null);
+  const details = nightPieces.find((p) => p.nightWakings)?.nightWakings ?? [];
   const wakings = [];
   for (let i = 1; i < nightPieces.length; i++) {
-    wakings.push({ minutes: Math.round((nightPieces[i].start - nightPieces[i - 1].end) / 60000) });
+    const from = nightPieces[i - 1].end;
+    const minutes = Math.round((nightPieces[i].start - from) / 60000);
+    const feed = details.some((w) => w.feed && w.from === from.getHours() * 60 + from.getMinutes());
+    wakings.push({ minutes, asSleep: countsAsSleep(feed, minutes) });
   }
-  const details = nightPieces.find((p) => p.nightWakings)?.nightWakings ?? [];
   const firsts = [...naps, ...(bed ? [bed] : [])];
   return {
     day: day.day,
@@ -429,7 +435,7 @@ export function dayDetails(day, sessions) {
     bedtime: bed?.start ?? null,
     morningWake: prevNight?.end ?? null,
     nightWakings: wakings.length,
-    nightAwakeMinutes: wakings.reduce((a, w) => a + w.minutes, 0),
+    nightAwakeMinutes: wakings.filter((w) => !w.asSleep).reduce((a, w) => a + w.minutes, 0),
     nightFeeds: details.filter((w) => w.feed).length,
     extendedNaps: naps.filter((s) => s.extended === true).length,
     napsAnswered: naps.filter((s) => s.extended != null).length,

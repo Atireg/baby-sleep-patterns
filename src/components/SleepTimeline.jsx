@@ -27,7 +27,7 @@ export function toPieces(sessions) {
 function hoverText(s) {
   const lines = [
     `<b>${s.type === 'night' ? 'Night sleep' : 'Nap'}</b> · ${formatDay(s.day)}`,
-    `${formatClock(s.start)} – ${formatClock(s.end)} (${formatDuration(s.minutes)})`,
+    `${formatClock(s.start)} – ${formatClock(s.end)} (${formatDuration(Math.round((s.end - s.start) / 60000))})`,
   ];
   if (s.wakeWindow != null) lines.push(`Awake before: ${formatDuration(s.wakeWindow)}`);
   if (s.settleMinutes != null) lines.push(`Took to fall asleep: ${formatDuration(s.settleMinutes)}`);

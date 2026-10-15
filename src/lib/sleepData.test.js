@@ -413,3 +413,29 @@ describe('wakeWindowGrid', () => {
     ]);
   });
 });
+
+describe('short night feeds count as sleep', () => {
+  it('keeps feeds under 20 minutes in the night sleep, not in the awake time', async () => {
+    const { lastNight, dayDetails } = await import('./insights.js');
+    const { makeEntry, entriesToSessions } = await import('./entries.js');
+    const { entry } = makeEntry({
+      day: '2026-10-13', type: 'night', asleep: '19:30', woke: '06:30',
+      wakings: [
+        { from: '23:00', to: '23:15', feed: true }, // short feed → sleep
+        { from: '02:00', to: '02:30', feed: true }, // long feed → awake
+        { from: '04:00', to: '04:10', feed: false }, // short, not a feed → awake
+      ],
+    });
+    const sessions = entriesToSessions([entry]);
+    const n = lastNight(sessions, new Date(2026, 9, 14, 9, 0));
+    expect(n.awakeMinutes).toBe(40);
+    expect(n.sleptMinutes).toBe(11 * 60 - 40);
+    expect(n.wakings.map((w) => w.countedAsSleep)).toEqual([true, false, false]);
+    expect(n.feeds).toBe(2);
+    const [day] = dailyStats(sessions);
+    expect(day.nightMinutes).toBe(11 * 60 - 40);
+    const d = dayDetails(day, sessions);
+    expect(d.nightWakings).toBe(3);
+    expect(d.nightAwakeMinutes).toBe(40);
+  });
+});

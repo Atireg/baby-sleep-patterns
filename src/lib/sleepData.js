@@ -128,24 +128,30 @@ function atOrAfter(after, minutes) {
   return new Date(base < after.getTime() ? base + MS_DAY : base);
 }
 
+/** A feed during the night shorter than this still counts as night sleep (user rule). */
+export const SHORT_FEED_MINUTES = 20;
+export const countsAsSleep = (feed, minutes) => Boolean(feed) && minutes > 0 && minutes < SHORT_FEED_MINUTES;
+
 /**
  * Split a night into sleep stretches around the times she was awake.
- * ranges: [[fromMinutes, toMinutes], ...]; ranges outside the night or out of order are ignored.
+ * ranges: [[fromMinutes, toMinutes, asSleep?], ...]; ranges outside the night or out of order are ignored.
+ * asSleep (a short feed): the gap is still split off, but its minutes are added to the stretch
+ * before it, so it counts as night sleep.
  * Only the first stretch keeps the settling time (it describes bedtime).
  */
 export function splitNight(session, ranges) {
   const pieces = [];
   let cursor = session.start;
-  for (const [from, to] of ranges) {
+  for (const [from, to, asSleep] of ranges) {
     const a = atOrAfter(session.start, from);
     const z = atOrAfter(a, to);
     if (a <= cursor || z >= session.end) continue;
-    pieces.push({ ...session, start: cursor, end: a });
+    pieces.push({ ...session, start: cursor, end: a, credit: asSleep ? Math.round((z - a) / MS_MIN) : 0 });
     cursor = z;
   }
-  pieces.push({ ...session, start: cursor, end: session.end });
-  return pieces.map((p, i) => {
-    const piece = { ...p, minutes: Math.round((p.end - p.start) / MS_MIN) };
+  pieces.push({ ...session, start: cursor, end: session.end, credit: 0 });
+  return pieces.map(({ credit, ...p }, i) => {
+    const piece = { ...p, minutes: Math.round((p.end - p.start) / MS_MIN) + credit };
     if (i > 0) delete piece.settleMinutes;
     return piece;
   });
@@ -203,7 +209,7 @@ export function rowsToSessions(rows) {
     const wakings = type === 'night' && cols.wakings !== undefined ? parseWakings(row[cols.wakings]) : [];
     if (wakings.length) {
       // Keep the waking details (e.g. feeds) on each stretch so summaries can show them.
-      const pieces = splitNight(session, wakings.map((w) => [w.from, w.to]));
+      const pieces = splitNight(session, wakings.map((w) => [w.from, w.to, countsAsSleep(w.feed, (w.to - w.from + 1440) % 1440)]));
       sessions.push(...pieces.map((p) => ({ ...p, nightWakings: wakings })));
     } else {
       sessions.push(session);
