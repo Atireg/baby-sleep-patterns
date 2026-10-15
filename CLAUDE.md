@@ -60,6 +60,9 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
   `dayAwakeTotal` (morning wake-up → bedtime minus naps for one day), `wakeWindowGrid` (actual wake window per nap N / bedtime
   per day),
   label translations (BG + EN).
+- `src/lib/autoUpdate.js` – prod only (`main.jsx`): when the page regains focus/visibility (max once a minute) it fetches
+  `index.html` and reloads if the `assets/index-*.js` name changed (skipped while typing in a field). Phones keep the tab open
+  for days, so fixes would otherwise not load.
 - `src/lib/series.js` – gap handling: `breakGaps`, `segments`, `rollingMean` (calendar days), `allWeeks`.
 - `src/lib/theme.js` – resolves CSS color tokens for Plotly (`useChartTheme`), `baseLayout`, `durationAxis`, `rangeButtons`.
 - `src/components/` – `PlotlyChart` (lazy-loads Plotly, card wrapper), `DailyTotalsChart`, `NapCountChart`, `WeeklyLineChart`,
