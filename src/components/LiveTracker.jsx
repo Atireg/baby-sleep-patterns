@@ -3,7 +3,7 @@ import {
   METHODS, MOODS, dayAwakeTotal, expectedBedtime, expectedWakeUp, upcomingNap, upcomingWakeWindow,
 } from '../lib/insights.js';
 import { atTime, awakeSince as findAwakeSince, formatTimer, hhmm, liveToEntry, resolveWakings, sleepDay, typeAt } from '../lib/live.js';
-import { formatDuration } from '../lib/sleepData.js';
+import { countsAsSleep, formatDuration } from '../lib/sleepData.js';
 
 /** Ticks every second while a timer is on screen. */
 function useTicker(active) {
@@ -263,7 +263,10 @@ export default function LiveTracker({ live, onChange, onSave, onEditAwake, sessi
     const t = new Date(live.wakingFrom);
     setFinishing({ woke: hhmm(t), tapped: t, mood: '', notes: '' });
   };
-  const awakeAtNight = (until) => wakings.reduce((sum, w) => sum + (new Date(w.to) - new Date(w.from)), 0)
+  // Short feeds count as sleep (they are not taken off "slept so far").
+  const awakeAtNight = (until) => wakings
+    .filter((w) => !countsAsSleep(w.feed, Math.round((new Date(w.to) - new Date(w.from)) / 60000)))
+    .reduce((sum, w) => sum + (new Date(w.to) - new Date(w.from)), 0)
     + (live?.wakingFrom ? until - new Date(live.wakingFrom) : 0);
   const since = (iso) => new Date(iso);
   const typeLabel = (t) => (t === 'night' ? 'Night' : 'Nap');

@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { utils, writeFile } from 'xlsx';
 import { entriesToRows, entryToValues, makeEntry } from '../lib/entries.js';
 import { METHODS, MOODS } from '../lib/insights.js';
-import { formatDay, formatDuration } from '../lib/sleepData.js';
+import { countsAsSleep, formatDay, formatDuration } from '../lib/sleepData.js';
 
 const today = () => {
   const d = new Date();
@@ -10,8 +10,10 @@ const today = () => {
 };
 const minutes = (hhmm) => +hhmm.slice(0, 2) * 60 + +hhmm.slice(3, 5);
 const span = (from, to) => (minutes(to) - minutes(from) + 1440) % 1440;
-// Time actually asleep: the whole span minus any night wakings.
-const duration = (e) => span(e.asleep, e.woke) - (e.wakings ?? []).reduce((sum, w) => sum + span(w.from, w.to), 0);
+// Time asleep: the whole span minus night wakings (short feeds still count as sleep).
+const duration = (e) => span(e.asleep, e.woke) - (e.wakings ?? [])
+  .filter((w) => !countsAsSleep(w.feed, span(w.from, w.to)))
+  .reduce((sum, w) => sum + span(w.from, w.to), 0);
 const EMPTY = { settle: '', asleep: '', woke: '', method: '', mood: '', notes: '', wakings: [], extended: '' };
 const SHOW = 6;
 

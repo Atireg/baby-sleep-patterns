@@ -99,7 +99,7 @@ export default function LastNightCard({ night, entry, onSaveNotes }) {
               <span className="waking-no">{i + 1}</span>
               <span className="waking-time">{formatClock(w.from)}–{formatClock(w.to)}</span>
               <span className="waking-dur">{formatDuration(w.minutes)} awake</span>
-              {w.feed && <span className="feed-badge">🍼 feed</span>}
+              {w.feed && <span className="feed-badge">🍼 feed{w.countedAsSleep && ' · counted as sleep'}</span>}
             </li>
           ))}
         </ul>
