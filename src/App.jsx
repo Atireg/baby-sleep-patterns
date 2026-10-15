@@ -9,7 +9,7 @@ import { entryKey, sessionsToEntries } from './lib/cloudData.js';
 import {
   addEntries, deleteEntry, describeError, setLive, signIn, signOut, updateEntry, watchEntries, watchLive, watchUser,
 } from './lib/cloud.js';
-import { loadLocalLive, saveLocalLive, sleepDay } from './lib/live.js';
+import { liveAfterLogEdit, loadLocalLive, saveLocalLive, sleepDay } from './lib/live.js';
 import LiveTracker from './components/LiveTracker.jsx';
 import CloudBar from './components/CloudBar.jsx';
 import DaytimeTank from './components/DaytimeTank.jsx';
@@ -104,7 +104,15 @@ export default function App() {
     setEntries([]);
     setNotice(`Moved ${added} entr${added === 1 ? 'y' : 'ies'} from this device to the shared log.`);
   });
-  const addEntry = (e) => (cloud ? run(() => addEntries([e])) : setEntries((list) => [...list, e]));
+  // Edits in the sleep log win over the Now card (manual awake timer, a sleep still being tracked).
+  const syncLive = (entry) => {
+    const next = liveAfterLogEdit(live, entry);
+    if (next !== live) changeLive(next);
+  };
+  const addEntry = (e) => {
+    syncLive(e);
+    return cloud ? run(() => addEntries([e])) : setEntries((list) => [...list, e]);
+  };
   // Throws with a readable message so the form can show it next to the fields.
   const changeEntry = async (previous, updated) => {
     if (cloud) {
@@ -119,9 +127,16 @@ export default function App() {
     if (error) throw new Error(error);
     setEntries(list);
   };
-  const removeEntry = (id) => (cloud
-    ? run(() => deleteEntry(cloudEntries.find((e) => e.id === id)))
-    : setEntries((list) => list.filter((e) => e.id !== id)));
+  const removeEntry = (id) => {
+    syncLive(null);
+    return cloud
+      ? run(() => deleteEntry(cloudEntries.find((e) => e.id === id)))
+      : setEntries((list) => list.filter((e) => e.id !== id));
+  };
+  const editEntry = async (previous, updated) => {
+    await changeEntry(previous, updated);
+    syncLive(updated);
+  };
 
   const load = (name, buffer) => {
     try {
@@ -251,7 +266,7 @@ export default function App() {
         cloud={cloud}
         storageOk={storageOk}
         onAdd={addEntry}
-        onUpdate={changeEntry}
+        onUpdate={editEntry}
         onDelete={removeEntry}
         onClear={cloud ? null : () => setEntries([])}
       />
