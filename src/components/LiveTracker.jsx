@@ -40,7 +40,7 @@ function Chips({ options, value, onChange, label }) {
  * live: { type, settle, asleep, method, wakings: [{ from, to }], wakingFrom } or null (ISO times);
  * onChange persists it; onSave(entry) stores the finished sleep.
  */
-export default function LiveTracker({ live, onChange, onSave, sessions, busy, awakeAvg = null }) {
+export default function LiveTracker({ live, onChange, onSave, onEditAwake, sessions, busy, awakeAvg = null }) {
   // live may hold only { awakeFrom } (a manually started awake timer) — that still counts as idle.
   const state = live?.asleep ? (live.wakingFrom ? 'nightawake' : 'asleep') : live?.settle ? 'settling' : 'idle';
   const sleeping = state === 'asleep' || state === 'nightawake';
@@ -228,6 +228,17 @@ export default function LiveTracker({ live, onChange, onSave, sessions, busy, aw
   };
 
   const startAwake = () => act(() => onChange({ awakeFrom: when().toISOString() }));
+  // "awake since" edited by hand: changes the logged sleep's wake-up time, or the manual timer.
+  const [editAwake, setEditAwake] = useState(null); // "HH:MM" while editing
+  const saveAwake = async () => {
+    try {
+      await onEditAwake(atTime(editAwake, new Date()), awakeSince);
+      setEditAwake(null);
+      setError(null);
+    } catch (e) {
+      setError(e.message || 'Could not change the time.');
+    }
+  };
 
   // Night wakings: she wakes during the night, then either goes back to sleep or is up for the day.
   const wakings = live?.wakings ?? [];
@@ -278,11 +289,24 @@ export default function LiveTracker({ live, onChange, onSave, sessions, busy, aw
           {awakeSince ? (
             <div className="live-timer awake">
               <span className="timer">{formatTimer(now - awakeSince)}</span>
-              <span className="timer-label">
-                awake since {hhmm(awakeSince)}
-                {' · '}
-                <button type="button" className="link-button" onClick={startAwake}>reset</button>
-              </span>
+              {editAwake == null ? (
+                <span className="timer-label">
+                  awake since {hhmm(awakeSince)}
+                  {' · '}
+                  <button type="button" className="link-button" onClick={() => { setError(null); setEditAwake(hhmm(awakeSince)); }}>edit</button>
+                  {' · '}
+                  <button type="button" className="link-button" onClick={startAwake}>reset</button>
+                </span>
+              ) : (
+                <span className="awake-edit">
+                  <label>
+                    <span>Awake since</span>
+                    <input type="time" value={editAwake} onChange={(e) => setEditAwake(e.target.value)} />
+                  </label>
+                  <button type="button" className="button primary" onClick={saveAwake} disabled={busy || !editAwake}>Save</button>
+                  <button type="button" className="button ghost" onClick={() => { setEditAwake(null); setError(null); }}>Cancel</button>
+                </span>
+              )}
             </div>
           ) : (
             <div className="live-start-awake">

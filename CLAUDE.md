@@ -50,7 +50,8 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
   `src/lib/cloudData.js` – pure helpers (month grouping, merge/dedupe, `sessionsToEntries` for importing a file).
 - `src/lib/live.js` – live tracking ("Now" card): local storage `baby-sleep-live-v1`, `sleepDay` (night after midnight → previous
   date), `liveToEntry`, `atTime` (tapped-late times never in the future), `resolveWakings` (edited night wakings → ISO), `liveAfterLogEdit` (log add/edit/delete drops a manual awake timer and finishes a
-  tracked sleep the entry covers), `formatTimer`, `awakeSince` (later of last sleep end
+  tracked sleep the entry covers), `editAwakeSince` (edited "awake since" → that logged sleep's new wake-up time, dropping
+  later night wakings, or a moved manual timer), `formatTimer`, `awakeSince` (later of last sleep end
   and `live.awakeFrom`; null while asleep or if >16h).
 - `src/lib/insights.js` – weekly aggregates (wake windows, settling, method), `napCountTrend`, `daytimeTank`, `awakeStats`,
   `lastNight` (yesterday-dated night; wakings = gaps between its stretches, `feed` matched from `nightWakings`; `feeds` count),
@@ -114,7 +115,8 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
   The same 5 days drive the sleep timeline, the friends windows and the Sleep per day reference line.
 - Sleep per day: shaded last-5 days + dashed 5-day average line with label; dotted 7-day rolling average excludes today.
 - "Now" card (mobile-first): big running awake timer when idle (from the last sleep's end, or "Start awake timer"/"reset" →
-  `live.awakeFrom`). States: idle → settling → asleep → (nights) nightawake ↔ asleep → finish (confirm time, mood, notes) → Save
+  `live.awakeFrom`); "awake since HH:MM · edit · reset" — edit changes the wake-up time of the logged sleep the timer runs
+  from (via `editEntry`, so the log and Now card stay in step) or moves the manual timer. States: idle → settling → asleep → (nights) nightawake ↔ asleep → finish (confirm time, mood, notes) → Save
   as a normal entry. Nights: "Night waking" / "Back asleep" record `live.wakings` (with "🍼 Mark as a feed" → `live.wakingFeed`);
   "Up for the day" ends the night at the waking time. Type auto by clock (18:00–05:59 = night), switchable. "Tapped late?" time field. "Edit times or type" (nights: "…or night wakings" — edit/add/remove
   wakings with 🍼 feed and the current "woke at"; `resolveWakings` reads HH:MM forward from bedtime, rejects bad order/future). Method chips.
