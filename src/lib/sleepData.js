@@ -129,7 +129,7 @@ function atOrAfter(after, minutes) {
 }
 
 /** A feed during the night shorter than this still counts as night sleep (user rule). */
-export const SHORT_FEED_MINUTES = 20;
+export const SHORT_FEED_MINUTES = 25;
 export const countsAsSleep = (feed, minutes) => Boolean(feed) && minutes > 0 && minutes < SHORT_FEED_MINUTES;
 
 /**

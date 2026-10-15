@@ -38,7 +38,7 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
 - `static/` – Vite `publicDir` (served at site root): `sample-sleep-log.xlsx` (demo data + template, 5→4→3 naps), `favicon.svg`.
 - `src/lib/sleepData.js` – simple-layout parser, `parseRanges`, `parseWakings` (feed marks), `splitNight` (night → stretches
   around wakings; stretches carry `nightWakings` with feed flags),
-  **short feeds count as sleep** (user rule): a feed waking < `SHORT_FEED_MINUTES` (20) is still split off, but its minutes are
+  **short feeds count as sleep** (user rule): a feed waking < `SHORT_FEED_MINUTES` (25) is still split off, but its minutes are
   added to the stretch before it (`countsAsSleep`); `lastNight`/`dayDetails` leave it out of the awake time (still counted as a
   waking + feed, Last night list says "counted as sleep"), as do the log list durations and the Now card's "slept so far".
   Timeline tooltips show the clock span, not `minutes`.
