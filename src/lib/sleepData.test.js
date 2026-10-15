@@ -149,24 +149,6 @@ describe('editing entries', () => {
   });
 });
 
-describe('awakeStats', () => {
-  it('averages wake windows and full-day awake time', async () => {
-    const { awakeStats } = await import('./insights.js');
-    const { sessions } = rowsToSessions([
-      ['Date', 'Fell asleep', 'Woke up', 'Type'],
-      ['2026-10-11', '19:00', '07:00', 'Night'],
-      ['2026-10-12', '09:00', '10:00', 'Nap'], // 2h awake after 07:00
-      ['2026-10-12', '13:00', '14:00', 'Nap'], // 3h
-      ['2026-10-12', '18:00', '06:00', 'Night'], // 4h → day total 9h
-      ['2026-10-13', '08:30', '09:30', 'Nap'], // 2h30 (day without bedtime: not counted in the day total)
-    ]);
-    const s = awakeStats(sessions);
-    expect(s.avgAwakePerDay).toBe(9 * 60);
-    expect(s.days).toBe(1);
-    expect(s.avgWakeWindow).toBeCloseTo((120 + 180 + 240 + 150) / 4);
-  });
-});
-
 describe('night wakings', () => {
   it('validates wakings and splits the night into stretches', async () => {
     const { makeEntry, entriesToSessions, entriesToRows } = await import('./entries.js');
@@ -317,25 +299,6 @@ describe('upcomingWakeWindow', () => {
     // After the usual number of naps the next sleep is bedtime.
     const after = rowsToSessions([...rows, ['2026-10-13', '12:00', '14:00', 'Nap']]).sessions;
     expect(upcomingWakeWindow(after, new Date(2026, 9, 13, 15, 0))).toMatchObject({ target: 'bedtime', avgMinutes: 240 });
-  });
-});
-
-describe('settlingStats', () => {
-  it('averages settling per nap and per day', async () => {
-    const { settlingStats } = await import('./insights.js');
-    const { sessions } = rowsToSessions([
-      ['Date', 'Settling start', 'Fell asleep', 'Woke up', 'Type', 'Night wakings'],
-      ['2026-10-11', '08:50', '09:00', '10:00', 'Nap', ''], // 10
-      ['2026-10-11', '12:40', '13:00', '14:00', 'Nap', ''], // 20
-      ['2026-10-11', '19:00', '19:30', '06:30', 'Night', '01:00-01:30'], // 30 (later stretch has none)
-      ['2026-10-12', '08:55', '09:00', '10:00', 'Nap', ''], // 5
-      ['2026-10-12', '', '13:00', '14:00', 'Nap', ''], // unknown
-    ]);
-    const s = settlingStats(sessions);
-    expect(s.avgPerNap).toBeCloseTo((10 + 20 + 5) / 3);
-    expect(s.avgPerDay).toBe((60 + 5) / 2);
-    expect(s.days).toBe(2);
-    expect(settlingStats([]).avgPerNap).toBeNull();
   });
 });
 

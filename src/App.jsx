@@ -1,15 +1,16 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { readWorkbook } from './lib/readWorkbook.js';
-import { dailyStats, dayKey, formatClock, formatDay, summary } from './lib/sleepData.js';
+import { dailyStats, summary } from './lib/sleepData.js';
+import { hhmm } from './lib/format.js';
+import { MS_DAY, dateKey, mean } from './lib/time.js';
 import {
   WAKE_WINDOW_SERIES, dayDetails, friendsWindows, lastNight, hasDetails, methodsByWeek, settlingByWeek, wakeWindowsByWeek,
 } from './lib/insights.js';
-import { entriesToSessions, loadEntries, replaceEntry, saveEntries } from './lib/entries.js';
+import { entriesToSessions } from './lib/entries.js';
 import { entryKey, sessionsToEntries } from './lib/cloudData.js';
-import {
-  addEntries, deleteEntry, describeError, setLive, signIn, signOut, updateEntry, watchEntries, watchLive, watchUser,
-} from './lib/cloud.js';
-import { editAwakeSince, liveAfterLogEdit, loadLocalLive, saveLocalLive, sleepDay } from './lib/live.js';
+import { addEntries } from './lib/cloud.js';
+import { sleepDay } from './lib/live.js';
+import { useSleepLog } from './hooks/useSleepLog.js';
 import LiveTracker from './components/LiveTracker.jsx';
 import CloudBar from './components/CloudBar.jsx';
 import DaytimeTank from './components/DaytimeTank.jsx';
@@ -36,114 +37,16 @@ const SETTLING_SERIES = [
 export default function App() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
-  // Entries kept only in this browser (used when not signed in).
-  const [entries, setEntries] = useState(loadEntries);
-  const [storageOk, setStorageOk] = useState(true);
-  useEffect(() => { setStorageOk(saveEntries(entries)); }, [entries]);
-
-  // Shared cloud log (Firebase). user: undefined = still checking, null = signed out.
-  const [user, setUser] = useState(undefined);
-  const [cloudEntries, setCloudEntries] = useState([]);
-  const [cloudError, setCloudError] = useState(null);
-  const [notice, setNotice] = useState(null);
-  const [busy, setBusy] = useState(false);
-  useEffect(() => watchUser(setUser), []);
-  useEffect(() => {
-    setCloudEntries([]);
-    setCloudError(null);
-    if (!user) return undefined;
-    return watchEntries(setCloudEntries, (e) => setCloudError(describeError(e)));
-  }, [user]);
-  const cloud = Boolean(user);
-  const formEntries = cloud ? cloudEntries : entries;
-
-  // The sleep being tracked right now: shared via the cloud when signed in, else kept on this device.
-  const [localLive, setLocalLive] = useState(loadLocalLive);
-  const [cloudLive, setCloudLive] = useState(null);
-  useEffect(() => {
-    setCloudLive(null);
-    if (!user) return undefined;
-    return watchLive(setCloudLive, (e) => setCloudError(describeError(e)));
-  }, [user]);
-  const live = cloud ? cloudLive : localLive;
-  const changeLive = (next) => {
-    if (cloud) {
-      setCloudLive(next); // show it immediately; the listener confirms
-      setLive(next).catch((e) => setCloudError(describeError(e)));
-    } else {
-      setLocalLive(next);
-      saveLocalLive(next);
-    }
-  };
-  const saveLiveEntry = async (entry) => {
-    if (cloud) await addEntries([entry]);
-    else setEntries((list) => [...list, entry]);
-  };
-
-  const report = (e) => setCloudError(describeError(e));
-  const run = async (task) => {
-    setBusy(true);
-    setCloudError(null);
-    try {
-      await task();
-    } catch (e) {
-      report(e);
-    } finally {
-      setBusy(false);
-    }
-  };
-  const onSignIn = () => run(signIn);
-  const onSignOut = () => run(async () => { await signOut(); setNotice(null); });
+  const {
+    user, cloud, cloudEntries, localEntries, formEntries, storageOk, cloudError, notice, setNotice, busy, run,
+    live, changeLive, saveLiveEntry, onSignIn, onSignOut, moveLocal,
+    addEntry, changeEntry, editEntry, removeEntry, editAwake, clearLocal,
+  } = useSleepLog();
   const importFile = () => run(async () => {
     const added = await addEntries(sessionsToEntries(data.sessions));
     setNotice(`Saved ${added} new sleep${added === 1 ? '' : 's'} from ${data.name} to the shared log${added < data.sessions.length ? ' (the rest were already there)' : ''}.`);
     setData(null);
   });
-  const moveLocal = () => run(async () => {
-    const added = await addEntries(entries);
-    setEntries([]);
-    setNotice(`Moved ${added} entr${added === 1 ? 'y' : 'ies'} from this device to the shared log.`);
-  });
-  // Edits in the sleep log win over the Now card (manual awake timer, a sleep still being tracked).
-  const syncLive = (entry) => {
-    const next = liveAfterLogEdit(live, entry);
-    if (next !== live) changeLive(next);
-  };
-  const addEntry = (e) => {
-    syncLive(e);
-    return cloud ? run(() => addEntries([e])) : setEntries((list) => [...list, e]);
-  };
-  // Throws with a readable message so the form can show it next to the fields.
-  const changeEntry = async (previous, updated) => {
-    if (cloud) {
-      try {
-        await updateEntry(previous, updated);
-      } catch (e) {
-        throw new Error(describeError(e));
-      }
-      return;
-    }
-    const { list, error } = replaceEntry(entries, updated);
-    if (error) throw new Error(error);
-    setEntries(list);
-  };
-  const removeEntry = (id) => {
-    syncLive(null);
-    return cloud
-      ? run(() => deleteEntry(cloudEntries.find((e) => e.id === id)))
-      : setEntries((list) => list.filter((e) => e.id !== id));
-  };
-  const editEntry = async (previous, updated) => {
-    await changeEntry(previous, updated);
-    syncLive(updated);
-  };
-  // "awake since" edited in the Now card.
-  const editAwake = async (time, since) => {
-    const res = editAwakeSince(formEntries, since, time);
-    if (res.error) throw new Error(res.error);
-    if (res.entry) return editEntry(formEntries.find((e) => e.id === res.entry.id), res.entry);
-    changeLive({ ...(live ?? {}), awakeFrom: res.awakeFrom });
-  };
 
   const load = (name, buffer) => {
     try {
@@ -171,22 +74,21 @@ export default function App() {
   const sessions = useMemo(() => {
     const saved = entriesToSessions(formEntries);
     const keys = new Set(formEntries.map(entryKey));
-    const fromFile = (data?.sessions ?? []).filter((s) => !keys.has(`${s.day}|${s.type}|${formatClock(s.start)}`));
+    const fromFile = (data?.sessions ?? []).filter((s) => !keys.has(`${s.day}|${s.type}|${hhmm(s.start)}`));
     return [...fromFile, ...saved].sort((a, b) => a.start - b.start);
   }, [data, formEntries]);
   // A sleep in progress counts in the daytime tank (up to now) but not in the charts until it's saved.
   const tankSessions = useMemo(() => {
     if (!live?.asleep) return sessions;
     const start = new Date(live.asleep);
-    const ongoing = { day: sleepDay(live.type, start), type: live.type, start, end: new Date(Date.now() + 864e5), minutes: 0 };
+    const ongoing = { day: sleepDay(live.type, start), type: live.type, start, end: new Date(Date.now() + MS_DAY), minutes: 0 };
     return [...sessions, ongoing];
   }, [sessions, live]);
   const dayMeta = data?.days ?? [];
   const days = useMemo(() => dailyStats(sessions), [sessions]);
   // The summary tiles describe the last 5 days with data before today (today is still in progress).
   const recentDays = useMemo(() => {
-    const now = new Date();
-    const today = dayKey({ y: now.getFullYear(), m: now.getMonth(), d: now.getDate() });
+    const today = dateKey(new Date());
     return days.filter((d) => d.day < today).slice(-RECENT_DAYS);
   }, [days]);
   const stats = useMemo(() => summary(recentDays), [recentDays]);
@@ -205,10 +107,7 @@ export default function App() {
       .find((e) => e.asleep >= '12:00') ?? formEntries.find((e) => e.type === 'night' && e.day === night.day) ?? null
     : null), [night, formEntries]);
   const recentDetails = useMemo(() => recentDays.map((d) => dayDetails(d, sessions)), [recentDays, sessions]);
-  const awakeAvg = useMemo(() => {
-    const known = recentDetails.map((d) => d.awakeMinutes).filter((v) => v != null);
-    return known.length ? known.reduce((a, b) => a + b, 0) / known.length : null;
-  }, [recentDetails]);
+  const awakeAvg = useMemo(() => mean(recentDetails.map((d) => d.awakeMinutes).filter((v) => v != null)), [recentDetails]);
   const detailed = useMemo(() => hasDetails(sessions), [sessions]);
   const insights = useMemo(() => {
     if (!detailed) return null;
@@ -261,9 +160,9 @@ export default function App() {
           </button>
         </div>
       )}
-      {cloud && entries.length > 0 && (
+      {cloud && localEntries.length > 0 && (
         <div className="notice">
-          <p><strong>{entries.length} entr{entries.length === 1 ? 'y is' : 'ies are'}</strong> saved only in this browser.</p>
+          <p><strong>{localEntries.length} entr{localEntries.length === 1 ? 'y is' : 'ies are'}</strong> saved only in this browser.</p>
           <button type="button" className="button" onClick={moveLocal} disabled={busy}>Move to shared log</button>
         </div>
       )}
@@ -275,7 +174,7 @@ export default function App() {
         onAdd={addEntry}
         onUpdate={editEntry}
         onDelete={removeEntry}
-        onClear={cloud ? null : () => setEntries([])}
+        onClear={cloud ? null : clearLocal}
       />
 
       {sessions.length > 0 && (

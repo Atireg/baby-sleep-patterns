@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { formatClock, formatDay, formatDuration } from '../lib/sleepData.js';
+import { formatDay, formatDuration, hhmm } from '../lib/format.js';
+import { dateKey } from '../lib/time.js';
 
 /**
  * Last night at a glance: hours asleep, time awake during the night, wakings and feeds,
@@ -38,8 +39,8 @@ export default function LastNightCard({ night, entry, onSaveNotes }) {
       <div>
         <h2>🌙 Last night</h2>
         <p className="subtitle">
-          {formatDay(night.day)} → {formatDay(dayOf(night.wake))}
-          {' · '}bedtime {formatClock(night.bedtime)}, up at {formatClock(night.wake)}
+          {formatDay(night.day)} → {formatDay(dateKey(night.wake))}
+          {' · '}bedtime {hhmm(night.bedtime)}, up at {hhmm(night.wake)}
         </p>
       </div>
 
@@ -64,27 +65,27 @@ export default function LastNightCard({ night, entry, onSaveNotes }) {
 
       {/* Bedtime → morning: blue = asleep, amber = awake (🍼 = feed). */}
       <div className="night-bar-wrap" role="img"
-        aria-label={`Night from ${formatClock(night.bedtime)} to ${formatClock(night.wake)}, awake ${night.wakings.length} times`}>
+        aria-label={`Night from ${hhmm(night.bedtime)} to ${hhmm(night.wake)}, awake ${night.wakings.length} times`}>
         <div className="night-bar">
           {night.wakings.map((w) => (
             <div key={w.from.getTime()} className="night-awake" style={{ left: pct(w.from), width: width(w.from, w.to) }}
-              title={`Awake ${formatClock(w.from)}–${formatClock(w.to)} (${formatDuration(w.minutes)})${w.feed ? ' · feed' : ''}`}>
+              title={`Awake ${hhmm(w.from)}–${hhmm(w.to)} (${formatDuration(w.minutes)})${w.feed ? ' · feed' : ''}`}>
               {w.feed && <span className="night-feed">🍼</span>}
             </div>
           ))}
         </div>
         <div className="night-bar-labels">
-          <span>{formatClock(night.bedtime)}</span>
+          <span>{hhmm(night.bedtime)}</span>
           {/* Skip labels that would collide with the bedtime / wake-up labels at the ends. */}
           {night.wakings.filter((w) => {
             const f = (w.from - night.bedtime) / span;
             return f > 0.15 && f < 0.8;
           }).map((w) => (
             <span key={w.from.getTime()} className="night-awake-label" style={{ left: pct(w.from) }}>
-              {formatClock(w.from)}
+              {hhmm(w.from)}
             </span>
           ))}
-          <span>{formatClock(night.wake)}</span>
+          <span>{hhmm(night.wake)}</span>
         </div>
         <ul className="legend">
           <li><span className="swatch" style={{ background: 'var(--series-1)' }} />Asleep</li>
@@ -97,7 +98,7 @@ export default function LastNightCard({ night, entry, onSaveNotes }) {
           {night.wakings.map((w, i) => (
             <li key={w.from.getTime()}>
               <span className="waking-no">{i + 1}</span>
-              <span className="waking-time">{formatClock(w.from)}–{formatClock(w.to)}</span>
+              <span className="waking-time">{hhmm(w.from)}–{hhmm(w.to)}</span>
               <span className="waking-dur">{formatDuration(w.minutes)} awake</span>
               {w.feed && <span className="feed-badge">🍼 feed{w.countedAsSleep && ' · counted as sleep'}</span>}
             </li>
@@ -129,8 +130,4 @@ export default function LastNightCard({ night, entry, onSaveNotes }) {
       </div>
     </section>
   );
-}
-
-function dayOf(date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }

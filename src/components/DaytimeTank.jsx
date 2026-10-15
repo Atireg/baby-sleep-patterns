@@ -1,29 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { daytimeTank } from '../lib/insights.js';
-import { formatTimer } from '../lib/live.js';
-import { formatClock, formatDuration } from '../lib/sleepData.js';
+import { formatDuration, formatTimer, hhmm } from '../lib/format.js';
+import { minutesBetween } from '../lib/time.js';
+import { readStored, writeStored } from '../lib/storage.js';
+import { useNow } from '../hooks/useNow.js';
 
 const TARGET_KEY = 'baby-sleep-nap-target';
 const TARGET_OPTIONS = Array.from({ length: 17 }, (_, i) => 60 + i * 15); // 1h … 5h
 
 function loadTarget() {
-  try {
-    const v = Number(localStorage.getItem(TARGET_KEY));
-    return Number.isFinite(v) && v > 0 ? v : null;
-  } catch {
-    return null;
-  }
-}
-
-/** Re-render every second while a nap is in progress (live nap time), otherwise every minute. */
-function useNow(fast) {
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    setNow(new Date());
-    const id = setInterval(() => setNow(new Date()), fast ? 1000 : 60000);
-    return () => clearInterval(id);
-  }, [fast]);
-  return now;
+  const v = Number(readStored(TARGET_KEY));
+  return Number.isFinite(v) && v > 0 ? v : null;
 }
 
 const W = 132;
@@ -33,7 +20,8 @@ const R = 22;
 /** Today's naps filling a tank whose capacity is the daytime-sleep target. */
 export default function DaytimeTank({ sessions, autoTarget }) {
   const [napping, setNapping] = useState(false);
-  const now = useNow(napping);
+  // Every second while a nap is in progress (live nap time), otherwise every minute.
+  const now = useNow(napping ? 1000 : 60000);
   const [custom, setCustom] = useState(loadTarget);
   const target = custom ?? (autoTarget > 0 ? Math.round(autoTarget) : 150);
   const tank = useMemo(() => daytimeTank(sessions, now, target), [sessions, now, target]);
@@ -44,10 +32,7 @@ export default function DaytimeTank({ sessions, autoTarget }) {
   const chooseTarget = (e) => {
     const v = e.target.value === 'auto' ? null : Number(e.target.value);
     setCustom(v);
-    try {
-      if (v) localStorage.setItem(TARGET_KEY, String(v));
-      else localStorage.removeItem(TARGET_KEY);
-    } catch { /* storage blocked: keep for this visit only */ }
+    writeStored(TARGET_KEY, v); // storage blocked: kept for this visit only
   };
 
   const level = Math.min(1, tank.fill);
@@ -104,9 +89,9 @@ export default function DaytimeTank({ sessions, autoTarget }) {
               ? (tank.over > 0 ? `Tank full · ${formatDuration(tank.over)} over target` : 'Tank full')
               : `${formatDuration(tank.remaining)} left to fill`}
           </p>
-          {tank.asleepSince && <p className="tank-now">😴 Asleep since {formatClock(tank.asleepSince)}</p>}
+          {tank.asleepSince && <p className="tank-now">😴 Asleep since {hhmm(tank.asleepSince)}</p>}
           {tank.awakeSince && (
-            <p className="tank-now">Awake since {formatClock(tank.awakeSince)} · {formatDuration((now - tank.awakeSince) / 60000)}</p>
+            <p className="tank-now">Awake since {hhmm(tank.awakeSince)} · {formatDuration(minutesBetween(tank.awakeSince, now))}</p>
           )}
 
           <ul className="tank-naps">
@@ -116,12 +101,12 @@ export default function DaytimeTank({ sessions, autoTarget }) {
                 <span className="tank-nap-no">Nap {i + 1}</span>
                 {s === ongoing ? (
                   <>
-                    <span>{formatClock(s.start)}–now</span>
+                    <span>{hhmm(s.start)}–now</span>
                     <span className="tank-live">{formatTimer(now - s.start)}</span>
                   </>
                 ) : (
                   <>
-                    <span>{formatClock(s.start)}–{formatClock(s.end)}</span>
+                    <span>{hhmm(s.start)}–{hhmm(s.end)}</span>
                     <span className="muted">{formatDuration(s.minutes)}</span>
                   </>
                 )}

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { atTime, editAwakeSince, formatTimer, liveAfterLogEdit, liveToEntry, resolveWakings, sleepDay, typeAt } from './live.js';
+import { formatTimer } from './format.js';
+import { atTime, editAwakeSince, liveAfterLogEdit, liveToEntry, resolveWakings, sleepDay, typeAt } from './live.js';
 import { entriesToSessions } from './entries.js';
 
 describe('live tracking', () => {
@@ -123,5 +124,22 @@ describe('editing "awake since"', () => {
     expect(editAwakeSince([nap], at(15, 10, 30), at(15, 10, 15), now)).toEqual({ awakeFrom: at(15, 10, 15).toISOString() });
     expect(editAwakeSince([], at(15, 10, 30), at(15, 10, 15), now)).toEqual({ awakeFrom: at(15, 10, 15).toISOString() });
     expect(editAwakeSince([nap], at(15, 10, 30), at(15, 9, 45), now).error).toMatch(/ends at 10:00/);
+  });
+});
+
+describe('nightAwakeMs', () => {
+  const at = (h, m) => new Date(2026, 9, 14, h, m);
+  const live = {
+    type: 'night', asleep: at(0, 0).toISOString(),
+    wakings: [
+      { from: at(1, 0).toISOString(), to: at(1, 10).toISOString(), feed: true }, // short feed: sleep
+      { from: at(2, 0).toISOString(), to: at(2, 30).toISOString(), feed: false },
+    ],
+  };
+  it('counts finished wakings (not short feeds) and the one in progress', async () => {
+    const { nightAwakeMs } = await import('./live.js');
+    expect(nightAwakeMs(live, at(3, 0)) / 60000).toBe(30);
+    expect(nightAwakeMs(live, at(2, 15)) / 60000).toBe(0);
+    expect(nightAwakeMs({ ...live, wakingFrom: at(4, 0).toISOString() }, at(4, 20)) / 60000).toBe(50);
   });
 });

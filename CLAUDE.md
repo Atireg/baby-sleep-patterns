@@ -36,6 +36,10 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
 
 ## Layout
 - `static/` – Vite `publicDir` (served at site root): `sample-sleep-log.xlsx` (demo data + template, 5→4→3 naps), `favicon.svg`.
+- `src/lib/time.js` – shared date/clock maths (local time): `MS_MIN/HOUR/DAY`, `pad`, `dateKey`, `keyToDate`, `shiftDay`, `hhmm`,
+  `clockMinutes`, `clockSpan`, `minutesToClock`, `minutesBetween`, `atOrAfter`, `sum`, `mean`. Use these, don't re-inline them.
+- `src/lib/format.js` – display text: `formatDuration`, `formatDay`, `formatTimer`, `ordinal` (+ re-exports `hhmm`).
+- `src/lib/storage.js` – `readStored`/`writeStored`: localStorage that never throws (all local persistence goes through it).
 - `src/lib/sleepData.js` – simple-layout parser, `parseRanges`, `parseWakings` (feed marks), `splitNight` (night → stretches
   around wakings; stretches carry `nightWakings` with feed flags),
   **short feeds count as sleep** (user rule): a feed waking < `SHORT_FEED_MINUTES` (25) is still split off, but its minutes are
@@ -55,11 +59,12 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
 - `src/lib/live.js` – live tracking ("Now" card): local storage `baby-sleep-live-v1`, `sleepDay` (night after midnight → previous
   date), `liveToEntry`, `atTime` (tapped-late times never in the future), `resolveWakings` (edited night wakings → ISO), `liveAfterLogEdit` (log add/edit/delete drops a manual awake timer and finishes a
   tracked sleep the entry covers), `editAwakeSince` (edited "awake since" → that logged sleep's new wake-up time, dropping
-  later night wakings, or a moved manual timer), `formatTimer`, `awakeSince` (later of last sleep end
+  later night wakings, or a moved manual timer), `nightAwakeMs` (awake time of a tracked night, short feeds excluded), `awakeSince` (later of last sleep end
   and `live.awakeFrom`; null while asleep or if >16h).
-- `src/lib/insights.js` – weekly aggregates (wake windows, settling, method), `napCountTrend`, `daytimeTank`, `awakeStats`,
-  `lastNight` (yesterday-dated night; wakings = gaps between its stretches, `feed` matched from `nightWakings`; `feeds` count),
-  `friendsWindows`, `settlingStats`, `dayDetails` (one day's actual numbers), `upcomingNap` (avg length of nap #N over the last 3 days with naps before today), `expectedBedtime`
+- `src/lib/insights.js` – weekly aggregates (wake windows, settling, method), `napCountTrend`, `daytimeTank`,
+  `lastNight` (yesterday-dated night; wakings from `nightGaps` = gaps between its stretches, `feed` matched from `nightWakings`),
+  `MAX_WAKE_WINDOW` (8h; longer gaps aren't wake windows, `knownWindow`),
+  `friendsWindows`, `dayDetails` (one day's actual numbers), `upcomingNap` (avg length of nap #N over the last 3 days with naps before today), `expectedBedtime`
   (avg first-stretch bedtime of the last 3 nights; after-midnight counts as +24h), `expectedWakeUp` (avg end of the last 3
   completed nights), `upcomingWakeWindow` (avg wake window before nap N, else before bedtime, over the last 5 days),
   `dayAwakeTotal` (morning wake-up → bedtime minus naps for one day), `wakeWindowGrid` (actual wake window per nap N / bedtime
@@ -70,9 +75,15 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
   for days, so fixes would otherwise not load.
 - `src/lib/series.js` – gap handling: `breakGaps`, `segments`, `rollingMean` (calendar days), `allWeeks`.
 - `src/lib/theme.js` – resolves CSS color tokens for Plotly (`useChartTheme`), `baseLayout`, `durationAxis`, `rangeButtons`.
+- `src/hooks/useSleepLog.js` – all log/cloud/live state and actions (local vs Firebase, `addEntry`/`editEntry`/`removeEntry` with
+  `syncLive`, `editAwake`, sign-in, `run` for busy/error handling); `App.jsx` only derives stats and lays out the cards.
+  `src/hooks/useNow.js` – `useNow(intervalMs)` ticking clock.
 - `src/components/` – `PlotlyChart` (lazy-loads Plotly, card wrapper), `DailyTotalsChart`, `NapCountChart`, `WeeklyLineChart`,
   `MethodShareChart`, `SleepTimeline`, `RecentDaysTable`, `FileDrop`, `EntryForm`, `CloudBar` (sign-in status),
-  `DaytimeTank` (custom SVG, not Plotly), `LastNightCard`, `LiveTracker` ("Now" card), `WakeWindowsCard`.
+  `DaytimeTank` (custom SVG, not Plotly), `LastNightCard`, `WakeWindowsCard`, `LiveTracker` ("Now" card: states + actions) with
+  `NowForecasts` (each forecast line as a component, recomputed per minute), `LiveEditPanel` ("Edit times or type").
+  Shared bits: `Chips` (`Chips`, `YesNoChips`, `TypeSwitch`, `ProgressBar`), `WakingRows` (night-waking rows, used by the form
+  and the edit panel).
 - Tests: `src/lib/*.test.js` (Vitest).
 - `scripts/make-sample.mjs` – deterministic sample data generator.
 

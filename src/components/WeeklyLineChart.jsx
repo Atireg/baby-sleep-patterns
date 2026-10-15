@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { formatDuration } from '../lib/sleepData.js';
+import { formatDuration } from '../lib/format.js';
 import { baseLayout, durationAxis, useChartTheme, withAlpha } from '../lib/theme.js';
 import PlotlyChart from './PlotlyChart.jsx';
 import { segments } from '../lib/series.js';

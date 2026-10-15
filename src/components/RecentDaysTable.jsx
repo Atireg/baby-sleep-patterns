@@ -1,11 +1,9 @@
-import { formatClock, formatDay, formatDuration } from '../lib/sleepData.js';
+import { formatDay, formatDuration, hhmm } from '../lib/format.js';
+import { mean } from '../lib/time.js';
 
 const dur = (m) => (m == null ? '–' : formatDuration(m));
-const average = (xs) => {
-  const known = xs.filter((x) => x != null);
-  return known.length ? known.reduce((a, b) => a + b, 0) / known.length : null;
-};
-const clock = (d) => (d ? formatClock(d) : '–');
+const average = (xs) => mean(xs.filter((x) => x != null));
+const clock = (d) => (d ? hhmm(d) : '–');
 
 // One row per measure; each cell is one day's actual value (no averages).
 // `avg` marks the only rows that also get an average at the end (user request).

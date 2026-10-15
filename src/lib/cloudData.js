@@ -2,7 +2,7 @@
 // Firestore layout: collection "months", one document per month ("2026-10") holding
 // { entries: [entry, ...] } — one read per month keeps usage far inside the free quota.
 import { methodLabel, moodLabel } from './insights.js';
-import { formatClock } from './sleepData.js';
+import { MS_MIN, hhmm } from './time.js';
 
 export const MONTHS = 'months';
 
@@ -35,7 +35,6 @@ export function mergeEntries(existing, incoming) {
   return { entries: [...existing, ...fresh], added: fresh.length };
 }
 
-const pad = (n) => String(n).padStart(2, '0');
 let counter = 0;
 const importId = () => `imp-${Date.now().toString(36)}-${(counter++).toString(36)}`;
 
@@ -45,14 +44,14 @@ const importId = () => `imp-${Date.now().toString(36)}-${(counter++).toString(36
  */
 export function sessionsToEntries(sessions) {
   return sessions.map((s) => {
-    const settleStart = s.settleMinutes != null ? new Date(s.start.getTime() - s.settleMinutes * 60000) : null;
+    const settleStart = s.settleMinutes != null ? new Date(s.start.getTime() - s.settleMinutes * MS_MIN) : null;
     return {
       id: importId(),
       day: s.day,
       type: s.type,
-      settle: settleStart ? `${pad(settleStart.getHours())}:${pad(settleStart.getMinutes())}` : '',
-      asleep: formatClock(s.start),
-      woke: formatClock(s.end),
+      settle: settleStart ? hhmm(settleStart) : '',
+      asleep: hhmm(s.start),
+      woke: hhmm(s.end),
       method: s.method ? methodLabel(s.method) : '',
       extended: s.type === 'nap' && s.extended != null ? s.extended : null,
       mood: s.mood ? moodLabel(s.mood) : '',

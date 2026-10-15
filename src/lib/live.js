@@ -1,27 +1,17 @@
 // The sleep currently being tracked live ("Now" card): settling → asleep → woke up.
 // Shape: { type: 'nap'|'night', settle: ISO|null, asleep: ISO|null, method: string }
-import { inferType } from './sleepData.js';
-import { checkWakings, entriesToSessions, toYesNo } from './entries.js';
+import { countsAsSleep, inferType } from './sleepData.js';
+import { checkWakings, entriesToSessions, newId, toYesNo } from './entries.js';
+import { readStored, writeStored } from './storage.js';
+import { MS_HOUR, MS_MIN, atOrAfter, clockMinutes, dateKey, hhmm, minutesBetween } from './time.js';
 
 const LOCAL_KEY = 'baby-sleep-live-v1';
-const pad = (n) => String(n).padStart(2, '0');
-export const hhmm = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-const dateKey = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+/** Longer than this can't be one sleep (or one awake stretch); used to catch mistyped times. */
+const MAX_SPAN = 16 * MS_HOUR;
 
-export function loadLocalLive() {
-  try {
-    return JSON.parse(localStorage.getItem(LOCAL_KEY) ?? 'null');
-  } catch {
-    return null;
-  }
-}
-
-export function saveLocalLive(live) {
-  try {
-    if (live) localStorage.setItem(LOCAL_KEY, JSON.stringify(live));
-    else localStorage.removeItem(LOCAL_KEY);
-  } catch { /* storage blocked: state lasts for this visit only */ }
-}
+export const loadLocalLive = () => readStored(LOCAL_KEY);
+/** Storage blocked: the state lasts for this visit only. */
+export const saveLocalLive = (live) => writeStored(LOCAL_KEY, live || null);
 
 /** Nap or night from the clock time (night = 18:00–05:59). */
 export const typeAt = (date) => inferType(date.getHours() * 60 + date.getMinutes());
@@ -41,9 +31,8 @@ export function sleepDay(type, asleep) {
 
 /** Replace the time of `base` with "HH:MM", choosing the latest such moment not after `notAfter`. */
 export function atTime(hhmmText, notAfter) {
-  const [h, m] = hhmmText.split(':').map(Number);
   const d = new Date(notAfter);
-  d.setHours(h, m, 0, 0);
+  d.setHours(0, clockMinutes(hhmmText), 0, 0);
   if (d > notAfter) d.setDate(d.getDate() - 1);
   return d;
 }
@@ -56,8 +45,8 @@ export function liveToEntry(live, woke, extra = {}) {
   if (!live?.asleep) return { error: 'Tap “Fell asleep” first.' };
   const asleep = new Date(live.asleep);
   if (woke <= asleep) return { error: 'Wake-up time must be after she fell asleep.' };
-  if (hhmm(woke) === hhmm(asleep) && woke - asleep < 60000) return { error: 'That sleep was shorter than a minute — tap Cancel to discard it.' };
-  if (woke - asleep > 16 * 3600000) return { error: 'That would be a sleep of more than 16 hours — check the times.' };
+  if (hhmm(woke) === hhmm(asleep) && woke - asleep < MS_MIN) return { error: 'That sleep was shorter than a minute — tap Cancel to discard it.' };
+  if (woke - asleep > MAX_SPAN) return { error: 'That would be a sleep of more than 16 hours — check the times.' };
   const settle = live.settle ? new Date(live.settle) : null;
   // Night wakings that ended before she got up for the day.
   const wakings = (live.wakings ?? [])
@@ -67,7 +56,7 @@ export function liveToEntry(live, woke, extra = {}) {
   if (checked.error) return { error: checked.error };
   return {
     entry: {
-      id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+      id: newId(),
       day: sleepDay(live.type, asleep),
       type: live.type,
       settle: settle && settle <= asleep ? hhmm(settle) : '',
@@ -82,13 +71,19 @@ export function liveToEntry(live, woke, extra = {}) {
   };
 }
 
-/** "1:05:09" / "12:03" style running timer. */
-export function formatTimer(ms) {
-  const total = Math.max(0, Math.floor(ms / 1000));
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = total % 60;
-  return h ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
+/**
+ * Time awake during a tracked night up to `until` (ms): the wakings that ended by then (short feeds
+ * count as sleep) plus the waking in progress.
+ */
+export function nightAwakeMs(live, until) {
+  let ms = 0;
+  for (const w of live?.wakings ?? []) {
+    const from = new Date(w.from);
+    const to = new Date(w.to);
+    if (to <= until && !countsAsSleep(w.feed, minutesBetween(from, to))) ms += to - from;
+  }
+  if (live?.wakingFrom) ms += Math.max(0, until - new Date(live.wakingFrom));
+  return ms;
 }
 
 /**
@@ -102,17 +97,11 @@ export function awakeSince(sessions, live, now = new Date()) {
   for (const s of sessions) if (s.end <= now && (!latest || s.end > latest)) latest = s.end;
   const manual = live?.awakeFrom ? new Date(live.awakeFrom) : null;
   if (manual && manual <= now && (!latest || manual > latest)) latest = manual;
-  return latest && now - latest < 16 * 3600000 ? latest : null;
+  return latest && now - latest < MAX_SPAN ? latest : null;
 }
 
 /** The first moment at or after `after` whose clock reads "HH:MM". */
-function atOrAfter(hhmmText, after) {
-  const [h, m] = hhmmText.split(':').map(Number);
-  const d = new Date(after);
-  d.setHours(h, m, 0, 0);
-  if (d < after) d.setDate(d.getDate() + 1);
-  return d;
-}
+const atOrAfterClock = (hhmmText, after) => atOrAfter(after, clockMinutes(hhmmText));
 
 /**
  * Night wakings edited in the Now card ("HH:MM" rows) back to absolute times, read forward from
@@ -121,13 +110,13 @@ function atOrAfter(hhmmText, after) {
  */
 export function resolveWakings(asleep, rows, wakingFrom, now = new Date()) {
   const wakings = [];
-  const minute = (d) => new Date(Math.floor(d / 60000) * 60000);
+  const minute = (d) => new Date(Math.floor(d / MS_MIN) * MS_MIN);
   let cursor = minute(asleep);
   for (const [i, row] of rows.entries()) {
     const n = rows.length > 1 ? ` ${i + 1}` : '';
     if (!row.from || !row.to) return { error: `Night waking${n}: fill in both times, or remove it.` };
-    const from = atOrAfter(row.from, cursor);
-    const to = atOrAfter(row.to, from);
+    const from = atOrAfterClock(row.from, cursor);
+    const to = atOrAfterClock(row.to, from);
     if (+from === +cursor) return { error: `Night waking${n} must start after she ${i ? 'went back to sleep' : 'fell asleep'}.` };
     if (+to === +from) return { error: `Night waking${n}: “Back asleep” must be after “Woke at”.` };
     if (to > now) return { error: `Night waking${n} ends in the future — check the times and their order.` };
@@ -136,7 +125,7 @@ export function resolveWakings(asleep, rows, wakingFrom, now = new Date()) {
   }
   let current = null;
   if (wakingFrom) {
-    current = atOrAfter(wakingFrom, cursor);
+    current = atOrAfterClock(wakingFrom, cursor);
     if (+current === +cursor) return { error: 'She must have woken up after she last fell asleep.' };
     if (current > now) return { error: '“Awake since” is in the future — check the time.' };
   }
@@ -157,7 +146,7 @@ export function liveAfterLogEdit(live, entry) {
   const pieces = entry ? entriesToSessions([entry]) : [];
   if (pieces.length) {
     const t = new Date(started);
-    const from = pieces[0].start.getTime() - 60000;
+    const from = pieces[0].start.getTime() - MS_MIN;
     if (t >= from && t < pieces.at(-1).end) return null;
   }
   return live.awakeFrom ? { ...live, awakeFrom: null } : live;
@@ -178,12 +167,12 @@ export function editAwakeSince(entries, since, newTime, now = new Date()) {
     const end = pieces.at(-1).end;
     if (end <= now && (!last || end > last.end)) last = { entry: e, pieces, start: pieces[0].start, end };
   }
-  if (!last || !since || Math.abs(last.end - since) >= 60000) {
+  if (!last || !since || Math.abs(last.end - since) >= MS_MIN) {
     if (last && newTime < last.end) return { error: `A logged sleep ends at ${hhmm(last.end)} — pick a later time, or edit that sleep in the log.` };
     return { awakeFrom: newTime.toISOString() };
   }
   if (newTime <= last.start) return { error: `She fell asleep at ${hhmm(last.start)} — the wake-up time must be after that.` };
-  if (newTime - last.start > 16 * 3600000) return { error: 'That would be a sleep of more than 16 hours — check the time.' };
+  if (newTime - last.start > MAX_SPAN) return { error: 'That would be a sleep of more than 16 hours — check the time.' };
   const woke = hhmm(newTime);
   if (woke === last.entry.asleep) return { error: 'Woke up can’t be the same time she fell asleep.' };
   // Night wakings that would now fall after the wake-up are dropped.

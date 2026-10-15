@@ -1,8 +1,7 @@
 // Pure helpers that turn spreadsheet rows into sleep sessions and daily stats.
 // Kept free of the xlsx dependency so they are easy to unit test.
 
-const MS_MIN = 60 * 1000;
-const MS_DAY = 24 * 60 * MS_MIN;
+import { MS_DAY, MS_MIN, atOrAfter, pad } from './time.js';
 
 // Header aliases (lower-cased, punctuation stripped) -> canonical column.
 const HEADER_ALIASES = {
@@ -92,8 +91,7 @@ function parseType(value, startMinutes) {
   return inferType(startMinutes);
 }
 
-export const dayKey = ({ y, m, d }) =>
-  `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+export const dayKey = ({ y, m, d }) => `${y}-${pad(m + 1)}-${pad(d)}`;
 
 /** "4:04 - 5:12, 24:08 - 24:55" -> [[244, 312], [8, 55]] (minutes after midnight; 24:xx allowed). */
 export function parseRanges(text) {
@@ -120,12 +118,6 @@ export function parseWakings(text) {
     });
   }
   return out;
-}
-
-/** Absolute time for a clock time (minutes after midnight) at or after `after`, within 24h. */
-function atOrAfter(after, minutes) {
-  const base = new Date(after.getFullYear(), after.getMonth(), after.getDate()).getTime() + minutes * MS_MIN;
-  return new Date(base < after.getTime() ? base + MS_DAY : base);
 }
 
 /** A feed during the night shorter than this still counts as night sleep (user rule). */
@@ -302,20 +294,4 @@ export function summary(days) {
     avgNaps: avg((d) => d.naps),
     longest: Math.max(...days.map((d) => d.longestMinutes)),
   };
-}
-
-export function formatDuration(minutes) {
-  const m = Math.round(minutes);
-  const h = Math.floor(m / 60);
-  const rest = m % 60;
-  return h ? `${h}h ${String(rest).padStart(2, '0')}m` : `${rest}m`;
-}
-
-export function formatClock(date) {
-  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-}
-
-export function formatDay(day, opts = { weekday: 'short', day: 'numeric', month: 'short' }) {
-  const [y, m, d] = day.split('-').map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString(undefined, opts);
 }
