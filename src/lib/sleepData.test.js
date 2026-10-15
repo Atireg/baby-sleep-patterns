@@ -415,7 +415,11 @@ describe('wakeWindowGrid', () => {
 });
 
 describe('short night feeds count as sleep', () => {
-  it('keeps feeds under 20 minutes in the night sleep, not in the awake time', async () => {
+  it('applies to feeds under 25 minutes', async () => {
+    const { countsAsSleep } = await import('./sleepData.js');
+    expect([countsAsSleep(true, 24), countsAsSleep(true, 25), countsAsSleep(false, 10)]).toEqual([true, false, false]);
+  });
+  it('keeps short feeds in the night sleep, not in the awake time', async () => {
     const { lastNight, dayDetails } = await import('./insights.js');
     const { makeEntry, entriesToSessions } = await import('./entries.js');
     const { entry } = makeEntry({
