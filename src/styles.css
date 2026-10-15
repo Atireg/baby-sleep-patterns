@@ -204,6 +204,7 @@ code { font-size: 0.85em; }
 .tank-now { margin: 0; color: var(--text-secondary); font-size: 0.9rem; }
 .tank-naps { list-style: none; margin: 4px 0; padding: 0; display: grid; gap: 4px; font-size: 0.88rem; font-variant-numeric: tabular-nums; }
 .tank-naps li { display: flex; gap: 12px; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--grid); }
+.tank-live { color: var(--series-2); font-weight: 600; }
 .tank-nap-no { font-size: 0.75rem; font-weight: 600; color: #fff; background: var(--series-2); border-radius: 999px; padding: 2px 8px; }
 .muted { color: var(--text-secondary); }
 .tank-target { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--text-secondary); }

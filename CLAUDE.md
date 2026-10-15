@@ -144,7 +144,8 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
   The form has "Night wakings" rows (Woke at / Back asleep at / 🍼 Feed) for nights; list durations subtract wakings.
   Naps have "Was the nap extended?" Yes/No (form chips; Now card finish step for naps); list shows "extended"/"not extended".
 - Daytime sleep tank: today's naps (`daytimeTank`; a nap in progress counts up to now) vs target = 5-day average nap time (auto)
-  or a fixed choice (localStorage `baby-sleep-nap-target`); "awake/asleep since"; refreshes every minute.
+  or a fixed choice (localStorage `baby-sleep-nap-target`); "awake/asleep since"; refreshes every second while a nap is in
+  progress (the nap row shows "HH:MM–now" + running timer), otherwise every minute.
 - Last night card (`LastNightCard`, after the tank): tiles Asleep / **Awake during the night** (highlighted amber) / Wakings /
   Feeds 🍼; bedtime → morning bar (blue asleep, amber awake, 🍼 feeds); numbered waking list; "Notes about last night" saved into
   that night's entry `notes` (via the same update path as editing; disabled when the night isn't a saved entry).
