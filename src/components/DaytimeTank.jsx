@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { daytimeTank } from '../lib/insights.js';
+import { formatTimer } from '../lib/live.js';
 import { formatClock, formatDuration } from '../lib/sleepData.js';
 
 const TARGET_KEY = 'baby-sleep-nap-target';
@@ -14,13 +15,14 @@ function loadTarget() {
   }
 }
 
-/** Re-render every minute so the tank and "awake for" stay current. */
-function useNow() {
+/** Re-render every second while a nap is in progress (live nap time), otherwise every minute. */
+function useNow(fast) {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 60000);
+    setNow(new Date());
+    const id = setInterval(() => setNow(new Date()), fast ? 1000 : 60000);
     return () => clearInterval(id);
-  }, []);
+  }, [fast]);
   return now;
 }
 
@@ -30,10 +32,14 @@ const R = 22;
 
 /** Today's naps filling a tank whose capacity is the daytime-sleep target. */
 export default function DaytimeTank({ sessions, autoTarget }) {
-  const now = useNow();
+  const [napping, setNapping] = useState(false);
+  const now = useNow(napping);
   const [custom, setCustom] = useState(loadTarget);
   const target = custom ?? (autoTarget > 0 ? Math.round(autoTarget) : 150);
   const tank = useMemo(() => daytimeTank(sessions, now, target), [sessions, now, target]);
+  const ongoing = tank.naps.find((s) => s.end > now) ?? null;
+  const isNapping = Boolean(ongoing);
+  useEffect(() => setNapping(isNapping), [isNapping]);
 
   const chooseTarget = (e) => {
     const v = e.target.value === 'auto' ? null : Number(e.target.value);
@@ -108,8 +114,17 @@ export default function DaytimeTank({ sessions, autoTarget }) {
             {tank.naps.map((s, i) => (
               <li key={`${s.start.getTime()}`}>
                 <span className="tank-nap-no">Nap {i + 1}</span>
-                <span>{formatClock(s.start)}–{formatClock(s.end)}</span>
-                <span className="muted">{formatDuration(s.minutes)}</span>
+                {s === ongoing ? (
+                  <>
+                    <span>{formatClock(s.start)}–now</span>
+                    <span className="tank-live">{formatTimer(now - s.start)}</span>
+                  </>
+                ) : (
+                  <>
+                    <span>{formatClock(s.start)}–{formatClock(s.end)}</span>
+                    <span className="muted">{formatDuration(s.minutes)}</span>
+                  </>
+                )}
               </li>
             ))}
           </ul>
