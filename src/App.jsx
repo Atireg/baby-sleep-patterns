@@ -9,7 +9,7 @@ import { entryKey, sessionsToEntries } from './lib/cloudData.js';
 import {
   addEntries, deleteEntry, describeError, setLive, signIn, signOut, updateEntry, watchEntries, watchLive, watchUser,
 } from './lib/cloud.js';
-import { liveAfterLogEdit, loadLocalLive, saveLocalLive, sleepDay } from './lib/live.js';
+import { editAwakeSince, liveAfterLogEdit, loadLocalLive, saveLocalLive, sleepDay } from './lib/live.js';
 import LiveTracker from './components/LiveTracker.jsx';
 import CloudBar from './components/CloudBar.jsx';
 import DaytimeTank from './components/DaytimeTank.jsx';
@@ -137,6 +137,13 @@ export default function App() {
     await changeEntry(previous, updated);
     syncLive(updated);
   };
+  // "awake since" edited in the Now card.
+  const editAwake = async (time, since) => {
+    const res = editAwakeSince(formEntries, since, time);
+    if (res.error) throw new Error(res.error);
+    if (res.entry) return editEntry(formEntries.find((e) => e.id === res.entry.id), res.entry);
+    changeLive({ ...(live ?? {}), awakeFrom: res.awakeFrom });
+  };
 
   const load = (name, buffer) => {
     try {
@@ -229,7 +236,7 @@ export default function App() {
       />
       {notice && <p className="loaded" role="status">{notice}</p>}
 
-      <LiveTracker live={live} onChange={changeLive} onSave={saveLiveEntry} sessions={sessions} busy={busy} awakeAvg={awakeAvg} />
+      <LiveTracker live={live} onChange={changeLive} onSave={saveLiveEntry} onEditAwake={editAwake} sessions={sessions} busy={busy} awakeAvg={awakeAvg} />
       {(sessions.length > 0 || live?.asleep) && (
         <DaytimeTank sessions={tankSessions} autoTarget={stats?.avgNap ?? 0} />
       )}

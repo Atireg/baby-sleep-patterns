@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { atTime, formatTimer, liveAfterLogEdit, liveToEntry, resolveWakings, sleepDay, typeAt } from './live.js';
+import { atTime, editAwakeSince, formatTimer, liveAfterLogEdit, liveToEntry, resolveWakings, sleepDay, typeAt } from './live.js';
 import { entriesToSessions } from './entries.js';
 
 describe('live tracking', () => {
@@ -99,5 +99,29 @@ describe('Now card follows sleep-log edits', () => {
     expect(liveAfterLogEdit(live, nap)).toEqual({ ...live, awakeFrom: null });
     const plain = { type: 'nap', settle: null, asleep: iso(15, 0) };
     expect(liveAfterLogEdit(plain, nap)).toBe(plain);
+  });
+});
+
+describe('editing "awake since"', () => {
+  const at = (d, h, m) => new Date(2026, 9, d, h, m);
+  const nap = { id: 'n', day: '2026-10-15', type: 'nap', settle: '', asleep: '09:00', woke: '10:00', method: '', mood: '', notes: '', wakings: [], extended: null };
+  const night = { id: 'x', day: '2026-10-14', type: 'night', settle: '', asleep: '19:30', woke: '06:30', method: '', mood: '', notes: '',
+    wakings: [{ from: '01:00', to: '01:30', feed: true }, { from: '06:00', to: '06:10', feed: false }], extended: null };
+  const now = at(15, 11, 0);
+  it('changes the wake-up time of the logged sleep the timer runs from', () => {
+    expect(editAwakeSince([night, nap], at(15, 10, 0), at(15, 10, 20), now)).toEqual({ entry: { ...nap, woke: '10:20', wakings: [] } });
+  });
+  it('drops night wakings after the new wake-up', () => {
+    const res = editAwakeSince([night], at(15, 6, 30), at(15, 6, 5), at(15, 8, 0));
+    expect(res.entry).toMatchObject({ woke: '06:05', wakings: [{ from: '01:00', to: '01:30', feed: true }] });
+  });
+  it('rejects a time before she fell asleep or in the future', () => {
+    expect(editAwakeSince([nap], at(15, 10, 0), at(15, 8, 50), now).error).toMatch(/after that/);
+    expect(editAwakeSince([nap], at(15, 10, 0), at(15, 11, 30), now).error).toMatch(/future/);
+  });
+  it('moves a manual awake timer', () => {
+    expect(editAwakeSince([nap], at(15, 10, 30), at(15, 10, 15), now)).toEqual({ awakeFrom: at(15, 10, 15).toISOString() });
+    expect(editAwakeSince([], at(15, 10, 30), at(15, 10, 15), now)).toEqual({ awakeFrom: at(15, 10, 15).toISOString() });
+    expect(editAwakeSince([nap], at(15, 10, 30), at(15, 9, 45), now).error).toMatch(/ends at 10:00/);
   });
 });

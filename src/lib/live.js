@@ -162,3 +162,32 @@ export function liveAfterLogEdit(live, entry) {
   }
   return live.awakeFrom ? { ...live, awakeFrom: null } : live;
 }
+
+/**
+ * Change when she woke up for the awake timer ("awake since" edited in the Now card).
+ * When the timer runs from a logged sleep, that sleep's wake-up time changes (the log wins);
+ * otherwise it moves the manual awake timer. Returns { entry } (the updated entry),
+ * { awakeFrom } (ISO) or { error }.
+ */
+export function editAwakeSince(entries, since, newTime, now = new Date()) {
+  if (newTime > now) return { error: 'That time is in the future.' };
+  let last = null;
+  for (const e of entries) {
+    const pieces = entriesToSessions([e]);
+    if (!pieces.length) continue;
+    const end = pieces.at(-1).end;
+    if (end <= now && (!last || end > last.end)) last = { entry: e, pieces, start: pieces[0].start, end };
+  }
+  if (!last || !since || Math.abs(last.end - since) >= 60000) {
+    if (last && newTime < last.end) return { error: `A logged sleep ends at ${hhmm(last.end)} — pick a later time, or edit that sleep in the log.` };
+    return { awakeFrom: newTime.toISOString() };
+  }
+  if (newTime <= last.start) return { error: `She fell asleep at ${hhmm(last.start)} — the wake-up time must be after that.` };
+  if (newTime - last.start > 16 * 3600000) return { error: 'That would be a sleep of more than 16 hours — check the time.' };
+  const woke = hhmm(newTime);
+  if (woke === last.entry.asleep) return { error: 'Woke up can’t be the same time she fell asleep.' };
+  // Night wakings that would now fall after the wake-up are dropped.
+  // (Stretch i + 1 starts when waking i ends.)
+  const wakings = (last.entry.wakings ?? []).filter((_, i) => last.pieces[i + 1]?.start < newTime);
+  return { entry: { ...last.entry, woke, wakings } };
+}
