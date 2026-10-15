@@ -130,6 +130,9 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
   Wake-window line (idle): "⏱ Wake window before the Nth nap/bedtime: usually ~X · sleepy around HH:MM" (or "X over — time to
   settle?") + bar of awake time vs the usual window (green, orange when over), from `upcomingWakeWindow`. `.card` uses `grid-template-columns: minmax(0, 1fr)` so wide tables
   scroll inside cards instead of stretching them.
+  Wake window just before (asleep state): "⏱ Wake window before this nap/bedtime: X (HH:MM → HH:MM) · usually ~Y" — from the last
+  logged sleep's end (or a manual timer; `fellAsleep` keeps `live.awakeFrom`) to `live.asleep`; hidden if unknown or ≥ 8h;
+  "usually" only when `upcomingWakeWindow`'s target matches (nap vs bedtime).
   Nap forecast (naps only): idle/settling "💤 Next: Nth nap · usually ~X"; during a nap "may wake around HH:MM" + progress bar
   (or "already X longer than usual"); N = today's saved naps + 1, from `upcomingNap`.
   Bedtime line (idle, and while settling a night): "🌙 Expected bedtime ~HH:MM · in X / about now (±10m) / X past the usual
