@@ -304,6 +304,10 @@ code { font-size: 0.85em; }
 .waking-time { font-weight: 600; }
 .waking-dur { color: var(--text-secondary); }
 .feed-badge { font-size: 0.8rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); }
+.night-wakings-edit label { display: grid; gap: 4px; font-size: 0.85rem; color: var(--text-secondary); min-width: 0; }
+.night-wakings-edit .waking-row label { flex: 1 1 100px; }
+.night-wakings-edit input { font: inherit; font-size: 1rem; color: var(--text-primary); background: var(--page); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; min-height: 42px; width: 100%; min-width: 0; }
+.night-wakings-edit .waking-row { padding-bottom: 8px; border-bottom: 1px solid var(--border); }
 .night-notes { display: grid; gap: 6px; }
 .night-notes label { font-size: 0.85rem; color: var(--text-secondary); }
 .night-notes textarea {
