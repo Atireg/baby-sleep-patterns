@@ -270,28 +270,6 @@ export function upcomingNap(sessions, now = new Date(), days = 3) {
 }
 
 /**
- * Expected bedtime: the average time she fell asleep for the night over the last `days` nights
- * before today (first stretch of each night). Times after midnight count as late evening.
- * Returns { minutes (after midnight, may exceed 1440), samples } or null.
- */
-export function expectedBedtime(sessions, now = new Date(), days = 3) {
-  const today = dateKey(now);
-  const firstByDay = new Map();
-  for (const s of sessions) {
-    if (s.type !== 'night' || s.day >= today) continue;
-    const cur = firstByDay.get(s.day);
-    if (!cur || s.start < cur.start) firstByDay.set(s.day, s);
-  }
-  const nights = [...firstByDay.keys()].sort().slice(-days).map((d) => firstByDay.get(d));
-  if (!nights.length) return null;
-  const mins = nights.map((s) => {
-    const m = s.start.getHours() * 60 + s.start.getMinutes();
-    return m < 12 * 60 ? m + 1440 : m;
-  });
-  return { minutes: Math.round(mean(mins)), samples: mins.length };
-}
-
-/**
  * Expected morning wake-up: the average time the last `days` completed nights ended
  * (last stretch of each night). Returns { minutes (after midnight), samples } or null.
  */
@@ -312,6 +290,10 @@ export function expectedWakeUp(sessions, now = new Date(), days = 3) {
   return { minutes: Math.round(mean(mins)), samples: mins.length };
 }
 
+/** How many naps today have ended by `now`. */
+export const napsDoneToday = (sessions, now = new Date()) =>
+  sessions.filter((s) => s.type === 'nap' && s.day === dateKey(now) && s.end <= now).length;
+
 /**
  * Usual wake window before the next sleep, from the last `days` days before today:
  * the average time awake before nap N (N = today's saved naps + 1), or before bedtime when
@@ -319,7 +301,7 @@ export function expectedWakeUp(sessions, now = new Date(), days = 3) {
  */
 export function upcomingWakeWindow(sessions, now = new Date(), days = 5) {
   const today = dateKey(now);
-  const napsToday = sessions.filter((s) => s.type === 'nap' && s.day === today && s.end <= now).length;
+  const napsToday = napsDoneToday(sessions, now);
   const previous = [...new Set(sessions.filter((s) => s.day < today).map((s) => s.day))].sort().slice(-days);
   const windowsFor = (position) => previous
     .map((d) => sessions.find((s) => s.day === d && s.position === position))

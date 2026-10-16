@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { daytimeTank } from '../lib/insights.js';
-import { formatDuration, formatTimer, hhmm } from '../lib/format.js';
+import { formatDuration, formatTimer, hhmm, ordinal } from '../lib/format.js';
+import { TARGET_CHOICES } from '../lib/wakeTargets.js';
 import { minutesBetween } from '../lib/time.js';
 import { readStored, writeStored } from '../lib/storage.js';
 import { useNow } from '../hooks/useNow.js';
@@ -18,7 +19,30 @@ const H = 210;
 const R = 22;
 
 /** Today's naps filling a tank whose capacity is the daytime-sleep target. */
-export default function DaytimeTank({ sessions, autoTarget }) {
+/** The parents' target wake window before each nap and before bedtime ("—" = none). */
+function WakeTargets({ targets, napRows, onChange }) {
+  const keys = [...Array.from({ length: napRows }, (_, i) => i + 1), 'bedtime'];
+  const set = keys.filter((k) => targets[k]).length;
+  return (
+    <details className="wake-targets">
+      <summary>🎯 Target wake windows{set ? ` · ${set} set` : ''}</summary>
+      <p className="muted">How long she should be awake before each sleep. Shown in the Now card next to the usual times.</p>
+      <div className="wake-targets-grid">
+        {keys.map((k) => (
+          <label key={k}>
+            <span>{k === 'bedtime' ? 'Before bedtime' : `Before ${ordinal(k)} nap`}</span>
+            <select value={targets[k] ?? ''} onChange={(e) => onChange(k, Number(e.target.value) || null)}>
+              <option value="">—</option>
+              {TARGET_CHOICES.map((m) => <option key={m} value={m}>{formatDuration(m)}</option>)}
+            </select>
+          </label>
+        ))}
+      </div>
+    </details>
+  );
+}
+
+export default function DaytimeTank({ sessions, autoTarget, wakeTargets, napRows = 3, onWakeTarget }) {
   const [napping, setNapping] = useState(false);
   // Every second while a nap is in progress (live nap time), otherwise every minute.
   const now = useNow(napping ? 1000 : 60000);
@@ -115,7 +139,7 @@ export default function DaytimeTank({ sessions, autoTarget }) {
           </ul>
 
           <label className="tank-target">
-            <span>Target</span>
+            <span>Nap-time target</span>
             <select value={custom ?? 'auto'} onChange={chooseTarget}>
               <option value="auto">
                 Auto{autoTarget > 0 ? ` – 5-day average (${formatDuration(autoTarget)})` : ' (2h 30m)'}
@@ -125,6 +149,7 @@ export default function DaytimeTank({ sessions, autoTarget }) {
           </label>
         </div>
       </div>
+      {onWakeTarget && <WakeTargets targets={wakeTargets} napRows={napRows} onChange={onWakeTarget} />}
     </section>
   );
 }

@@ -64,12 +64,14 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
 - `src/lib/insights.js` – weekly aggregates (wake windows, settling, method), `napCountTrend`, `daytimeTank`,
   `lastNight` (yesterday-dated night; wakings from `nightGaps` = gaps between its stretches, `feed` matched from `nightWakings`),
   `MAX_WAKE_WINDOW` (8h; longer gaps aren't wake windows, `knownWindow`),
-  `friendsWindows`, `dayDetails` (one day's actual numbers), `upcomingNap` (avg length of nap #N over the last 3 days with naps before today), `expectedBedtime`
-  (avg first-stretch bedtime of the last 3 nights; after-midnight counts as +24h), `expectedWakeUp` (avg end of the last 3
+  `friendsWindows`, `dayDetails` (one day's actual numbers), `upcomingNap` (avg length of nap #N over the last 3 days with naps before today),
+  `napsDoneToday`, `expectedWakeUp` (avg end of the last 3
   completed nights), `upcomingWakeWindow` (avg wake window before nap N, else before bedtime, over the last 5 days),
   `dayAwakeTotal` (morning wake-up → bedtime minus naps for one day), `wakeWindowGrid` (actual wake window per nap N / bedtime
   per day),
   label translations (BG + EN).
+- `src/lib/wakeTargets.js` – parents' **target wake windows** `{ 1: 120, 2: 150, bedtime: 210 }` (minutes; localStorage
+  `baby-sleep-wake-targets`, this device only): `loadWakeTargets`, `setWakeTarget`, `targetFor`, `TARGET_CHOICES` (30m–6h).
 - `src/lib/autoUpdate.js` – prod only (`main.jsx`): when the page regains focus/visibility (max once a minute) it fetches
   `index.html` and reloads if the `assets/index-*.js` name changed (skipped while typing in a field). Phones keep the tab open
   for days, so fixes would otherwise not load.
@@ -138,16 +140,16 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
   The sleep in progress counts in the tank (`tankSessions`) but not in charts until saved.
   The sleep log wins: adding/editing/deleting in the entry form calls `syncLive` in App (`liveAfterLogEdit`), so the Now card
   follows the log (Last-night notes edits don't trigger it).
-  Wake-window line (idle): "⏱ Wake window before the Nth nap/bedtime: usually ~X · sleepy around HH:MM" (or "X over — time to
-  settle?") + bar of awake time vs the usual window (green, orange when over), from `upcomingWakeWindow`. `.card` uses `grid-template-columns: minmax(0, 1fr)` so wide tables
+  No expected-bedtime line (removed at the user's request).
+  Wake-window line (idle): "⏱ Wake window before the Nth nap/bedtime: usually ~X (sleepy around HH:MM) · 🎯 target Y (at HH:MM)"
+  (or "X over — time to settle?") + bar of awake time vs the target (else the usual), from `upcomingWakeWindow` + `wakeTargets`;
+  shown with only a target when there's no history. `.card` uses `grid-template-columns: minmax(0, 1fr)` so wide tables
   scroll inside cards instead of stretching them.
   Wake window just before (asleep state): "⏱ Wake window before this nap/bedtime: X (HH:MM → HH:MM) · usually ~Y" — from the last
   logged sleep's end (or a manual timer; `fellAsleep` keeps `live.awakeFrom`) to `live.asleep`; hidden if unknown or ≥ 8h;
-  "usually" only when `upcomingWakeWindow`'s target matches (nap vs bedtime).
+  "usually" only when `upcomingWakeWindow`'s target matches (nap vs bedtime); "· 🎯 target Y" when one is set.
   Nap forecast (naps only): idle/settling "💤 Next: Nth nap · usually ~X"; during a nap "may wake around HH:MM" + progress bar
   (or "already X longer than usual"); N = today's saved naps + 1, from `upcomingNap`.
-  Bedtime line (idle, and while settling a night): "🌙 Expected bedtime ~HH:MM · in X / about now (±10m) / X past the usual
-  time"; hidden once tonight's night is logged.
   Wake-up line (night asleep / night waking): "☀️ Expected wake-up ~HH:MM · in X / about now / X past" + night progress bar
   (bedtime → expected wake-up), from `expectedWakeUp`. Below it (night asleep / night waking): "🌤 Awake today: X (wake → bedtime,
   minus naps) · 5-day avg Y" (`dayAwakeTotal`; avg = mean of the Last 5 days table's awake values, passed as `awakeAvg`).
@@ -156,7 +158,8 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
   Naps have "Was the nap extended?" Yes/No (form chips; Now card finish step for naps); list shows "extended"/"not extended".
 - Daytime sleep tank: today's naps (`daytimeTank`; a nap in progress counts up to now) vs target = 5-day average nap time (auto)
   or a fixed choice (localStorage `baby-sleep-nap-target`); "awake/asleep since"; refreshes every second while a nap is in
-  progress (the nap row shows "HH:MM–now" + running timer), otherwise every minute.
+  progress (the nap row shows "HH:MM–now" + running timer), otherwise every minute. Below it a collapsible "🎯 Target wake
+  windows" editor (Before 1st nap … / Before bedtime selects; rows = max(3, naps seen in the last 5 days, today's naps + 1)).
 - Last night card (`LastNightCard`, after the tank): tiles Asleep / **Awake during the night** (highlighted amber) / Wakings /
   Feeds 🍼; bedtime → morning bar (blue asleep, amber awake, 🍼 feeds); numbered waking list; "✎ Edit night wakings" (`WakingRows`
   prefilled from **all** the card's wakings, i.e. the gaps between the night's stretches; save → `mergeNight` (entries.js) joins

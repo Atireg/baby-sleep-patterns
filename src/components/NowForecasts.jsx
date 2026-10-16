@@ -2,11 +2,12 @@
 // They recompute once a minute (keyed on the minute), not on every second of the timer.
 import { useMemo } from 'react';
 import {
-  MAX_WAKE_WINDOW, dayAwakeTotal, expectedBedtime, expectedWakeUp, upcomingNap, upcomingWakeWindow,
+  MAX_WAKE_WINDOW, dayAwakeTotal, expectedWakeUp, napsDoneToday, upcomingNap, upcomingWakeWindow,
 } from '../lib/insights.js';
 import { awakeSince as findAwakeSince, sleepDay } from '../lib/live.js';
 import { formatDuration, hhmm, ordinal } from '../lib/format.js';
-import { MS_MIN, dateKey, minutesBetween } from '../lib/time.js';
+import { MS_MIN, minutesBetween } from '../lib/time.js';
+import { targetFor } from '../lib/wakeTargets.js';
 import { ProgressBar } from './Chips.jsx';
 
 const minuteOf = (now) => Math.floor(now.getTime() / MS_MIN);
@@ -18,26 +19,6 @@ function Due({ minutesLeft }) {
   if (minutesLeft > 10) return <> · in <strong>{formatDuration(minutesLeft)}</strong></>;
   if (minutesLeft >= -10) return <> · <strong>about now</strong></>;
   return <> · {formatDuration(-minutesLeft)} past the usual time</>;
-}
-
-/** 🌙 Expected bedtime, until tonight's night is logged. */
-export function BedtimeLine({ sessions, now }) {
-  const minute = minuteOf(now);
-  const bedtime = useMemo(() => {
-    const at = new Date(minute * MS_MIN);
-    // Once tonight's sleep has been logged, bedtime has happened.
-    if (sessions.some((s) => s.type === 'night' && s.day === dateKey(at))) return null;
-    const exp = expectedBedtime(sessions, at);
-    return exp && { ...exp, when: new Date(at.getFullYear(), at.getMonth(), at.getDate(), 0, exp.minutes) };
-  }, [sessions, minute]);
-  if (!bedtime) return null;
-  return (
-    <p className="nap-forecast bedtime-forecast">
-      🌙 Expected bedtime <strong>~{hhmm(bedtime.when)}</strong>
-      <Due minutesLeft={minutesBetween(now, bedtime.when)} />
-      <span className="muted"> (avg of {lastN(bedtime.samples, 'night')})</span>
-    </p>
-  );
 }
 
 /** ☀️ Expected morning wake-up during a night, with the night's progress. */
@@ -59,32 +40,44 @@ export function WakeUpLine({ sessions, now, asleep }) {
   );
 }
 
-/** ⏱ Usual wake window before the next nap (or bedtime) and how far into it she is. */
-export function WakeWindowLine({ sessions, now, awakeSince }) {
+const sleepLabel = (key) => (key === 'bedtime' ? 'bedtime' : `the ${ordinal(key)} nap`);
+
+/**
+ * ⏱ Wake window before the next nap (or bedtime): the usual one (last 5 days) and the parents' target,
+ * with the time each is reached and a bar of the time awake so far (against the target when set).
+ */
+export function WakeWindowLine({ sessions, now, awakeSince, targets }) {
   const minute = minuteOf(now);
   const usual = useMemo(() => upcomingWakeWindow(sessions, new Date(minute * MS_MIN)), [sessions, minute]);
-  if (!usual) return null;
-  const label = usual.target === 'bedtime' ? 'bedtime' : `the ${ordinal(usual.target)} nap`;
+  const next = napsDoneToday(sessions, now) + 1;
+  // Which sleep is next: from the recent days, else the first one with a target set.
+  const key = usual?.target ?? (targetFor(targets, next) ? next : targetFor(targets, 'bedtime') ? 'bedtime' : null);
+  const target = targetFor(targets, key);
+  if (!usual && !target) return null;
+  const goal = target ?? usual.avgMinutes;
   const awakeMin = awakeSince ? (now - awakeSince) / MS_MIN : null;
-  const over = awakeMin != null && awakeMin >= usual.avgMinutes;
+  const at = (minutes) => hhmm(new Date(awakeSince.getTime() + minutes * MS_MIN));
+  const over = awakeMin != null && awakeMin >= goal;
   return (
     <div className="nap-progress">
       <p className="nap-forecast window-forecast">
-        ⏱ Wake window before {label}: usually <strong>~{formatDuration(usual.avgMinutes)}</strong>
-        {awakeMin != null && !over && <> · sleepy around <strong>{hhmm(new Date(awakeSince.getTime() + usual.avgMinutes * MS_MIN))}</strong></>}
-        {over && <> · <strong>{formatDuration(awakeMin - usual.avgMinutes)} over</strong> — time to settle?</>}
-        <span className="muted"> ({lastN(usual.samples, 'day')})</span>
+        ⏱ Wake window before {sleepLabel(key)}:
+        {usual && <> usually <strong>~{formatDuration(usual.avgMinutes)}</strong>{awakeMin != null && awakeMin < usual.avgMinutes && <> (sleepy around <strong>{at(usual.avgMinutes)}</strong>)</>}</>}
+        {usual && target && ' ·'}
+        {target && <> 🎯 target <strong>{formatDuration(target)}</strong>{awakeMin != null && awakeMin < target && <> (at <strong>{at(target)}</strong>)</>}</>}
+        {over && <> · <strong>{formatDuration(awakeMin - goal)} over</strong> — time to settle?</>}
+        {usual && <span className="muted"> ({lastN(usual.samples, 'day')})</span>}
       </p>
       {awakeMin != null && (
-        <ProgressBar className={`window ${over ? 'over' : ''}`} label="Awake time against the usual wake window"
-          share={awakeMin / usual.avgMinutes} />
+        <ProgressBar className={`window ${over ? 'over' : ''}`} share={awakeMin / goal}
+          label={target ? 'Awake time against the target wake window' : 'Awake time against the usual wake window'} />
       )}
     </div>
   );
 }
 
 /** ⏱ After she falls asleep: how long she was awake before it, and the usual for that nap / bedtime. */
-export function WindowBeforeLine({ sessions, live }) {
+export function WindowBeforeLine({ sessions, live, targets }) {
   const info = useMemo(() => {
     const asleepAt = new Date(live.asleep);
     const from = findAwakeSince(sessions, { awakeFrom: live.awakeFrom ?? null }, asleepAt);
@@ -93,8 +86,9 @@ export function WindowBeforeLine({ sessions, live }) {
     const usual = upcomingWakeWindow(sessions, asleepAt);
     // Only compare with the same kind of sleep (the usual before a nap vs before bedtime).
     const matches = usual && (usual.target === 'bedtime') === (live.type === 'night');
-    return { from, minutes, asleepAt, usual: matches ? usual : null };
-  }, [sessions, live.asleep, live.awakeFrom, live.type]);
+    const key = live.type === 'night' ? 'bedtime' : napsDoneToday(sessions, asleepAt) + 1;
+    return { from, minutes, asleepAt, usual: matches ? usual : null, target: targetFor(targets, key) };
+  }, [sessions, live.asleep, live.awakeFrom, live.type, targets]);
   if (!info) return null;
   return (
     <p className="nap-forecast window-before">
@@ -102,6 +96,7 @@ export function WindowBeforeLine({ sessions, live }) {
       <span className="muted">
         {' '}({hhmm(info.from)} → {hhmm(info.asleepAt)})
         {info.usual && ` · usually ~${formatDuration(info.usual.avgMinutes)}`}
+        {info.target && ` · 🎯 target ${formatDuration(info.target)}`}
       </span>
     </p>
   );

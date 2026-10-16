@@ -207,6 +207,12 @@ code { font-size: 0.85em; }
 .tank-live { color: var(--series-2); font-weight: 600; }
 .tank-nap-no { font-size: 0.75rem; font-weight: 600; color: #fff; background: var(--series-2); border-radius: 999px; padding: 2px 8px; }
 .muted { color: var(--text-secondary); }
+.wake-targets { border-top: 1px solid var(--grid); padding-top: 8px; }
+.wake-targets summary { cursor: pointer; font-weight: 600; font-size: 0.92rem; padding: 4px 0; }
+.wake-targets .muted { font-size: 0.82rem; margin: 4px 0 8px; }
+.wake-targets-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px 12px; }
+.wake-targets-grid label { display: grid; gap: 4px; font-size: 0.82rem; color: var(--text-secondary); }
+.wake-targets-grid select { font: inherit; color: var(--text-primary); background: var(--page); border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; }
 .tank-target { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--text-secondary); }
 .tank-target select {
   font: inherit; color: var(--text-primary); background: var(--page); border: 1px solid var(--border);

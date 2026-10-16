@@ -7,7 +7,7 @@ import { useNow } from '../hooks/useNow.js';
 import { Chips, TypeSwitch, YesNoChips, typeLabel } from './Chips.jsx';
 import LiveEditPanel from './LiveEditPanel.jsx';
 import {
-  BedtimeLine, DayAwakeLine, NapForecast, NapProgress, WakeUpLine, WakeWindowLine, WindowBeforeLine, useUpcomingNap,
+  DayAwakeLine, NapForecast, NapProgress, WakeUpLine, WakeWindowLine, WindowBeforeLine, useUpcomingNap,
 } from './NowForecasts.jsx';
 
 /**
@@ -15,7 +15,7 @@ import {
  * live: { type, settle, asleep, method, wakings: [{ from, to, feed }], wakingFrom, wakingFeed, awakeFrom } or null (ISO times);
  * onChange persists it; onSave(entry) stores the finished sleep; onEditAwake(time, since) corrects "awake since".
  */
-export default function LiveTracker({ live, onChange, onSave, onEditAwake, sessions, busy, awakeAvg = null }) {
+export default function LiveTracker({ live, onChange, onSave, onEditAwake, sessions, busy, awakeAvg = null, wakeTargets = {} }) {
   // live may hold only { awakeFrom } (a manually started awake timer) — that still counts as idle.
   const state = live?.asleep ? (live.wakingFrom ? 'nightawake' : 'asleep') : live?.settle ? 'settling' : 'idle';
   const sleeping = state === 'asleep' || state === 'nightawake';
@@ -147,9 +147,8 @@ export default function LiveTracker({ live, onChange, onSave, onEditAwake, sessi
               <button type="button" className="button" onClick={startAwake} disabled={busy}>Start awake timer</button>
             </div>
           )}
-          <WakeWindowLine sessions={sessions} now={now} awakeSince={awakeSince} />
+          <WakeWindowLine sessions={sessions} now={now} awakeSince={awakeSince} targets={wakeTargets} />
           {idleType === 'nap' && <NapForecast nap={nap} />}
-          <BedtimeLine sessions={sessions} now={now} />
           <div className="live-actions">
             <button type="button" className="button big" onClick={startSettling} disabled={busy}>Start settling</button>
             <button type="button" className="button big primary" onClick={fellAsleep} disabled={busy}>Fell asleep</button>
@@ -166,7 +165,7 @@ export default function LiveTracker({ live, onChange, onSave, onEditAwake, sessi
               {awakeSince && <> · awake {formatTimer(now - awakeSince)} in total</>}
             </span>
           </div>
-          {live.type === 'nap' ? <NapForecast nap={nap} /> : <BedtimeLine sessions={sessions} now={now} />}
+          {live.type === 'nap' && <NapForecast nap={nap} />}
           <Chips label="How she's falling asleep" options={METHODS} value={live.method} onChange={(m) => onChange({ ...live, method: m })} />
           <div className="live-actions">
             <button type="button" className="button big primary" onClick={fellAsleep} disabled={busy}>Fell asleep</button>
@@ -186,7 +185,7 @@ export default function LiveTracker({ live, onChange, onSave, onEditAwake, sessi
               {wakings.some((w) => w.feed) && ` (${wakings.filter((w) => w.feed).length} feed${wakings.filter((w) => w.feed).length === 1 ? '' : 's'})`}
             </span>
           </div>
-          <WindowBeforeLine sessions={sessions} live={live} />
+          <WindowBeforeLine sessions={sessions} live={live} targets={wakeTargets} />
           {live.type === 'nap' && <NapProgress nap={nap} now={now} asleep={since(live.asleep)} />}
           {live.type === 'night' && (
             <>
