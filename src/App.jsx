@@ -6,7 +6,7 @@ import { MS_DAY, dateKey, mean } from './lib/time.js';
 import {
   WAKE_WINDOW_SERIES, dayDetails, friendsWindows, lastNight, hasDetails, methodsByWeek, settlingByWeek, wakeWindowsByWeek,
 } from './lib/insights.js';
-import { entriesToSessions } from './lib/entries.js';
+import { entriesToSessions, entryToValues, makeEntry } from './lib/entries.js';
 import { entryKey, sessionsToEntries } from './lib/cloudData.js';
 import { addEntries } from './lib/cloud.js';
 import { sleepDay } from './lib/live.js';
@@ -144,6 +144,11 @@ export default function App() {
           night={night}
           entry={nightEntry}
           onSaveNotes={(notes) => changeEntry(nightEntry, { ...nightEntry, notes })}
+          onSaveWakings={async (wakings) => {
+            const { entry, error: err } = makeEntry({ ...entryToValues(nightEntry), wakings }, nightEntry.id);
+            if (err) throw new Error(err);
+            await editEntry(nightEntry, entry);
+          }}
         />
       )}
       {recentDays.length > 0 && <WakeWindowsCard sessions={sessions} dayKeys={recentKeys} />}
