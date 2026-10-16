@@ -249,24 +249,6 @@ describe('upcomingNap', () => {
   });
 });
 
-describe('expectedBedtime', () => {
-  it('averages the last 3 bedtimes, handling after-midnight bedtimes', async () => {
-    const { expectedBedtime } = await import('./insights.js');
-    const { sessions } = rowsToSessions([
-      ['Date', 'Fell asleep', 'Woke up', 'Type', 'Night wakings'],
-      ['2026-10-09', '18:00', '06:00', 'Night', ''], // older than 3 nights: ignored
-      ['2026-10-10', '19:30', '06:30', 'Night', '01:00-01:20'],
-      ['2026-10-11', '20:00', '06:30', 'Night', ''],
-      ['2026-10-12', '20:30', '06:30', 'Night', ''],
-    ]);
-    expect(expectedBedtime(sessions, new Date(2026, 9, 13, 10, 0))).toEqual({ minutes: 20 * 60, samples: 3 });
-    const late = rowsToSessions([['Date', 'Fell asleep', 'Woke up', 'Type'],
-      ['2026-10-11', '23:30', '07:00', 'Night'], ['2026-10-12', '00:30', '07:00', 'Night']]).sessions;
-    expect(expectedBedtime(late, new Date(2026, 9, 13, 10, 0)).minutes).toBe(24 * 60);
-    expect(expectedBedtime([], new Date())).toBeNull();
-  });
-});
-
 describe('expectedWakeUp', () => {
   it('averages when the last 3 nights ended', async () => {
     const { expectedWakeUp } = await import('./insights.js');

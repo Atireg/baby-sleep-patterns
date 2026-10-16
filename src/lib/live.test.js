@@ -160,3 +160,14 @@ describe('mergeNight', () => {
     expect(mergeNight(parts, [{ from: '18:00', to: '18:10' }]).error).toBeTruthy();
   });
 });
+
+describe('wake targets', () => {
+  it('sets, clears and reads target wake windows', async () => {
+    const { setWakeTarget, targetFor } = await import('./wakeTargets.js');
+    let t = setWakeTarget({}, 1, 120);
+    t = setWakeTarget(t, 'bedtime', 210);
+    expect(t).toEqual({ 1: 120, bedtime: 210 });
+    expect([targetFor(t, 1), targetFor(t, 2), targetFor(t, 'bedtime'), targetFor(t, null)]).toEqual([120, null, 210, null]);
+    expect(setWakeTarget(t, 1, null)).toEqual({ bedtime: 210 });
+  });
+});

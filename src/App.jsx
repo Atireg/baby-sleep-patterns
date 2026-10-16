@@ -4,12 +4,13 @@ import { dailyStats, summary } from './lib/sleepData.js';
 import { hhmm } from './lib/format.js';
 import { MS_DAY, clockSpan, dateKey, mean } from './lib/time.js';
 import {
-  WAKE_WINDOW_SERIES, dayDetails, friendsWindows, lastNight, hasDetails, methodsByWeek, settlingByWeek, wakeWindowsByWeek,
+  WAKE_WINDOW_SERIES, dayDetails, napsDoneToday, friendsWindows, lastNight, hasDetails, methodsByWeek, settlingByWeek, wakeWindowsByWeek,
 } from './lib/insights.js';
 import { entriesToSessions, mergeNight } from './lib/entries.js';
 import { entryKey, sessionsToEntries } from './lib/cloudData.js';
 import { addEntries } from './lib/cloud.js';
 import { sleepDay } from './lib/live.js';
+import { loadWakeTargets, setWakeTarget } from './lib/wakeTargets.js';
 import { useSleepLog } from './hooks/useSleepLog.js';
 import LiveTracker from './components/LiveTracker.jsx';
 import CloudBar from './components/CloudBar.jsx';
@@ -109,6 +110,14 @@ export default function App() {
     [night, formEntries],
   );
   const nightEntry = nightParts[0] ?? null;
+  // Target wake windows (set in the tank card, shown in the Now card), one row per nap seen recently.
+  const [wakeTargets, setWakeTargets] = useState(loadWakeTargets);
+  const napRows = useMemo(() => Math.max(
+    3,
+    napsDoneToday(sessions) + 1,
+    ...sessions.filter((s) => recentKeys.includes(s.day) && typeof s.position === 'number').map((s) => s.position),
+    ...Object.keys(wakeTargets).filter((k) => k !== 'bedtime').map(Number),
+  ), [sessions, recentKeys, wakeTargets]);
   const recentDetails = useMemo(() => recentDays.map((d) => dayDetails(d, sessions)), [recentDays, sessions]);
   const awakeAvg = useMemo(() => mean(recentDetails.map((d) => d.awakeMinutes).filter((v) => v != null)), [recentDetails]);
   const detailed = useMemo(() => hasDetails(sessions), [sessions]);
@@ -138,9 +147,15 @@ export default function App() {
       />
       {notice && <p className="loaded" role="status">{notice}</p>}
 
-      <LiveTracker live={live} onChange={changeLive} onSave={saveLiveEntry} onEditAwake={editAwake} sessions={sessions} busy={busy} awakeAvg={awakeAvg} />
+      <LiveTracker live={live} onChange={changeLive} onSave={saveLiveEntry} onEditAwake={editAwake} sessions={sessions} busy={busy} awakeAvg={awakeAvg} wakeTargets={wakeTargets} />
       {(sessions.length > 0 || live?.asleep) && (
-        <DaytimeTank sessions={tankSessions} autoTarget={stats?.avgNap ?? 0} />
+        <DaytimeTank
+          sessions={tankSessions}
+          autoTarget={stats?.avgNap ?? 0}
+          wakeTargets={wakeTargets}
+          napRows={napRows}
+          onWakeTarget={(key, minutes) => setWakeTargets((t) => setWakeTarget(t, key, minutes))}
+        />
       )}
       {(sessions.length > 0 || live?.asleep) && (
         <LastNightCard
