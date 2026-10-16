@@ -113,3 +113,16 @@ export const entryToValues = (e) => ({
   wakings: (e.wakings ?? []).map((w) => ({ ...w })),
   extended: e.extended === true ? 'yes' : e.extended === false ? 'no' : '',
 });
+
+/**
+ * One night saved as several entries (e.g. a new entry after each waking) joined into one entry with
+ * the given night wakings: bedtime details from the first part, wake-up and mood from the last,
+ * notes combined. Returns { entry } (keeping the first part's id) or { error }.
+ */
+export function mergeNight(parts, wakings) {
+  const sorted = [...parts].sort((a, b) => clockSpan('12:00', a.asleep) - clockSpan('12:00', b.asleep));
+  const first = sorted[0];
+  const last = sorted.at(-1);
+  const notes = [...new Set(sorted.map((e) => (e.notes ?? '').trim()).filter(Boolean))].join(' · ');
+  return makeEntry({ ...entryToValues(first), woke: last.woke, mood: last.mood || first.mood || '', notes, wakings }, first.id);
+}

@@ -7,9 +7,10 @@ import WakingRows from './WakingRows.jsx';
  * Last night at a glance: hours asleep, time awake during the night, wakings and feeds,
  * a bedtime → morning bar with the awake stretches marked, and notes about the night.
  * night: lastNight() result or null; entry: the saved night entry (for notes and edits) or null.
- * onSaveWakings(wakings) saves edited night wakings ([{ from, to, feed }], "HH:MM") into that entry.
+ * onSaveWakings(wakings) saves edited night wakings ([{ from, to, feed }], "HH:MM") for the whole night;
+ * parts = how many entries the night is saved as (they are joined into one on save).
  */
-export default function LastNightCard({ night, entry, onSaveNotes, onSaveWakings }) {
+export default function LastNightCard({ night, entry, parts = 1, onSaveNotes, onSaveWakings }) {
   const [notes, setNotes] = useState(entry?.notes ?? '');
   const [status, setStatus] = useState(null); // 'saving' | 'saved' | error text
   useEffect(() => { setNotes(entry?.notes ?? ''); setStatus(null); }, [entry?.id, entry?.notes]);
@@ -28,7 +29,10 @@ export default function LastNightCard({ night, entry, onSaveNotes, onSaveWakings
   const span = night.wake - night.bedtime;
   const pct = (t) => `${((t - night.bedtime) / span) * 100}%`;
   const width = (a, b) => `${((b - a) / span) * 100}%`;
-  const startWakingEdit = () => setWakingEdit({ wakings: (entry.wakings ?? []).map((w) => ({ ...w })), error: null, saving: false });
+  // Every waking shown on the card (gaps between the night's stretches), however the night was saved.
+  const startWakingEdit = () => setWakingEdit({
+    wakings: night.wakings.map((w) => ({ from: hhmm(w.from), to: hhmm(w.to), feed: Boolean(w.feed) })), error: null, saving: false,
+  });
   const saveWakings = async () => {
     setWakingEdit((x) => ({ ...x, saving: true, error: null }));
     try {
@@ -110,6 +114,7 @@ export default function LastNightCard({ night, entry, onSaveNotes, onSaveWakings
       {wakingEdit ? (
         <fieldset className="wakings night-wakings-edit">
           <legend>Night wakings <em>({hhmm(night.bedtime)} → {hhmm(night.wake)})</em></legend>
+          {parts > 1 && <p className="muted">Last night was saved as {parts} separate sleeps — saving joins them into one night.</p>}
           <WakingRows wakings={wakingEdit.wakings} onChange={(wakings) => setWakingEdit((x) => ({ ...x, wakings, error: null }))} />
           <div className="form-actions">
             <button type="button" className="button primary" onClick={saveWakings} disabled={wakingEdit.saving}>
