@@ -143,3 +143,20 @@ describe('nightAwakeMs', () => {
     expect(nightAwakeMs({ ...live, wakingFrom: at(4, 0).toISOString() }, at(4, 20)) / 60000).toBe(50);
   });
 });
+
+describe('mergeNight', () => {
+  it('joins a night saved in parts into one entry with all its wakings', async () => {
+    const { mergeNight } = await import('./entries.js');
+    const base = { day: '2026-10-15', type: 'night', settle: '', method: '', mood: '', notes: '', wakings: [], extended: null };
+    const parts = [
+      { ...base, id: 'c', asleep: '02:30', woke: '06:30', mood: 'Good', notes: 'early' },
+      { ...base, id: 'a', asleep: '19:30', woke: '23:00', settle: '19:10', notes: 'teething' },
+      { ...base, id: 'b', asleep: '23:15', woke: '02:00' },
+    ];
+    const wakings = [{ from: '23:00', to: '23:15', feed: true }, { from: '02:00', to: '02:20', feed: false }];
+    const { entry } = mergeNight(parts, wakings);
+    expect(entry).toMatchObject({ id: 'a', asleep: '19:30', woke: '06:30', settle: '19:10', mood: 'Good', notes: 'teething · early' });
+    expect(entry.wakings).toEqual(wakings);
+    expect(mergeNight(parts, [{ from: '18:00', to: '18:10' }]).error).toBeTruthy();
+  });
+});

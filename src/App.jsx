@@ -2,11 +2,11 @@ import { useMemo, useState } from 'react';
 import { readWorkbook } from './lib/readWorkbook.js';
 import { dailyStats, summary } from './lib/sleepData.js';
 import { hhmm } from './lib/format.js';
-import { MS_DAY, dateKey, mean } from './lib/time.js';
+import { MS_DAY, clockSpan, dateKey, mean } from './lib/time.js';
 import {
   WAKE_WINDOW_SERIES, dayDetails, friendsWindows, lastNight, hasDetails, methodsByWeek, settlingByWeek, wakeWindowsByWeek,
 } from './lib/insights.js';
-import { entriesToSessions, entryToValues, makeEntry } from './lib/entries.js';
+import { entriesToSessions, mergeNight } from './lib/entries.js';
 import { entryKey, sessionsToEntries } from './lib/cloudData.js';
 import { addEntries } from './lib/cloud.js';
 import { sleepDay } from './lib/live.js';
@@ -101,11 +101,14 @@ export default function App() {
   // Last night's summary for the tank card (recomputed when the date changes).
   const todayStamp = new Date().toDateString();
   const night = useMemo(() => lastNight(sessions, new Date()), [sessions, todayStamp]);
-  // The saved entry for last night (its first stretch), so notes can be added from the Last night card.
-  const nightEntry = useMemo(() => (night
-    ? formEntries.filter((e) => e.type === 'night' && e.day === night.day).sort((a, b) => a.asleep.localeCompare(b.asleep))
-      .find((e) => e.asleep >= '12:00') ?? formEntries.find((e) => e.type === 'night' && e.day === night.day) ?? null
-    : null), [night, formEntries]);
+  // Last night's saved entries (usually one; several if it was saved in parts) and the first of them,
+  // which holds the notes edited on the Last night card.
+  const nightParts = useMemo(
+    () => (night ? formEntries.filter((e) => e.type === 'night' && e.day === night.day)
+      .sort((a, b) => clockSpan('12:00', a.asleep) - clockSpan('12:00', b.asleep)) : []),
+    [night, formEntries],
+  );
+  const nightEntry = nightParts[0] ?? null;
   const recentDetails = useMemo(() => recentDays.map((d) => dayDetails(d, sessions)), [recentDays, sessions]);
   const awakeAvg = useMemo(() => mean(recentDetails.map((d) => d.awakeMinutes).filter((v) => v != null)), [recentDetails]);
   const detailed = useMemo(() => hasDetails(sessions), [sessions]);
@@ -144,10 +147,13 @@ export default function App() {
           night={night}
           entry={nightEntry}
           onSaveNotes={(notes) => changeEntry(nightEntry, { ...nightEntry, notes })}
+          parts={nightParts.length}
           onSaveWakings={async (wakings) => {
-            const { entry, error: err } = makeEntry({ ...entryToValues(nightEntry), wakings }, nightEntry.id);
+            // Saving joins a night stored in parts into one entry holding every waking.
+            const { entry, error: err } = mergeNight(nightParts, wakings);
             if (err) throw new Error(err);
             await editEntry(nightEntry, entry);
+            for (const part of nightParts.slice(1)) await removeEntry(part.id);
           }}
         />
       )}

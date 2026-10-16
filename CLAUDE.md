@@ -158,8 +158,9 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
   or a fixed choice (localStorage `baby-sleep-nap-target`); "awake/asleep since"; refreshes every second while a nap is in
   progress (the nap row shows "HH:MM–now" + running timer), otherwise every minute.
 - Last night card (`LastNightCard`, after the tank): tiles Asleep / **Awake during the night** (highlighted amber) / Wakings /
-  Feeds 🍼; bedtime → morning bar (blue asleep, amber awake, 🍼 feeds); numbered waking list; "✎ Edit night wakings" (`WakingRows`:
-  change start/end, feed, add/remove → `makeEntry` validation → `editEntry`); "Notes about last night" saved into
+  Feeds 🍼; bedtime → morning bar (blue asleep, amber awake, 🍼 feeds); numbered waking list; "✎ Edit night wakings" (`WakingRows`
+  prefilled from **all** the card's wakings, i.e. the gaps between the night's stretches; save → `mergeNight` (entries.js) joins
+  a night saved as several entries into the first one, validated like the form, then the other parts are deleted); "Notes about last night" saved into
   that night's entry `notes` (via the same update path as editing). Both need the night to be a saved entry.
 - Wake windows card (`WakeWindowsCard`, before the timeline): table rows 1st nap … / Bedtime, columns = the Last-5 days newest
   first, actual values from `wakeWindowGrid`; today's upcoming row (`upcomingWakeWindow` target) highlighted "next".
