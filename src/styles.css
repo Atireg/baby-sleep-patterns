@@ -207,6 +207,9 @@ code { font-size: 0.85em; }
 .tank-live { color: var(--series-2); font-weight: 600; }
 .tank-nap-no { font-size: 0.75rem; font-weight: 600; color: #fff; background: var(--series-2); border-radius: 999px; padding: 2px 8px; }
 .muted { color: var(--text-secondary); }
+.wake-targets-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0; font-size: 0.88rem; color: var(--text-secondary); }
+.target-chip { padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); background: var(--page); color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.target-chip.next { border-color: var(--series-3); background: color-mix(in srgb, var(--series-3) 16%, var(--surface-1)); font-weight: 600; }
 .wake-targets { border-top: 1px solid var(--grid); padding-top: 8px; }
 .wake-targets summary { cursor: pointer; font-weight: 600; font-size: 0.92rem; padding: 4px 0; }
 .wake-targets .muted { font-size: 0.82rem; margin: 4px 0 8px; }

@@ -87,6 +87,28 @@ export function WakeWindowLine({ sessions, now, awakeSince, targets }) {
   );
 }
 
+/** 🎯 While she is awake: all the target wake windows, the next one highlighted. */
+export function WakeTargetsRow({ sessions, now, targets }) {
+  const minute = minuteOf(now);
+  const usual = useMemo(() => upcomingWakeWindow(sessions, new Date(minute * MS_MIN)), [sessions, minute]);
+  const keys = Object.keys(targets ?? {})
+    .filter((k) => targetFor(targets, k))
+    .sort((a, b) => (a === 'bedtime') - (b === 'bedtime') || a - b);
+  if (!keys.length) return null;
+  const next = napsDoneToday(sessions, now) + 1;
+  const nextKey = String(usual?.target ?? (targetFor(targets, next) ? next : 'bedtime'));
+  return (
+    <p className="wake-targets-row" aria-label="Target wake windows">
+      <span>🎯 Targets:</span>
+      {keys.map((k) => (
+        <span key={k} className={`target-chip ${k === nextKey ? 'next' : ''}`}>
+          {k === 'bedtime' ? 'bedtime' : `${ordinal(Number(k))} nap`} {formatDuration(targets[k])}
+        </span>
+      ))}
+    </p>
+  );
+}
+
 /** ⏱ After she falls asleep: how long she was awake before it, and the usual for that nap / bedtime. */
 export function WindowBeforeLine({ sessions, live, targets }) {
   const info = useMemo(() => {

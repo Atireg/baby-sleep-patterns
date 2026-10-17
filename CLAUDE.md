@@ -70,7 +70,7 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
   per day),
   label translations (BG + EN).
 - `src/lib/wakeTargets.js` – parents' **target wake windows** `{ 1: 120, 2: 150, bedtime: 210 }` (minutes; localStorage
-  `baby-sleep-wake-targets`, this device only): `loadWakeTargets`, `setWakeTarget`, `targetFor`, `TARGET_CHOICES` (30m–6h).
+  `baby-sleep-wake-targets`, this device only): `loadWakeTargets`, `setWakeTarget`, `targetFor`, `TARGET_CHOICES` (30m–6h, 5-minute steps).
 - `src/lib/autoUpdate.js` – prod only (`main.jsx`): when the page regains focus/visibility (max once a minute) it fetches
   `index.html` and reloads if the `assets/index-*.js` name changed (skipped while typing in a field). Phones keep the tab open
   for days, so fixes would otherwise not load.
@@ -142,7 +142,8 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
   No expected-bedtime line (removed at the user's request).
   Wake-window line (idle): "⏱ Wake window before the Nth nap/bedtime: usually ~X (sleepy around HH:MM) · 🎯 target Y (at HH:MM)"
   (or "X over — time to settle?") + bar of awake time vs the target (else the usual), from `upcomingWakeWindow` + `wakeTargets`;
-  shown with only a target when there's no history. `.card` uses `grid-template-columns: minmax(0, 1fr)` so wide tables
+  shown with only a target when there's no history. Under it (idle and settling) `WakeTargetsRow`: "🎯 Targets: 1st nap 2h 05m ·
+  2nd nap … · bedtime …" chips, the next one highlighted. `.card` uses `grid-template-columns: minmax(0, 1fr)` so wide tables
   scroll inside cards instead of stretching them.
   Wake window just before (asleep state): "⏱ Wake window before this nap/bedtime: X (HH:MM → HH:MM) · usually ~Y" — from the last
   logged sleep's end (or a manual timer; `fellAsleep` keeps `live.awakeFrom`) to `live.asleep`; hidden if unknown or ≥ 8h;
