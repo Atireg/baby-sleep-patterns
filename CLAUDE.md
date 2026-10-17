@@ -65,8 +65,7 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
   `lastNight` (yesterday-dated night; wakings from `nightGaps` = gaps between its stretches, `feed` matched from `nightWakings`),
   `MAX_WAKE_WINDOW` (8h; longer gaps aren't wake windows, `knownWindow`),
   `friendsWindows`, `dayDetails` (one day's actual numbers), `upcomingNap` (avg length of nap #N over the last 3 days with naps before today),
-  `napsDoneToday`, `expectedWakeUp` (avg end of the last 3
-  completed nights), `upcomingWakeWindow` (avg wake window before nap N, else before bedtime, over the last 5 days),
+  `napsDoneToday`, `expectedWakeUp` (bedtime + (5-day avg total sleep − that day's naps) + awake time at night so far), `upcomingWakeWindow` (avg wake window before nap N, else before bedtime, over the last 5 days),
   `dayAwakeTotal` (morning wake-up → bedtime minus naps for one day), `wakeWindowGrid` (actual wake window per nap N / bedtime
   per day),
   label translations (BG + EN).
@@ -150,8 +149,9 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
   "usually" only when `upcomingWakeWindow`'s target matches (nap vs bedtime); "· 🎯 target Y" when one is set.
   Nap forecast (naps only): idle/settling "💤 Next: Nth nap · usually ~X"; during a nap "may wake around HH:MM" + progress bar
   (or "already X longer than usual"); N = today's saved naps + 1, from `upcomingNap`.
-  Wake-up line (night asleep / night waking): "☀️ Expected wake-up ~HH:MM · in X / about now / X past" + night progress bar
-  (bedtime → expected wake-up), from `expectedWakeUp`. Below it (night asleep / night waking): "🌤 Awake today: X (wake → bedtime,
+  Wake-up line (night asleep / night waking): "☀️ Expected wake-up ~HH:MM · in X (5-day avg sleep A − N of naps today = T tonight
+  + M awake)" + night progress bar (bedtime → expected wake-up), from `expectedWakeUp` (user rule). The average (`nightAvgTotal`
+  in App) uses the 5 days before the night's own day, so after midnight the half-logged evening doesn't count. Below it (night asleep / night waking): "🌤 Awake today: X (wake → bedtime,
   minus naps) · 5-day avg Y" (`dayAwakeTotal`; avg = mean of the Last 5 days table's awake values, passed as `awakeAvg`).
 - Editing: each listed entry has ✎ (loads it into the form → "Save changes"/"Cancel edit") and × (delete). "Show day" filter.
   The form has "Night wakings" rows (Woke at / Back asleep at / 🍼 Feed) for nights; list durations subtract wakings.
