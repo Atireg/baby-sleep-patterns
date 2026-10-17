@@ -118,6 +118,13 @@ export default function App() {
     ...sessions.filter((s) => recentKeys.includes(s.day) && typeof s.position === 'number').map((s) => s.position),
     ...Object.keys(wakeTargets).filter((k) => k !== 'bedtime').map(Number),
   ), [sessions, recentKeys, wakeTargets]);
+  // For the expected wake-up: average total sleep of the 5 days before the night being tracked
+  // (after midnight that night's own day, with only its naps, must not count).
+  const nightDay = live?.asleep && live.type === 'night' ? sleepDay('night', new Date(live.asleep)) : null;
+  const nightAvgTotal = useMemo(
+    () => (nightDay ? mean(days.filter((d) => d.day < nightDay).slice(-RECENT_DAYS).map((d) => d.totalMinutes)) : null),
+    [days, nightDay],
+  );
   const recentDetails = useMemo(() => recentDays.map((d) => dayDetails(d, sessions)), [recentDays, sessions]);
   const awakeAvg = useMemo(() => mean(recentDetails.map((d) => d.awakeMinutes).filter((v) => v != null)), [recentDetails]);
   const detailed = useMemo(() => hasDetails(sessions), [sessions]);
@@ -147,7 +154,7 @@ export default function App() {
       />
       {notice && <p className="loaded" role="status">{notice}</p>}
 
-      <LiveTracker live={live} onChange={changeLive} onSave={saveLiveEntry} onEditAwake={editAwake} sessions={sessions} busy={busy} awakeAvg={awakeAvg} wakeTargets={wakeTargets} />
+      <LiveTracker live={live} onChange={changeLive} onSave={saveLiveEntry} onEditAwake={editAwake} sessions={sessions} busy={busy} awakeAvg={awakeAvg} avgTotal={nightAvgTotal} wakeTargets={wakeTargets} />
       {(sessions.length > 0 || live?.asleep) && (
         <DaytimeTank
           sessions={tankSessions}

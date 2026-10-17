@@ -15,7 +15,7 @@ import {
  * live: { type, settle, asleep, method, wakings: [{ from, to, feed }], wakingFrom, wakingFeed, awakeFrom } or null (ISO times);
  * onChange persists it; onSave(entry) stores the finished sleep; onEditAwake(time, since) corrects "awake since".
  */
-export default function LiveTracker({ live, onChange, onSave, onEditAwake, sessions, busy, awakeAvg = null, wakeTargets = {} }) {
+export default function LiveTracker({ live, onChange, onSave, onEditAwake, sessions, busy, awakeAvg = null, avgTotal = null, wakeTargets = {} }) {
   // live may hold only { awakeFrom } (a manually started awake timer) — that still counts as idle.
   const state = live?.asleep ? (live.wakingFrom ? 'nightawake' : 'asleep') : live?.settle ? 'settling' : 'idle';
   const sleeping = state === 'asleep' || state === 'nightawake';
@@ -189,7 +189,7 @@ export default function LiveTracker({ live, onChange, onSave, onEditAwake, sessi
           {live.type === 'nap' && <NapProgress nap={nap} now={now} asleep={since(live.asleep)} />}
           {live.type === 'night' && (
             <>
-              <WakeUpLine sessions={sessions} now={now} asleep={since(live.asleep)} />
+              <WakeUpLine sessions={sessions} now={now} live={live} avgTotal={avgTotal} />
               <DayAwakeLine sessions={sessions} asleep={since(live.asleep)} awakeAvg={awakeAvg} />
             </>
           )}
@@ -217,7 +217,7 @@ export default function LiveTracker({ live, onChange, onSave, onEditAwake, sessi
           </div>
           {live.type === 'night' && (
             <>
-              <WakeUpLine sessions={sessions} now={now} asleep={since(live.asleep)} />
+              <WakeUpLine sessions={sessions} now={now} live={live} avgTotal={avgTotal} />
               <DayAwakeLine sessions={sessions} asleep={since(live.asleep)} awakeAvg={awakeAvg} />
             </>
           )}

@@ -270,24 +270,16 @@ export function upcomingNap(sessions, now = new Date(), days = 3) {
 }
 
 /**
- * Expected morning wake-up: the average time the last `days` completed nights ended
- * (last stretch of each night). Returns { minutes (after midnight), samples } or null.
+ * Expected morning wake-up for a night in progress: the 5-day average total sleep minus that day's
+ * naps is the sleep still due tonight; time awake during the night so far pushes the wake-up later.
+ * day: the night's sleep day; asleep: bedtime (Date). Returns { when, nightMinutes, napMinutes } or null.
  */
-export function expectedWakeUp(sessions, now = new Date(), days = 3) {
-  const lastByDay = new Map();
-  for (const s of sessions) {
-    if (s.type !== 'night' || s.end > now) continue;
-    const cur = lastByDay.get(s.day);
-    if (!cur || s.end > cur.end) lastByDay.set(s.day, s);
-  }
-  const nights = [...lastByDay.keys()].sort().slice(-days).map((d) => lastByDay.get(d));
-  if (!nights.length) return null;
-  // Morning times; a (rare) wake-up after noon counts as the previous evening.
-  const mins = nights.map((s) => {
-    const m = s.end.getHours() * 60 + s.end.getMinutes();
-    return m > 12 * 60 ? m - 1440 : m;
-  });
-  return { minutes: Math.round(mean(mins)), samples: mins.length };
+export function expectedWakeUp(sessions, day, asleep, avgTotalMinutes, awakeMinutes = 0) {
+  if (!(avgTotalMinutes > 0)) return null;
+  const napMinutes = sum(sessions.filter((s) => s.type === 'nap' && s.day === day && s.end <= asleep).map((s) => s.minutes));
+  const nightMinutes = avgTotalMinutes - napMinutes;
+  if (nightMinutes <= 0) return null;
+  return { when: new Date(asleep.getTime() + (nightMinutes + awakeMinutes) * MS_MIN), nightMinutes, napMinutes };
 }
 
 /** How many naps today have ended by `now`. */

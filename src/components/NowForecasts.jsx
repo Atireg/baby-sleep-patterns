@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import {
   MAX_WAKE_WINDOW, dayAwakeTotal, expectedWakeUp, napsDoneToday, upcomingNap, upcomingWakeWindow,
 } from '../lib/insights.js';
-import { awakeSince as findAwakeSince, sleepDay } from '../lib/live.js';
+import { awakeSince as findAwakeSince, nightAwakeMs, sleepDay } from '../lib/live.js';
 import { formatDuration, hhmm, ordinal } from '../lib/format.js';
 import { MS_MIN, minutesBetween } from '../lib/time.js';
 import { targetFor } from '../lib/wakeTargets.js';
@@ -21,19 +21,30 @@ function Due({ minutesLeft }) {
   return <> · {formatDuration(-minutesLeft)} past the usual time</>;
 }
 
-/** ☀️ Expected morning wake-up during a night, with the night's progress. */
-export function WakeUpLine({ sessions, now, asleep }) {
-  const minute = minuteOf(now);
-  const wakeUp = useMemo(() => expectedWakeUp(sessions, new Date(minute * MS_MIN)), [sessions, minute]);
+/**
+ * ☀️ Expected morning wake-up during a night: bedtime + (5-day average total sleep − today's naps),
+ * later by the time she has been awake tonight; with the night's progress.
+ */
+export function WakeUpLine({ sessions, now, live, avgTotal }) {
+  const asleep = new Date(live.asleep);
+  // Whole minutes, so the estimate only recomputes when they change.
+  const awakeMinutes = Math.round(nightAwakeMs(live, now) / MS_MIN);
+  const wakeUp = useMemo(
+    () => expectedWakeUp(sessions, sleepDay('night', asleep), asleep, avgTotal, awakeMinutes),
+    [sessions, live.asleep, avgTotal, awakeMinutes],
+  );
   if (!wakeUp) return null;
-  const when = new Date(asleep.getFullYear(), asleep.getMonth(), asleep.getDate(), 0, wakeUp.minutes);
-  if (when <= asleep) when.setDate(when.getDate() + 1);
+  const { when } = wakeUp;
   return (
     <div className="nap-progress">
       <p className="nap-forecast wake-forecast">
         ☀️ Expected wake-up <strong>~{hhmm(when)}</strong>
         <Due minutesLeft={minutesBetween(now, when)} />
-        <span className="muted"> (avg of {lastN(wakeUp.samples, 'night')})</span>
+        <span className="muted">
+          {' '}(5-day avg sleep {formatDuration(avgTotal)}
+          {wakeUp.napMinutes > 0 && ` − ${formatDuration(wakeUp.napMinutes)} of naps today`} = {formatDuration(wakeUp.nightMinutes)} tonight
+          {awakeMinutes > 0 && ` + ${formatDuration(awakeMinutes)} awake`})
+        </span>
       </p>
       <ProgressBar className="night" label="Night so far" share={(now - asleep) / (when - asleep)} />
     </div>
