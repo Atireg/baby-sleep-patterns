@@ -3,7 +3,7 @@
 import { readStored, writeStored } from './storage.js';
 
 const KEY = 'baby-sleep-wake-targets';
-export const TARGET_CHOICES = Array.from({ length: 23 }, (_, i) => 30 + i * 15); // 30m … 6h
+export const TARGET_CHOICES = Array.from({ length: 67 }, (_, i) => 30 + i * 5); // 30m … 6h in 5-minute steps
 
 export function loadWakeTargets() {
   const stored = readStored(KEY, {});
