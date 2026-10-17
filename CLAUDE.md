@@ -66,7 +66,8 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
   `MAX_WAKE_WINDOW` (8h; longer gaps aren't wake windows, `knownWindow`),
   `friendsWindows`, `dayDetails` (one day's actual numbers), `upcomingNap` (avg length of nap #N over the last 3 days with naps before today),
   `napsDoneToday`, `expectedWakeUp` (bedtime + (5-day avg total sleep − that day's naps) + awake time at night so far), `upcomingWakeWindow` (avg wake window before nap N, else before bedtime, over the last 5 days),
-  `dayAwakeTotal` (morning wake-up → bedtime minus naps for one day), `wakeWindowGrid` (actual wake window per nap N / bedtime
+  `dayAwakeTotal` (morning wake-up → bedtime minus naps for one day), `nightBefore` (night logged under the previous date:
+  sleep minutes + non-feed wakings count/minutes), `wakeWindowGrid` (actual wake window per nap N / bedtime
   per day),
   label translations (BG + EN).
 - `src/lib/wakeTargets.js` – parents' **target wake windows** `{ 1: 120, 2: 150, bedtime: 210 }` (minutes; localStorage
@@ -166,7 +167,8 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
   prefilled from **all** the card's wakings, i.e. the gaps between the night's stretches; save → `mergeNight` (entries.js) joins
   a night saved as several entries into the first one, validated like the form, then the other parts are deleted); "Notes about last night" saved into
   that night's entry `notes` (via the same update path as editing). Both need the night to be a saved entry.
-- Wake windows card (`WakeWindowsCard`, before the timeline): table rows 1st nap … / Bedtime, columns = the Last-5 days newest
+- Wake windows card (`WakeWindowsCard`, before the timeline): first row "Night before" (sleep the night before each day, blue;
+  "N× awake, X" under it for night wakings that weren't feeds, from `nightBefore`), then rows 1st nap … / Bedtime, columns = the Last-5 days newest
   first, actual values from `wakeWindowGrid`; today's upcoming row (`upcomingWakeWindow` target) highlighted "next".
 - Sleep timeline: the last-5 days, newest first, calendar-day rows (`dayKeys`); green bands + tip = good times to meet friends
   (`friendsWindows`: 07:00–19:00, awake and not within 30 min of a sleep on all days, else all-but-one; ≥ 60 min; top 2).
