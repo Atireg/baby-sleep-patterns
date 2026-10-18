@@ -3,16 +3,10 @@ import { daytimeTank } from '../lib/insights.js';
 import { formatDuration, formatTimer, hhmm, ordinal } from '../lib/format.js';
 import { TARGET_CHOICES } from '../lib/wakeTargets.js';
 import { minutesBetween } from '../lib/time.js';
-import { readStored, writeStored } from '../lib/storage.js';
 import { useNow } from '../hooks/useNow.js';
 
-const TARGET_KEY = 'baby-sleep-nap-target';
 const TARGET_OPTIONS = Array.from({ length: 17 }, (_, i) => 60 + i * 15); // 1h … 5h
 
-function loadTarget() {
-  const v = Number(readStored(TARGET_KEY));
-  return Number.isFinite(v) && v > 0 ? v : null;
-}
 
 const W = 132;
 const H = 210;
@@ -42,11 +36,11 @@ function WakeTargets({ targets, napRows, onChange }) {
   );
 }
 
-export default function DaytimeTank({ sessions, autoTarget, wakeTargets, napRows = 3, onWakeTarget }) {
+export default function DaytimeTank({ sessions, autoTarget, napTarget = null, onNapTarget, wakeTargets, napRows = 3, onWakeTarget }) {
   const [napping, setNapping] = useState(false);
   // Every second while a nap is in progress (live nap time), otherwise every minute.
   const now = useNow(napping ? 1000 : 60000);
-  const [custom, setCustom] = useState(loadTarget);
+  const custom = napTarget;
   const target = custom ?? (autoTarget > 0 ? Math.round(autoTarget) : 150);
   const tank = useMemo(() => daytimeTank(sessions, now, target), [sessions, now, target]);
   const ongoing = tank.naps.find((s) => s.end > now) ?? null;
@@ -54,9 +48,7 @@ export default function DaytimeTank({ sessions, autoTarget, wakeTargets, napRows
   useEffect(() => setNapping(isNapping), [isNapping]);
 
   const chooseTarget = (e) => {
-    const v = e.target.value === 'auto' ? null : Number(e.target.value);
-    setCustom(v);
-    writeStored(TARGET_KEY, v); // storage blocked: kept for this visit only
+    onNapTarget(e.target.value === 'auto' ? null : Number(e.target.value));
   };
 
   const level = Math.min(1, tank.fill);
