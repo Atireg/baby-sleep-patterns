@@ -141,7 +141,8 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
   The sleep log wins: adding/editing/deleting in the entry form calls `syncLive` in App (`liveAfterLogEdit`), so the Now card
   follows the log (Last-night notes edits don't trigger it).
   No expected-bedtime line (removed at the user's request).
-  Wake-window line (idle): "⏱ Wake window before the Nth nap/bedtime: usually ~X (sleepy around HH:MM) · 🎯 target Y (at HH:MM)"
+  Wake-window line (idle): "⏱ Wake window before the Nth nap/bedtime: usually ~X (sleepy around HH:MM) · 🎯 target Y — asleep by HH:MM ·
+  enter the room at HH:MM" (target end − `ENTER_ROOM_EARLY` = 10 min)
   (or "X over — time to settle?") + bar of awake time vs the target (else the usual), from `upcomingWakeWindow` + `wakeTargets`;
   shown with only a target when there's no history. Under it (idle and settling) `WakeTargetsRow`: "🎯 Targets: 1st nap 2h 05m ·
   2nd nap … · bedtime …" chips, the next one highlighted. `.card` uses `grid-template-columns: minmax(0, 1fr)` so wide tables
