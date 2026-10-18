@@ -163,7 +163,7 @@ describe('mergeNight', () => {
 
 describe('wake targets', () => {
   it('sets, clears and reads target wake windows', async () => {
-    const { setWakeTarget, targetFor } = await import('./wakeTargets.js');
+    const { withWakeTarget: setWakeTarget, targetFor } = await import('./wakeTargets.js');
     let t = setWakeTarget({}, 1, 120);
     t = setWakeTarget(t, 'bedtime', 210);
     expect(t).toEqual({ 1: 120, bedtime: 210 });

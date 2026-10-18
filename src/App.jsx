@@ -10,7 +10,7 @@ import { entriesToSessions, mergeNight } from './lib/entries.js';
 import { entryKey, sessionsToEntries } from './lib/cloudData.js';
 import { addEntries } from './lib/cloud.js';
 import { sleepDay } from './lib/live.js';
-import { loadWakeTargets, setWakeTarget } from './lib/wakeTargets.js';
+import { useWakeTargets } from './hooks/useWakeTargets.js';
 import { useSleepLog } from './hooks/useSleepLog.js';
 import LiveTracker from './components/LiveTracker.jsx';
 import CloudBar from './components/CloudBar.jsx';
@@ -39,7 +39,7 @@ export default function App() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const {
-    user, cloud, cloudEntries, localEntries, formEntries, storageOk, cloudError, notice, setNotice, busy, run,
+    user, cloud, cloudEntries, localEntries, formEntries, storageOk, cloudError, setCloudError, notice, setNotice, busy, run,
     live, changeLive, saveLiveEntry, onSignIn, onSignOut, moveLocal,
     addEntry, changeEntry, editEntry, removeEntry, editAwake, clearLocal,
   } = useSleepLog();
@@ -111,7 +111,7 @@ export default function App() {
   );
   const nightEntry = nightParts[0] ?? null;
   // Target wake windows (set in the tank card, shown in the Now card), one row per nap seen recently.
-  const [wakeTargets, setWakeTargets] = useState(loadWakeTargets);
+  const [wakeTargets, setWakeTarget] = useWakeTargets(cloud, setCloudError);
   const napRows = useMemo(() => Math.max(
     3,
     napsDoneToday(sessions) + 1,
@@ -161,7 +161,7 @@ export default function App() {
           autoTarget={stats?.avgNap ?? 0}
           wakeTargets={wakeTargets}
           napRows={napRows}
-          onWakeTarget={(key, minutes) => setWakeTargets((t) => setWakeTarget(t, key, minutes))}
+          onWakeTarget={setWakeTarget}
         />
       )}
       {(sessions.length > 0 || live?.asleep) && (

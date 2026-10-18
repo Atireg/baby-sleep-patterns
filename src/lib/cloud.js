@@ -115,26 +115,36 @@ export function describeError(e) {
   return `Something went wrong with the cloud log${code ? ` (${code})` : ''}.`;
 }
 
-// The sleep being tracked right now, shared between devices: document live/current.
-const LIVE = ['live', 'current'];
-
-/** Calls back with the live sleep (or null). Returns an unsubscribe function. */
-export function watchLive(callback, onError) {
+/** Calls back with `field` of the document at `path` (null when missing). Returns an unsubscribe function. */
+function watchField(path, field, callback, onError) {
   let unsub = () => {};
   let cancelled = false;
   init().then(({ fs, db }) => {
     if (cancelled) return;
-    unsub = fs.onSnapshot(fs.doc(db, ...LIVE), (snap) => callback(snap.exists() ? snap.data().live ?? null : null), onError);
+    unsub = fs.onSnapshot(fs.doc(db, ...path), (snap) => callback(snap.exists() ? snap.data()[field] ?? null : null), onError);
   }).catch(onError);
   return () => { cancelled = true; unsub(); };
 }
 
-export async function setLive(live) {
+/** Stores { [field]: value } at `path`, or deletes the document for a null value. */
+async function setField(path, field, value) {
   const { fs, db } = await init();
-  const ref = fs.doc(db, ...LIVE);
-  if (live) await fs.setDoc(ref, { live });
+  const ref = fs.doc(db, ...path);
+  if (value) await fs.setDoc(ref, { [field]: value });
   else await fs.deleteDoc(ref);
 }
+
+// The sleep being tracked right now, shared between devices: document live/current.
+const LIVE = ['live', 'current'];
+/** Calls back with the live sleep (or null). Returns an unsubscribe function. */
+export const watchLive = (callback, onError) => watchField(LIVE, 'live', callback, onError);
+export const setLive = (live) => setField(LIVE, 'live', live);
+
+// The parents' target wake windows, shared between devices: document settings/wakeTargets.
+const WAKE_TARGETS = ['settings', 'wakeTargets'];
+/** Calls back with the targets, or null when none were ever saved to the cloud. */
+export const watchWakeTargets = (callback, onError) => watchField(WAKE_TARGETS, 'targets', callback, onError);
+export const saveWakeTargets = (targets) => setField(WAKE_TARGETS, 'targets', targets);
 
 /** Replace an entry (matched by id), moving it to another month document if its date changed. */
 export async function updateEntry(previous, updated) {

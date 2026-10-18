@@ -113,7 +113,7 @@ export function useSleepLog() {
   };
 
   return {
-    user, cloud, cloudEntries, localEntries: entries, formEntries, storageOk, cloudError, notice, setNotice, busy, run,
+    user, cloud, cloudEntries, localEntries: entries, formEntries, storageOk, cloudError, setCloudError, notice, setNotice, busy, run,
     live, changeLive, saveLiveEntry, onSignIn, onSignOut, moveLocal,
     addEntry, changeEntry, editEntry, removeEntry, editAwake, clearLocal: () => setEntries([]),
   };
