@@ -51,6 +51,8 @@ export function WakeUpLine({ sessions, now, live, avgTotal }) {
   );
 }
 
+/** Go in to start settling this many minutes before the target wake window ends. */
+const ENTER_ROOM_EARLY = 10;
 const sleepLabel = (key) => (key === 'bedtime' ? 'bedtime' : `the ${ordinal(key)} nap`);
 
 /**
@@ -75,7 +77,9 @@ export function WakeWindowLine({ sessions, now, awakeSince, targets }) {
         ⏱ Wake window before {sleepLabel(key)}:
         {usual && <> usually <strong>~{formatDuration(usual.avgMinutes)}</strong>{awakeMin != null && awakeMin < usual.avgMinutes && <> (sleepy around <strong>{at(usual.avgMinutes)}</strong>)</>}</>}
         {usual && target && ' ·'}
-        {target && <> 🎯 target <strong>{formatDuration(target)}</strong>{awakeMin != null && awakeMin < target && <> (at <strong>{at(target)}</strong>)</>}</>}
+        {target && <> 🎯 target <strong>{formatDuration(target)}</strong>{awakeMin != null && awakeMin < target && (
+          <> — asleep by <strong>{at(target)}</strong> · enter the room at <strong>{at(target - ENTER_ROOM_EARLY)}</strong></>
+        )}</>}
         {over && <> · <strong>{formatDuration(awakeMin - goal)} over</strong> — time to settle?</>}
         {usual && <span className="muted"> ({lastN(usual.samples, 'day')})</span>}
       </p>
