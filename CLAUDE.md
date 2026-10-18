@@ -25,7 +25,8 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
 - Auth: Google sign-in; `atireg.github.io` must be in Authentication → Authorized domains.
 - Firestore: doc `live/current` = `{ live }`, the sleep being tracked right now, or just `{ awakeFrom }` for a manually started
   awake timer (shared between devices; deleted when a sleep is saved).
-- Firestore: doc `settings/wakeTargets` = `{ targets }` (target wake windows, shared between devices).
+- Firestore: family settings `settings/wakeTargets` = `{ targets }` and `settings/napTarget` = `{ minutes }` (null = Auto);
+  never deleted, so a cleared setting stays cleared (`watchSetting` gives undefined only when never saved).
 - Firestore: collection `months`, one doc per month (`2026-10`) with `{ entries: [...] }` (same entry shape as the form) —
   ~12 reads per year of data. Writes are per-month transactions; duplicates skipped by `entryKey` (day|type|asleep).
 - Security rules: allow-list of family emails, kept only in the console (template: `firebase/firestore.rules.example`).
@@ -55,7 +56,7 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
   Entry shape: `{ id, day, type, settle, asleep, woke, method, mood, notes, wakings: [{ from, to, feed }], extended }` (HH:MM;
   wakings nights only; `extended` = "Was the nap extended?" true/false/null, naps only; `toYesNo`).
 - `src/lib/cloud.js` – Firebase wrapper (sign-in, live `watchEntries`, `addEntries`, `updateEntry` (moves between month docs
-  in one transaction), `deleteEntry`, `watchLive`/`setLive`, `watchWakeTargets`/`saveWakeTargets` (via `watchField`/`setField`), `describeError`);
+  in one transaction), `deleteEntry`, `watchLive`/`setLive` (via `watchField`/`setField`), `watchSetting`/`saveSetting`, `describeError`);
   `src/lib/cloudData.js` – pure helpers (month grouping, merge/dedupe, `sessionsToEntries` for importing a file).
 - `src/lib/live.js` – live tracking ("Now" card): local storage `baby-sleep-live-v1`, `sleepDay` (night after midnight → previous
   date), `liveToEntry`, `atTime` (tapped-late times never in the future), `resolveWakings` (edited night wakings → ISO), `liveAfterLogEdit` (log add/edit/delete drops a manual awake timer and finishes a
@@ -73,8 +74,10 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
   label translations (BG + EN).
 - `src/lib/wakeTargets.js` – parents' **target wake windows** `{ 1: 120, 2: 150, bedtime: 210 }` (minutes): `loadWakeTargets` /
   `saveLocalWakeTargets` (localStorage `baby-sleep-wake-targets`), `withWakeTarget`, `targetFor`, `TARGET_CHOICES` (30m–6h,
-  5-minute steps). `src/hooks/useWakeTargets.js` syncs them: signed in → Firestore `settings/wakeTargets` `{ targets }` (watched
-  live, mirrored to the device; if the cloud has none yet, the device's targets are uploaded), signed out → device only.
+  5-minute steps); the tank's **nap-time target** `loadNapTarget`/`saveLocalNapTarget` (`baby-sleep-nap-target`, null = Auto).
+  Both sync through `src/hooks/useSyncedSetting.js` (`useWakeTargets`, `useNapTarget` in `hooks/useWakeTargets.js`): signed in →
+  Firestore `settings/*` (watched live, mirrored to the device; if the cloud has no value yet, the device's is uploaded),
+  signed out → device only.
 - `src/lib/autoUpdate.js` – prod only (`main.jsx`): when the page regains focus/visibility (max once a minute) it fetches
   `index.html` and reloads if the `assets/index-*.js` name changed (skipped while typing in a field). Phones keep the tab open
   for days, so fixes would otherwise not load.
@@ -162,7 +165,7 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
   The form has "Night wakings" rows (Woke at / Back asleep at / 🍼 Feed) for nights; list durations subtract wakings.
   Naps have "Was the nap extended?" Yes/No (form chips; Now card finish step for naps); list shows "extended"/"not extended".
 - Daytime sleep tank: today's naps (`daytimeTank`; a nap in progress counts up to now) vs target = 5-day average nap time (auto)
-  or a fixed choice (localStorage `baby-sleep-nap-target`); "awake/asleep since"; refreshes every second while a nap is in
+  or a fixed choice (`useNapTarget`, synced when signed in); "awake/asleep since"; refreshes every second while a nap is in
   progress (the nap row shows "HH:MM–now" + running timer), otherwise every minute. Below it a collapsible "🎯 Target wake
   windows" editor (Before 1st nap … / Before bedtime selects; rows = max(3, naps seen in the last 5 days, today's naps + 1)).
 - Last night card (`LastNightCard`, after the tank): tiles Asleep / **Awake during the night** (highlighted amber) / Wakings /

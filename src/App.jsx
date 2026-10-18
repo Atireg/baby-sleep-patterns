@@ -10,7 +10,7 @@ import { entriesToSessions, mergeNight } from './lib/entries.js';
 import { entryKey, sessionsToEntries } from './lib/cloudData.js';
 import { addEntries } from './lib/cloud.js';
 import { sleepDay } from './lib/live.js';
-import { useWakeTargets } from './hooks/useWakeTargets.js';
+import { useNapTarget, useWakeTargets } from './hooks/useWakeTargets.js';
 import { useSleepLog } from './hooks/useSleepLog.js';
 import LiveTracker from './components/LiveTracker.jsx';
 import CloudBar from './components/CloudBar.jsx';
@@ -112,6 +112,7 @@ export default function App() {
   const nightEntry = nightParts[0] ?? null;
   // Target wake windows (set in the tank card, shown in the Now card), one row per nap seen recently.
   const [wakeTargets, setWakeTarget] = useWakeTargets(cloud, setCloudError);
+  const [napTarget, setNapTarget] = useNapTarget(cloud, setCloudError);
   const napRows = useMemo(() => Math.max(
     3,
     napsDoneToday(sessions) + 1,
@@ -159,6 +160,8 @@ export default function App() {
         <DaytimeTank
           sessions={tankSessions}
           autoTarget={stats?.avgNap ?? 0}
+          napTarget={napTarget}
+          onNapTarget={setNapTarget}
           wakeTargets={wakeTargets}
           napRows={napRows}
           onWakeTarget={setWakeTarget}

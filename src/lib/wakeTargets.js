@@ -1,6 +1,6 @@
-// Target wake windows chosen by the parents (Daytime sleep tank card): minutes awake before each nap
-// and before bedtime, e.g. { 1: 120, 2: 150, bedtime: 210 }. Cached on the device; shared through the
-// cloud log when signed in (see useWakeTargets).
+// Targets chosen by the parents in the Daytime sleep tank card. Cached on the device; shared through
+// the cloud log when signed in (see hooks/useWakeTargets.js).
+// Target wake windows: minutes awake before each nap and before bedtime, e.g. { 1: 120, 2: 150, bedtime: 210 }.
 import { readStored, writeStored } from './storage.js';
 
 const KEY = 'baby-sleep-wake-targets';
@@ -11,6 +11,14 @@ export function loadWakeTargets() {
   return stored && typeof stored === 'object' ? stored : {};
 }
 export const saveLocalWakeTargets = (targets) => writeStored(KEY, targets);
+
+// The Daytime sleep tank's nap-time target in minutes (null = Auto, the 5-day average).
+const NAP_KEY = 'baby-sleep-nap-target';
+export function loadNapTarget() {
+  const v = Number(readStored(NAP_KEY));
+  return Number.isFinite(v) && v > 0 ? v : null;
+}
+export const saveLocalNapTarget = (minutes) => writeStored(NAP_KEY, minutes || null);
 
 /** The targets with the one for a nap number or 'bedtime' set (or cleared, with null). */
 export function withWakeTarget(targets, key, minutes) {

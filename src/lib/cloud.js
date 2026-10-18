@@ -140,11 +140,25 @@ const LIVE = ['live', 'current'];
 export const watchLive = (callback, onError) => watchField(LIVE, 'live', callback, onError);
 export const setLive = (live) => setField(LIVE, 'live', live);
 
-// The parents' target wake windows, shared between devices: document settings/wakeTargets.
-const WAKE_TARGETS = ['settings', 'wakeTargets'];
-/** Calls back with the targets, or null when none were ever saved to the cloud. */
-export const watchWakeTargets = (callback, onError) => watchField(WAKE_TARGETS, 'targets', callback, onError);
-export const saveWakeTargets = (targets) => setField(WAKE_TARGETS, 'targets', targets);
+// Family settings shared between devices: documents settings/{name} = { [field]: value }
+// (wakeTargets → targets, napTarget → minutes). Saved values may be null (e.g. "Auto"), so a cleared
+// setting stays cleared instead of looking like one that was never saved.
+/** Calls back with the setting's value (null when cleared), or undefined when it was never saved. */
+export function watchSetting(name, field, callback, onError) {
+  let unsub = () => {};
+  let cancelled = false;
+  init().then(({ fs, db }) => {
+    if (cancelled) return;
+    unsub = fs.onSnapshot(fs.doc(db, 'settings', name),
+      (snap) => callback(snap.exists() ? snap.data()[field] ?? null : undefined), onError);
+  }).catch(onError);
+  return () => { cancelled = true; unsub(); };
+}
+
+export async function saveSetting(name, field, value) {
+  const { fs, db } = await init();
+  await fs.setDoc(fs.doc(db, 'settings', name), { [field]: value ?? null });
+}
 
 /** Replace an entry (matched by id), moving it to another month document if its date changed. */
 export async function updateEntry(previous, updated) {

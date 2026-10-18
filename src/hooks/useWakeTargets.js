@@ -1,32 +1,20 @@
-import { useEffect, useState } from 'react';
-import { describeError, saveWakeTargets, watchWakeTargets } from '../lib/cloud.js';
-import { loadWakeTargets, saveLocalWakeTargets, withWakeTarget } from '../lib/wakeTargets.js';
+import { loadWakeTargets, loadNapTarget, saveLocalNapTarget, saveLocalWakeTargets, withWakeTarget } from '../lib/wakeTargets.js';
+import { useSyncedSetting } from './useSyncedSetting.js';
 
-/**
- * Target wake windows: on this device when signed out; when signed in, the shared cloud copy
- * (settings/wakeTargets), mirrored to the device. The first time a family signs in, the device's
- * targets are uploaded so they aren't lost. Returns [targets, setTarget(key, minutes)].
- */
+const WAKE_TARGETS = {
+  name: 'wakeTargets', field: 'targets', load: loadWakeTargets, saveLocal: saveLocalWakeTargets,
+  isSet: (t) => Object.keys(t ?? {}).length > 0,
+};
+const NAP_TARGET = {
+  name: 'napTarget', field: 'minutes', load: loadNapTarget, saveLocal: saveLocalNapTarget, isSet: (m) => m > 0,
+};
+
+/** Target wake windows, shared between devices when signed in. Returns [targets, setTarget(key, minutes)]. */
 export function useWakeTargets(cloud, onError) {
-  const [targets, setTargets] = useState(loadWakeTargets);
-  useEffect(() => {
-    if (!cloud) return undefined;
-    return watchWakeTargets((remote) => {
-      if (remote) {
-        setTargets(remote);
-        saveLocalWakeTargets(remote);
-      } else {
-        const local = loadWakeTargets();
-        if (Object.keys(local).length) saveWakeTargets(local).catch((e) => onError(describeError(e)));
-      }
-    }, (e) => onError(describeError(e)));
-  }, [cloud]);
-
-  const setTarget = (key, minutes) => {
-    const next = withWakeTarget(targets, key, minutes);
-    setTargets(next);
-    saveLocalWakeTargets(next);
-    if (cloud) saveWakeTargets(Object.keys(next).length ? next : null).catch((e) => onError(describeError(e)));
-  };
-  return [targets, setTarget];
+  const [targets, setTargets] = useSyncedSetting(cloud, onError, WAKE_TARGETS);
+  const safe = targets ?? {};
+  return [safe, (key, minutes) => setTargets(withWakeTarget(safe, key, minutes))];
 }
+
+/** The tank's nap-time target in minutes (null = Auto), shared between devices when signed in. */
+export const useNapTarget = (cloud, onError) => useSyncedSetting(cloud, onError, NAP_TARGET);
