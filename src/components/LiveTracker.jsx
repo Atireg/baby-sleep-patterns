@@ -7,7 +7,7 @@ import { useNow } from '../hooks/useNow.js';
 import { Chips, TypeSwitch, YesNoChips, typeLabel } from './Chips.jsx';
 import LiveEditPanel from './LiveEditPanel.jsx';
 import {
-  DayAwakeLine, NapForecast, WakeTargetsRow, NapProgress, WakeUpLine, WakeWindowLine, WindowBeforeLine, useUpcomingNap,
+  DayAwakeLine, NapForecast, NapProgress, WakeUpLine, WakeWindowLine, WindowBeforeLine, useUpcomingNap,
 } from './NowForecasts.jsx';
 
 /**
@@ -148,7 +148,6 @@ export default function LiveTracker({ live, onChange, onSave, onEditAwake, sessi
             </div>
           )}
           <WakeWindowLine sessions={sessions} now={now} awakeSince={awakeSince} targets={wakeTargets} />
-          <WakeTargetsRow sessions={sessions} now={now} targets={wakeTargets} />
           {idleType === 'nap' && <NapForecast nap={nap} />}
           <div className="live-actions">
             <button type="button" className="button big" onClick={startSettling} disabled={busy}>Start settling</button>
@@ -166,7 +165,6 @@ export default function LiveTracker({ live, onChange, onSave, onEditAwake, sessi
               {awakeSince && <> · awake {formatTimer(now - awakeSince)} in total</>}
             </span>
           </div>
-          <WakeTargetsRow sessions={sessions} now={now} targets={wakeTargets} />
           {live.type === 'nap' && <NapForecast nap={nap} />}
           <Chips label="How she's falling asleep" options={METHODS} value={live.method} onChange={(m) => onChange({ ...live, method: m })} />
           <div className="live-actions">

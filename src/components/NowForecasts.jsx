@@ -56,8 +56,9 @@ const ENTER_ROOM_EARLY = 10;
 const sleepLabel = (key) => (key === 'bedtime' ? 'bedtime' : `the ${ordinal(key)} nap`);
 
 /**
- * ⏱ Wake window before the next nap (or bedtime): the usual one (last 5 days) and the parents' target,
- * with the time each is reached and a bar of the time awake so far (against the target when set).
+ * Wake window before the next nap (or bedtime): first the parents' target with when to enter the room
+ * and when she should be asleep, then the 5-day average; a bar of the time awake so far (against the
+ * target when set).
  */
 export function WakeWindowLine({ sessions, now, awakeSince, targets }) {
   const minute = minuteOf(now);
@@ -73,43 +74,27 @@ export function WakeWindowLine({ sessions, now, awakeSince, targets }) {
   const over = awakeMin != null && awakeMin >= goal;
   return (
     <div className="nap-progress">
-      <p className="nap-forecast window-forecast">
-        ⏱ Wake window before {sleepLabel(key)}:
-        {usual && <> usually <strong>~{formatDuration(usual.avgMinutes)}</strong>{awakeMin != null && awakeMin < usual.avgMinutes && <> (sleepy around <strong>{at(usual.avgMinutes)}</strong>)</>}</>}
-        {usual && target && ' ·'}
-        {target && <> 🎯 target <strong>{formatDuration(target)}</strong>{awakeMin != null && awakeMin < target && (
-          <> — asleep by <strong>{at(target)}</strong> · enter the room at <strong>{at(target - ENTER_ROOM_EARLY)}</strong></>
-        )}</>}
-        {over && <> · <strong>{formatDuration(awakeMin - goal)} over</strong> — time to settle?</>}
-        {usual && <span className="muted"> ({lastN(usual.samples, 'day')})</span>}
-      </p>
+      {target && (
+        <p className="nap-forecast window-forecast target-line">
+          🎯 Target wake window before {sleepLabel(key)}: <strong>{formatDuration(target)}</strong>
+          {awakeMin != null && awakeMin < target && (
+            <> — enter the room at <strong>{at(target - ENTER_ROOM_EARLY)}</strong> · asleep by <strong>{at(target)}</strong></>
+          )}
+        </p>
+      )}
+      {usual && (
+        <p className="nap-forecast window-forecast">
+          ⏱ Average wake window{target ? '' : ` before ${sleepLabel(key)}`}: <strong>~{formatDuration(usual.avgMinutes)}</strong>
+          {awakeMin != null && awakeMin < usual.avgMinutes && <> · sleepy around <strong>{at(usual.avgMinutes)}</strong></>}
+          <span className="muted"> ({lastN(usual.samples, 'day')})</span>
+        </p>
+      )}
+      {over && <p className="nap-forecast window-over"><strong>{formatDuration(awakeMin - goal)} over</strong> the {target ? 'target' : 'usual'} — time to settle?</p>}
       {awakeMin != null && (
         <ProgressBar className={`window ${over ? 'over' : ''}`} share={awakeMin / goal}
           label={target ? 'Awake time against the target wake window' : 'Awake time against the usual wake window'} />
       )}
     </div>
-  );
-}
-
-/** 🎯 While she is awake: all the target wake windows, the next one highlighted. */
-export function WakeTargetsRow({ sessions, now, targets }) {
-  const minute = minuteOf(now);
-  const usual = useMemo(() => upcomingWakeWindow(sessions, new Date(minute * MS_MIN)), [sessions, minute]);
-  const keys = Object.keys(targets ?? {})
-    .filter((k) => targetFor(targets, k))
-    .sort((a, b) => (a === 'bedtime') - (b === 'bedtime') || a - b);
-  if (!keys.length) return null;
-  const next = napsDoneToday(sessions, now) + 1;
-  const nextKey = String(usual?.target ?? (targetFor(targets, next) ? next : 'bedtime'));
-  return (
-    <p className="wake-targets-row" aria-label="Target wake windows">
-      <span>🎯 Targets:</span>
-      {keys.map((k) => (
-        <span key={k} className={`target-chip ${k === nextKey ? 'next' : ''}`}>
-          {k === 'bedtime' ? 'bedtime' : `${ordinal(Number(k))} nap`} {formatDuration(targets[k])}
-        </span>
-      ))}
-    </p>
   );
 }
 
