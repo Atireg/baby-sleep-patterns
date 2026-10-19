@@ -75,7 +75,7 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
   `friendsWindows`, `dayDetails` (one day's actual numbers, incl. `napsIndependent`/`napsWithMethod`), `upcomingNap` (avg length of nap #N over the last 3 days with naps before today),
   `napsDoneToday`, `expectedWakeUp` (bedtime + (5-day avg total sleep − that day's naps) + awake time at night so far), `upcomingWakeWindow` (avg wake window before nap N, else before bedtime, over the last 5 days),
   `dayAwakeTotal` (morning wake-up → bedtime minus naps for one day), `nightBefore` (night logged under the previous date:
-  sleep minutes + non-feed wakings count/minutes), `wakeWindowGrid` (actual wake window per nap N / bedtime
+  sleep minutes + non-feed wakings count/minutes + feeds count), `wakeWindowGrid` (actual wake window per nap N / bedtime
   per day),
   label translations (BG + EN).
 - `src/lib/wakeTargets.js` – parents' **target wake windows** `{ 1: 120, 2: 150, bedtime: 210 }` (minutes): `loadWakeTargets` /
@@ -179,7 +179,7 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
   a night saved as several entries into the first one, validated like the form, then the other parts are deleted); "Notes about last night" saved into
   that night's entry `notes` (via the same update path as editing). Both need the night to be a saved entry.
 - **Wake and sleep windows** card (`WakeWindowsCard`, before the timeline; renamed from "Wake windows"): first row "Night before" (sleep the night before each day, blue;
-  "N× awake, X" under it for night wakings that weren't feeds, from `nightBefore`), then rows 1st nap … / Bedtime, columns = the Last-5 days newest
+  "N× awake, X" under it for night wakings that weren't feeds, then "🍼 N feeds", from `nightBefore`), then rows 1st nap … / Bedtime, columns = the Last-5 days newest
   first, actual values from `wakeWindowGrid`; today's upcoming row (`upcomingWakeWindow` target) highlighted "next"; last rows
   **Awake during the day** and **Total sleep** (from `recentDetails`/`dayDetails`, passed as `details`), with "avg X" under the label.
 - Sleep timeline: the last-5 days, newest first, calendar-day rows (`dayKeys`); green bands + tip = good times to meet friends

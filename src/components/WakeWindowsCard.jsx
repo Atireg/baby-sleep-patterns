@@ -6,7 +6,7 @@ import { mean } from '../lib/time.js';
 /**
  * Actual wake windows before each nap / bedtime on the last 5 days (newest first),
  * with today's upcoming nap or bedtime highlighted as "next". The first row is the night before
- * each day: hours asleep, plus any night wakings that weren't feeds. The last rows are the day's totals:
+ * each day: hours asleep, plus any night wakings that weren't feeds and the number of feeds. The last rows are the day's totals:
  * awake during the day and total sleep (from `dayDetails`), with their average under the label.
  */
 export default function WakeWindowsCard({ sessions, dayKeys, details = [] }) {
@@ -46,6 +46,7 @@ export default function WakeWindowsCard({ sessions, dayKeys, details = [] }) {
                 <td key={keys[i]}>
                   {n ? formatDuration(n.minutes) : '–'}
                   {n?.wakings > 0 && <small>{n.wakings}× awake, {formatDuration(n.awakeMinutes)}</small>}
+                  {n?.feeds > 0 && <small className="feeds">🍼 {n.feeds} feed{n.feeds === 1 ? '' : 's'}</small>}
                 </td>
               ))}
             </tr>
