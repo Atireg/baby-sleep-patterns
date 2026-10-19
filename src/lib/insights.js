@@ -343,6 +343,8 @@ export function dayDetails(day, sessions) {
     napsAnswered: naps.filter((s) => s.extended != null).length,
     independent: firsts.filter((s) => methodLabel(s.method) === 'Independently').length,
     withMethod: firsts.filter((s) => s.method).length,
+    napsIndependent: naps.filter((s) => methodLabel(s.method) === 'Independently').length,
+    napsWithMethod: naps.filter((s) => s.method).length,
   };
 }
 
