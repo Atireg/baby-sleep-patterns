@@ -165,7 +165,7 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
   Wake-up line (night asleep / night waking): "☀️ Expected wake-up ~HH:MM · in X (5-day avg sleep A − N of naps today = T tonight
   + M awake)" + night progress bar (bedtime → expected wake-up), from `expectedWakeUp` (user rule). The average (`nightAvgTotal`
   in App) uses the 5 days before the night's own day, so after midnight the half-logged evening doesn't count. Below it (night asleep / night waking): "🌤 Awake today: X (wake → bedtime,
-  minus naps) · 5-day avg Y" (`dayAwakeTotal`; avg = mean of the Last 5 days table's awake values, passed as `awakeAvg`).
+  minus naps) · 5-day avg Y" (`dayAwakeTotal`; avg = mean of the last 5 days' awake-during-the-day values, passed as `awakeAvg`).
 - Editing: each listed entry has ✎ (loads it into the form → "Save changes"/"Cancel edit") and × (delete). "Show day" filter.
   The form has "Night wakings" rows (Woke at / Back asleep at / 🍼 Feed) for nights; list durations subtract wakings.
   Naps have "Was the nap extended?" Yes/No (form chips; Now card finish step for naps); list shows "extended"/"not extended".
