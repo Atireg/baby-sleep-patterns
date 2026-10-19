@@ -183,6 +183,7 @@ export default function App() {
         />
       )}
       {recentDays.length > 0 && <WakeWindowsCard sessions={sessions} dayKeys={recentKeys} details={recentDetails} />}
+      {recentDays.length > 0 && <RecentDaysTable title="💤 Naps history" days={recentDetails} />}
       {recentDays.length > 0 && <SleepTimeline sessions={sessions} dayKeys={recentKeys} friends={friends} />}
 
       {SHOW_FILE_UPLOAD && <FileDrop onFile={onFile} onSample={onSample} />}
@@ -226,12 +227,6 @@ export default function App() {
               <summary>Skipped rows</summary>
               <ul>{data.errors.map((e) => <li key={e}>{e}</li>)}</ul>
             </details>
-          )}
-          {recentDays.length > 0 && (
-            <RecentDaysTable
-              title="💤 Naps history"
-              days={recentDetails}
-            />
           )}
           <DailyTotalsChart
             days={days}

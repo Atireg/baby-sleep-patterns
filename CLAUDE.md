@@ -128,8 +128,8 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
 - Stats are grouped by the row's date ("sleep day"); the timeline groups by calendar day.
 
 ## Conventions
-- Page order: CloudBar → **Now** card → **Daytime sleep tank** → **Last night** card → **Wake and sleep windows** card → **Sleep timeline** → (upload, hidden) → entry form
-  → "Naps history" table → charts.
+- Page order: CloudBar → **Now** card → **Daytime sleep tank** → **Last night** card → **Wake and sleep windows** card →
+  **Naps history** → **Sleep timeline** → (upload, hidden) → entry form → charts.
 - Charts use Plotly (`plotly.js-cartesian-dist-min@3.7.0`, lazy-loaded chunk ~476 kB gzip) via `PlotlyChart`. Colors always come
   from CSS tokens in `src/styles.css` through `useChartTheme` (night = `--series-1` blue, nap = `--series-2` orange, light + dark).
 - Charts are view-only (user request: zoom was awkward on phones): `dragmode: false`, `fixedrange` axes in `baseLayout`, and no
