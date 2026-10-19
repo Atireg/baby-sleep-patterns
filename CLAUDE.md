@@ -128,7 +128,7 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
 - Stats are grouped by the row's date ("sleep day"); the timeline groups by calendar day.
 
 ## Conventions
-- Page order: CloudBar → **Now** card → **Daytime sleep tank** → **Last night** card → **Wake windows** card → **Sleep timeline** → (upload, hidden) → entry form
+- Page order: CloudBar → **Now** card → **Daytime sleep tank** → **Last night** card → **Wake and sleep windows** card → **Sleep timeline** → (upload, hidden) → entry form
   → "Naps history" table → charts.
 - Charts use Plotly (`plotly.js-cartesian-dist-min@3.7.0`, lazy-loaded chunk ~476 kB gzip) via `PlotlyChart`. Colors always come
   from CSS tokens in `src/styles.css` through `useChartTheme` (night = `--series-1` blue, nap = `--series-2` orange, light + dark).
@@ -139,7 +139,7 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
   them is **💤 Naps history** (`RecentDaysTable`, user request: naps only, no averages): day-by-day actual numbers, newest first,
   rows = naps (+ lengths), nap time, naps extended (x of y answered), time to fall asleep (each nap), fell asleep on her own
   (naps, x of y) — from `dayDetails`. Sticky first column; scrolls sideways on phones. Night/total/awake numbers live in the
-  Wake windows and Last night cards.
+  Wake and sleep windows and Last night cards.
   The same 5 days drive the sleep timeline, the friends windows and the Sleep per day reference line.
 - Sleep per day: shaded last-5 days + dashed 5-day average line with label; dotted 7-day rolling average excludes today.
 - "Now" card (mobile-first): big running awake timer when idle (from the last sleep's end, or "Start awake timer"/"reset" →
@@ -178,7 +178,7 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
   prefilled from **all** the card's wakings, i.e. the gaps between the night's stretches; save → `mergeNight` (entries.js) joins
   a night saved as several entries into the first one, validated like the form, then the other parts are deleted); "Notes about last night" saved into
   that night's entry `notes` (via the same update path as editing). Both need the night to be a saved entry.
-- Wake windows card (`WakeWindowsCard`, before the timeline): first row "Night before" (sleep the night before each day, blue;
+- **Wake and sleep windows** card (`WakeWindowsCard`, before the timeline; renamed from "Wake windows"): first row "Night before" (sleep the night before each day, blue;
   "N× awake, X" under it for night wakings that weren't feeds, from `nightBefore`), then rows 1st nap … / Bedtime, columns = the Last-5 days newest
   first, actual values from `wakeWindowGrid`; today's upcoming row (`upcomingWakeWindow` target) highlighted "next"; last rows
   **Awake during the day** and **Total sleep** (from `recentDetails`/`dayDetails`, passed as `details`), with "avg X" under the label.

@@ -24,9 +24,9 @@ export default function WakeWindowsCard({ sessions, dayKeys, details = [] }) {
   });
   if (!rows.length) return null;
   return (
-    <section className="card ww-card" aria-label="Wake windows">
+    <section className="card ww-card" aria-label="Wake and sleep windows">
       <div>
-        <h2>⏱ Wake windows</h2>
+        <h2>⏱ Wake and sleep windows</h2>
         <p className="subtitle">Sleep the night before, awake time before each nap and bedtime, then the day's totals, on the last {keys.length} days (newest first).</p>
       </div>
       <div className="recent-table-wrap">
