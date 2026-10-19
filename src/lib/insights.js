@@ -365,14 +365,21 @@ export function dayAwakeTotal(sessions, day, bedtime) {
 
 /**
  * The night before a day (logged under the previous date): hours asleep and the night wakings that
- * weren't feeds. Returns { minutes, wakings, awakeMinutes } or null when that night isn't logged.
+ * weren't feeds, plus the number of feeds. Returns { minutes, wakings, awakeMinutes, feeds } or null
+ * when that night isn't logged.
  */
 export function nightBefore(sessions, day) {
   const prev = shiftDay(day, -1);
   const pieces = sessions.filter((s) => s.type === 'night' && s.day === prev).sort((a, b) => a.start - b.start);
   if (!pieces.length) return null;
-  const awake = nightGaps(pieces).filter((w) => !w.feed);
-  return { minutes: sum(pieces.map((p) => p.minutes)), wakings: awake.length, awakeMinutes: sum(awake.map((w) => w.minutes)) };
+  const gaps = nightGaps(pieces);
+  const awake = gaps.filter((w) => !w.feed);
+  return {
+    minutes: sum(pieces.map((p) => p.minutes)),
+    wakings: awake.length,
+    awakeMinutes: sum(awake.map((w) => w.minutes)),
+    feeds: gaps.length - awake.length,
+  };
 }
 
 /**

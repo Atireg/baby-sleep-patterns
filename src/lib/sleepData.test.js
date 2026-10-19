@@ -398,7 +398,7 @@ describe('nightBefore', () => {
     const { entry } = makeEntry({ day: '2026-10-13', type: 'night', asleep: '19:30', woke: '06:30',
       wakings: [{ from: '23:00', to: '23:40', feed: true }, { from: '02:00', to: '02:30', feed: false }, { from: '04:00', to: '04:10' }] });
     const n = nightBefore(entriesToSessions([entry]), '2026-10-14');
-    expect(n).toEqual({ minutes: 11 * 60 - 80, wakings: 2, awakeMinutes: 40 });
+    expect(n).toEqual({ minutes: 11 * 60 - 80, wakings: 2, awakeMinutes: 40, feeds: 1 });
     expect(nightBefore(entriesToSessions([entry]), '2026-10-13')).toBeNull();
   });
 });
