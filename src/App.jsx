@@ -229,7 +229,7 @@ export default function App() {
           )}
           {recentDays.length > 0 && (
             <RecentDaysTable
-              title={`Last ${recentDays.length} day${recentDays.length === 1 ? '' : 's'} (excluding today)`}
+              title="💤 Naps history"
               days={recentDetails}
             />
           )}

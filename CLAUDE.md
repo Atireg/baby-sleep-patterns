@@ -72,7 +72,7 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
 - `src/lib/insights.js` – weekly aggregates (wake windows, settling, method), `napCountTrend`, `daytimeTank`,
   `lastNight` (yesterday-dated night; wakings from `nightGaps` = gaps between its stretches, `feed` matched from `nightWakings`),
   `MAX_WAKE_WINDOW` (8h; longer gaps aren't wake windows, `knownWindow`),
-  `friendsWindows`, `dayDetails` (one day's actual numbers), `upcomingNap` (avg length of nap #N over the last 3 days with naps before today),
+  `friendsWindows`, `dayDetails` (one day's actual numbers, incl. `napsIndependent`/`napsWithMethod`), `upcomingNap` (avg length of nap #N over the last 3 days with naps before today),
   `napsDoneToday`, `expectedWakeUp` (bedtime + (5-day avg total sleep − that day's naps) + awake time at night so far), `upcomingWakeWindow` (avg wake window before nap N, else before bedtime, over the last 5 days),
   `dayAwakeTotal` (morning wake-up → bedtime minus naps for one day), `nightBefore` (night logged under the previous date:
   sleep minutes + non-feed wakings count/minutes), `wakeWindowGrid` (actual wake window per nap N / bedtime
@@ -129,17 +129,17 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
 
 ## Conventions
 - Page order: CloudBar → **Now** card → **Daytime sleep tank** → **Last night** card → **Wake windows** card → **Sleep timeline** → (upload, hidden) → entry form
-  → "Last 5 days" table → charts.
+  → "Naps history" table → charts.
 - Charts use Plotly (`plotly.js-cartesian-dist-min@3.7.0`, lazy-loaded chunk ~476 kB gzip) via `PlotlyChart`. Colors always come
   from CSS tokens in `src/styles.css` through `useChartTheme` (night = `--series-1` blue, nap = `--series-2` orange, light + dark).
 - Charts are view-only (user request: zoom was awkward on phones): `dragmode: false`, `fixedrange` axes in `baseLayout`, and no
   mode bar / scroll zoom / double-click in `PlotlyChart`. Hover/tap tooltips and the Sleep per day 2w/1m/All buttons remain.
 - Lines must break across missing days/weeks (`connectgaps: false`, `breakGaps`); area fills are drawn per `segments`.
-- "Last 5 days": the 5 most recent days with data **before today** (`RECENT_DAYS` in `App.jsx`). Shown as `RecentDaysTable`:
-  a day-by-day table of **actual numbers** (user request: no averages), newest day first, rows = total sleep, night sleep,
-  naps (+ lengths), nap time, time to fall asleep (each nap / bedtime / day total), morning wake-up,
-  naps extended (x of y answered), bedtime, night wakings (+ awake time, feeds), fell asleep on her own (x of y) — values from
-  `dayDetails`. Only **Total sleep** gets an "Average" column at the end ("Awake during the day" moved to the Wake windows card). Sticky first column; scrolls sideways on phones.
+- "Last 5 days" = the 5 most recent days with data **before today** (`RECENT_DAYS`, `recentDays` in `App.jsx`). The card for
+  them is **💤 Naps history** (`RecentDaysTable`, user request: naps only, no averages): day-by-day actual numbers, newest first,
+  rows = naps (+ lengths), nap time, naps extended (x of y answered), time to fall asleep (each nap), fell asleep on her own
+  (naps, x of y) — from `dayDetails`. Sticky first column; scrolls sideways on phones. Night/total/awake numbers live in the
+  Wake windows and Last night cards.
   The same 5 days drive the sleep timeline, the friends windows and the Sleep per day reference line.
 - Sleep per day: shaded last-5 days + dashed 5-day average line with label; dotted 7-day rolling average excludes today.
 - "Now" card (mobile-first): big running awake timer when idle (from the last sleep's end, or "Start awake timer"/"reset" →
@@ -185,7 +185,7 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
 - Sleep timeline: the last-5 days, newest first, calendar-day rows (`dayKeys`); green bands + tip = good times to meet friends
   (`friendsWindows`: 07:00–19:00, awake and not within 30 min of a sleep on all days, else all-but-one; ≥ 60 min; top 2).
 - Charts use saved entries (local, or the cloud log when signed in) + a loaded file (when upload is enabled), not double-counted.
-- The old full-history daily breakdown table was removed at the user's request — don't re-add it (the 5-day table above is separate).
+- The old full-history daily breakdown table was removed at the user's request — don't re-add it (Naps history is separate).
 
 ## Known caveats
 - `xlsx@0.18.5` from npm (the SheetJS CDN build is blocked in the cloud env). It has known advisories for malicious files; acceptable since users only parse their own files locally. Switch to the CDN tarball when possible.

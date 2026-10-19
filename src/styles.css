@@ -345,8 +345,6 @@ code { font-size: 0.85em; }
 .recent-table tbody th[scope="row"] { text-align: left; font-weight: 500; color: var(--text-secondary); white-space: normal; min-width: 110px; }
 .recent-table thead th:first-child, .recent-table tbody th[scope="row"] { position: sticky; left: 0; background: var(--surface-1); z-index: 1; }
 .recent-table tr.strong td, .recent-table tr.strong th[scope="row"] { font-weight: 700; color: var(--text-primary); }
-.recent-table .section-row th { text-align: left; padding-top: 14px; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); border-bottom: 1px solid var(--baseline); }
-.recent-table .avg-col { background: color-mix(in srgb, var(--accent) 8%, transparent); border-left: 1px solid var(--grid); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .scroll-hint { display: none; }
 @media (max-width: 640px) { .scroll-hint { display: inline; font-weight: 600; } }
