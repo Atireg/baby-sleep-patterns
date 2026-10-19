@@ -31,6 +31,12 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
   ~12 reads per year of data. Writes are per-month transactions; duplicates skipped by `entryKey` (day|type|asleep).
 - Security rules: allow-list of family emails, kept only in the console (template: `firebase/firestore.rules.example`).
 - SDK `firebase@12.19.0`, loaded lazily with a persistent local cache (offline + fewer reads).
+- **Backups**: private repo `Atireg/baby-sleep-backups` (never copy its data here — this repo is public). GitHub Actions
+  there: *Backup* nightly 01:17 UTC + manual → `data/months/*.json`, `data/settings.json`, `data/live.json`,
+  `data/sleep-log.csv` (same columns as `EXPORT_HEADERS`, readable by the site), committed per night; fails (email) if entries
+  drop to ≤ half. *Restore* (manual, dry run by default, optional backup date) only adds missing entries (by `entryKey`) and
+  missing settings, never deletes. Uses firebase-admin with secret `FIREBASE_SERVICE_ACCOUNT` (service-account key, in that
+  repo's secrets only). If the Firestore layout or entry shape changes, update its `scripts/` too.
 - Testing: Firebase emulators (firebase-tools, installed outside the repo) + `VITE_FIREBASE_EMULATOR=1` build, which connects
   to 127.0.0.1:9099/8080 and exposes `window.__testSignIn(email)` (Google's pop-up can't load in the sandbox). Not in prod builds.
 - Setup status (verified from outside via public endpoints): Google provider enabled, `atireg.github.io` authorized,
