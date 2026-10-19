@@ -137,10 +137,9 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
 - Lines must break across missing days/weeks (`connectgaps: false`, `breakGaps`); area fills are drawn per `segments`.
 - "Last 5 days": the 5 most recent days with data **before today** (`RECENT_DAYS` in `App.jsx`). Shown as `RecentDaysTable`:
   a day-by-day table of **actual numbers** (user request: no averages), newest day first, rows = total sleep, night sleep,
-  naps (+ lengths), nap time, awake during the day, time to fall asleep (each nap / bedtime / day total), morning wake-up,
+  naps (+ lengths), nap time, time to fall asleep (each nap / bedtime / day total), morning wake-up,
   naps extended (x of y answered), bedtime, night wakings (+ awake time, feeds), fell asleep on her own (x of y) — values from
-  `dayDetails`. Only **Total sleep**
-  and **Awake during the day** get an "Average" column at the end. Sticky first column; scrolls sideways on phones.
+  `dayDetails`. Only **Total sleep** gets an "Average" column at the end ("Awake during the day" moved to the Wake windows card). Sticky first column; scrolls sideways on phones.
   The same 5 days drive the sleep timeline, the friends windows and the Sleep per day reference line.
 - Sleep per day: shaded last-5 days + dashed 5-day average line with label; dotted 7-day rolling average excludes today.
 - "Now" card (mobile-first): big running awake timer when idle (from the last sleep's end, or "Start awake timer"/"reset" →
@@ -181,7 +180,8 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
   that night's entry `notes` (via the same update path as editing). Both need the night to be a saved entry.
 - Wake windows card (`WakeWindowsCard`, before the timeline): first row "Night before" (sleep the night before each day, blue;
   "N× awake, X" under it for night wakings that weren't feeds, from `nightBefore`), then rows 1st nap … / Bedtime, columns = the Last-5 days newest
-  first, actual values from `wakeWindowGrid`; today's upcoming row (`upcomingWakeWindow` target) highlighted "next".
+  first, actual values from `wakeWindowGrid`; today's upcoming row (`upcomingWakeWindow` target) highlighted "next"; last rows
+  **Awake during the day** and **Total sleep** (from `recentDetails`/`dayDetails`, passed as `details`), with "avg X" under the label.
 - Sleep timeline: the last-5 days, newest first, calendar-day rows (`dayKeys`); green bands + tip = good times to meet friends
   (`friendsWindows`: 07:00–19:00, awake and not within 30 min of a sleep on all days, else all-but-one; ≥ 60 min; top 2).
 - Charts use saved entries (local, or the cloud log when signed in) + a loaded file (when upload is enabled), not double-counted.

@@ -359,6 +359,8 @@ code { font-size: 0.85em; }
 .recent-table.compact tbody th[scope="row"] { min-width: 72px; }
 .recent-table tr.night-before-row th, .recent-table tr.night-before-row td { color: var(--series-1); border-bottom: 2px solid var(--grid); }
 .recent-table tr.night-before-row td small { color: var(--series-4); }
+.recent-table tr.day-total-row th, .recent-table tr.day-total-row td { font-weight: 600; color: var(--text-primary); }
+.recent-table tr.day-total-row.first th, .recent-table tr.day-total-row.first td { border-top: 2px solid var(--grid); }
 .recent-table tr.next-row th, .recent-table tr.next-row td { background: color-mix(in srgb, var(--series-3) 14%, var(--surface-1)); color: var(--text-primary); font-weight: 600; }
 /* Cards are single-column grids; let wide content (tables) scroll inside instead of stretching the card. */
 .card { grid-template-columns: minmax(0, 1fr); }

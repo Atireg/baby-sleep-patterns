@@ -6,14 +6,14 @@ const average = (xs) => mean(xs.filter((x) => x != null));
 const clock = (d) => (d ? hhmm(d) : '–');
 
 // One row per measure; each cell is one day's actual value (no averages).
-// `avg` marks the only rows that also get an average at the end (user request).
+// `avg` marks the only row that also gets an average at the end (user request). "Awake during the day" moved to the
+// Wake windows card.
 const ROWS = [
   { label: 'Total sleep', strong: true, value: (d) => dur(d.totalMinutes), avg: (d) => d.totalMinutes },
   { label: 'Night sleep', value: (d) => dur(d.nightMinutes) },
   { label: 'Naps', value: (d) => (d.naps ? <>{d.naps}<small>{d.napLengths.map(formatDuration).join(' · ')}</small></> : '0') },
   { label: 'Nap time', value: (d) => dur(d.napMinutes) },
   { label: 'Naps extended', value: (d) => (d.napsAnswered ? `${d.extendedNaps} of ${d.napsAnswered}` : '–') },
-  { label: 'Awake during the day', value: (d) => dur(d.awakeMinutes), avg: (d) => d.awakeMinutes },
   { section: 'Time to fall asleep' },
   { label: 'Each nap', value: (d) => (d.napSettle.length ? d.napSettle.map(dur).join(' · ') : '–') },
   { label: 'Bedtime', value: (d) => dur(d.bedSettle) },
@@ -37,7 +37,7 @@ export default function RecentDaysTable({ days, title }) {
     <section className="card recent-days" aria-label={title}>
       <div>
         <h2>{title}</h2>
-        <p className="subtitle">The actual numbers for each day, newest first; averages only for total sleep and awake time. “–” means not logged.
+        <p className="subtitle">The actual numbers for each day, newest first; an average only for total sleep. “–” means not logged.
           <span className="scroll-hint"> Swipe the table sideways to see all days →</span>
         </p>
       </div>
