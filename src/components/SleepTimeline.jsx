@@ -40,7 +40,8 @@ function hoverText(s) {
 export default function SleepTimeline({ sessions, dayKeys, friends = [] }) {
   const t = useChartTheme();
   // Fewer hour labels on phones so they don't overlap.
-  const hourTicks = window.innerWidth < 600 ? [0, 6, 12, 18, 24] : [0, 3, 6, 9, 12, 15, 18, 21, 24];
+  const narrow = window.innerWidth < 600;
+  const hourTicks = narrow ? [0, 6, 12, 18, 24] : [0, 3, 6, 9, 12, 15, 18, 21, 24];
   const { data, layout, rows } = useMemo(() => {
     const rowKeys = [...dayKeys].sort().reverse();
     const shown = new Set(rowKeys);
@@ -74,7 +75,8 @@ export default function SleepTimeline({ sessions, dayKeys, friends = [] }) {
         })),
         annotations: friends.map((w) => ({
           xref: 'x', yref: 'paper', x: (w.from + w.to) / 120, y: 0, yanchor: 'top', yshift: -4, showarrow: false,
-          text: `👋 ${minutesToClock(w.from)}–${minutesToClock(w.to)}`, font: { size: 11, color: t.text },
+          // Phones: just the 👋 (the times are in the subtitle; side by side they'd overlap).
+          text: narrow ? '👋' : `👋 ${minutesToClock(w.from)}–${minutesToClock(w.to)}`, font: { size: 11, color: t.text },
         })),
         xaxis: {
           range: [0, 24], tickvals: hourTicks, ticktext: hourTicks.map((h) => minutesToClock(h * 60)),
@@ -84,10 +86,11 @@ export default function SleepTimeline({ sessions, dayKeys, friends = [] }) {
           type: 'category', categoryorder: 'array', categoryarray: rowKeys.map(label),
           autorange: 'reversed', showgrid: false, rangemode: 'normal',
         },
-        legend: { orientation: 'h', x: 0, y: -0.02, yanchor: 'top' },
+        // Below the 👋 labels of the friends bands (about 22px, as a share of the rows' height).
+        legend: { orientation: 'h', x: 0, y: friends.length ? -22 / (rowKeys.length * 44) : -0.02, yanchor: 'top' },
       }),
     };
-  }, [sessions, dayKeys, friends, t, hourTicks.length]);
+  }, [sessions, dayKeys, friends, t, narrow]);
 
   return (
     <PlotlyChart
