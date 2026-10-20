@@ -153,7 +153,7 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
   follows the log (Last-night notes edits don't trigger it).
   No expected-bedtime line (removed at the user's request).
   Wake-window lines (idle): first "🎯 Target wake window before the Nth nap/bedtime: Y — enter the room at HH:MM · asleep by
-  HH:MM" (target end − `ENTER_ROOM_EARLY` = 10 min; only when a target is set), then "⏱ Average wake window: ~X · sleepy around
+  HH:MM" (target end − `ENTER_ROOM_EARLY` = 10 min; only when a target is set), then "⏱ Average wake window: ~X · asleep by
   HH:MM (last N days)" from `upcomingWakeWindow`; when over: "X over the target/usual — time to settle?"; bar of awake time vs the
   target (else the average). No target chips (removed at the user's request). `.card` uses `grid-template-columns: minmax(0, 1fr)` so wide tables
   scroll inside cards instead of stretching them.

@@ -85,7 +85,7 @@ export function WakeWindowLine({ sessions, now, awakeSince, targets }) {
       {usual && (
         <p className="nap-forecast window-forecast">
           ⏱ Average wake window{target ? '' : ` before ${sleepLabel(key)}`}: <strong>~{formatDuration(usual.avgMinutes)}</strong>
-          {awakeMin != null && awakeMin < usual.avgMinutes && <> · sleepy around <strong>{at(usual.avgMinutes)}</strong></>}
+          {awakeMin != null && awakeMin < usual.avgMinutes && <> · asleep by <strong>{at(usual.avgMinutes)}</strong></>}
           <span className="muted"> ({lastN(usual.samples, 'day')})</span>
         </p>
       )}
