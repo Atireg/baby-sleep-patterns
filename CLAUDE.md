@@ -171,7 +171,8 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
   minus naps) · 5-day avg Y" (`dayAwakeTotal`; avg = mean of the last 5 days' awake-during-the-day values, passed as `awakeAvg`).
 - Editing: each listed entry has ✎ (loads it into the form → "Save changes"/"Cancel edit") and × (delete). "Show day" filter.
   The form has "Night wakings" rows (Woke at / Back asleep at / 🍼 Feed) for nights; list durations subtract wakings.
-  Naps have "Was the nap extended?" Yes/No (form chips; Now card finish step for naps); list shows "extended"/"not extended".
+  Naps have "Was the nap extended?" Yes/No (form chips; Now card during the nap → `live.extended` 'yes'/'no'/'', shared
+  between devices, and prefilled in the finish step); list shows "extended"/"not extended".
 - Daytime sleep tank: today's naps (`daytimeTank`; a nap in progress counts up to now) vs target = 5-day average nap time (auto)
   or a fixed choice (`useNapTarget`, synced when signed in); "awake/asleep since"; refreshes every second while a nap is in
   progress (the nap row shows "HH:MM–now" + running timer), otherwise every minute. Below it a collapsible "🎯 Target wake

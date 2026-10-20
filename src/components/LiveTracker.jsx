@@ -12,7 +12,7 @@ import {
 
 /**
  * "Now" card for logging on the go: Start settling → Fell asleep → Woke up.
- * live: { type, settle, asleep, method, wakings: [{ from, to, feed }], wakingFrom, wakingFeed, awakeFrom } or null (ISO times);
+ * live: { type, settle, asleep, method, extended, wakings: [{ from, to, feed }], wakingFrom, wakingFeed, awakeFrom } or null (ISO times);
  * onChange persists it; onSave(entry) stores the finished sleep; onEditAwake(time, since) corrects "awake since".
  */
 export default function LiveTracker({ live, onChange, onSave, onEditAwake, sessions, busy, awakeAvg = null, avgTotal = null, wakeTargets = {} }) {
@@ -205,8 +205,14 @@ export default function LiveTracker({ live, onChange, onSave, onEditAwake, sessi
             </>
           )}
           <Chips label="How she fell asleep" options={METHODS} value={live.method} onChange={(m) => onChange({ ...live, method: m })} />
+          {live.type === 'nap' && (
+            <div className="live-yesno">
+              <span>Was the nap extended?</span>
+              <YesNoChips label="Was the nap extended?" value={live.extended ?? ''} onChange={(v) => onChange({ ...live, extended: v })} />
+            </div>
+          )}
           <div className="live-actions">
-            <button type="button" className="button big primary" onClick={() => { setError(null); const t = when(); setAt(''); setFinishing({ woke: hhmm(t), tapped: t, mood: '', notes: '' }); }}>
+            <button type="button" className="button big primary" onClick={() => { setError(null); const t = when(); setAt(''); setFinishing({ woke: hhmm(t), tapped: t, mood: '', notes: '', extended: live.extended ?? '' }); }}>
               {live.type === 'night' ? 'Up for the day' : 'Woke up'}
             </button>
             {live.type === 'night' && (
