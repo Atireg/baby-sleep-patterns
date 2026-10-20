@@ -2,7 +2,7 @@
 // They recompute once a minute (keyed on the minute), not on every second of the timer.
 import { useMemo } from 'react';
 import {
-  MAX_WAKE_WINDOW, dayAwakeTotal, expectedWakeUp, napsDoneToday, upcomingNap, upcomingWakeWindow,
+  MAX_WAKE_WINDOW, dayAwakeTotal, estimatedBedtime, expectedWakeUp, napsDoneToday, upcomingNap, upcomingWakeWindow,
 } from '../lib/insights.js';
 import { awakeSince as findAwakeSince, nightAwakeMs, sleepDay } from '../lib/live.js';
 import { formatDuration, hhmm, ordinal } from '../lib/format.js';
@@ -95,6 +95,28 @@ export function WakeWindowLine({ sessions, now, awakeSince, targets }) {
           label={target ? 'Awake time against the target wake window' : 'Awake time against the usual wake window'} />
       )}
     </div>
+  );
+}
+
+/**
+ * 🌙 During the day: estimated bedtime from this morning's wake-up, the target wake windows (else the
+ * 5-day averages) and the usual nap lengths. napStart: a nap in progress.
+ */
+export function BedtimeLine({ sessions, now, targets, napStart = null }) {
+  const minute = minuteOf(now);
+  const est = useMemo(
+    () => estimatedBedtime(sessions, targets, new Date(minute * MS_MIN), napStart),
+    [sessions, targets, minute, napStart?.getTime()],
+  );
+  if (!est) return null;
+  return (
+    <p className="nap-forecast bedtime-forecast">
+      🌙 Estimated bedtime <strong>~{hhmm(est.when)}</strong>
+      <Due minutesLeft={minutesBetween(now, est.when)} />
+      <span className="muted">
+        {' '}(woke {hhmm(est.wake)} · {est.naps} nap{est.naps === 1 ? '' : 's'} · {est.averaged ? 'targets where set, else 5-day averages' : 'target wake windows'})
+      </span>
+    </p>
   );
 }
 

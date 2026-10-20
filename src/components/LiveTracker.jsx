@@ -7,7 +7,7 @@ import { useNow } from '../hooks/useNow.js';
 import { Chips, TypeSwitch, YesNoChips, typeLabel } from './Chips.jsx';
 import LiveEditPanel from './LiveEditPanel.jsx';
 import {
-  DayAwakeLine, NapForecast, NapProgress, WakeUpLine, WakeWindowLine, WindowBeforeLine, useUpcomingNap,
+  BedtimeLine, DayAwakeLine, NapForecast, NapProgress, WakeUpLine, WakeWindowLine, WindowBeforeLine, useUpcomingNap,
 } from './NowForecasts.jsx';
 
 /**
@@ -149,6 +149,7 @@ export default function LiveTracker({ live, onChange, onSave, onEditAwake, sessi
           )}
           <WakeWindowLine sessions={sessions} now={now} awakeSince={awakeSince} targets={wakeTargets} />
           {idleType === 'nap' && <NapForecast nap={nap} />}
+          <BedtimeLine sessions={sessions} now={now} targets={wakeTargets} />
           <div className="live-actions">
             <button type="button" className="button big" onClick={startSettling} disabled={busy}>Start settling</button>
             <button type="button" className="button big primary" onClick={fellAsleep} disabled={busy}>Fell asleep</button>
@@ -165,7 +166,12 @@ export default function LiveTracker({ live, onChange, onSave, onEditAwake, sessi
               {awakeSince && <> · awake {formatTimer(now - awakeSince)} in total</>}
             </span>
           </div>
-          {live.type === 'nap' && <NapForecast nap={nap} />}
+          {live.type === 'nap' && (
+            <>
+              <NapForecast nap={nap} />
+              <BedtimeLine sessions={sessions} now={now} targets={wakeTargets} />
+            </>
+          )}
           <Chips label="How she's falling asleep" options={METHODS} value={live.method} onChange={(m) => onChange({ ...live, method: m })} />
           <div className="live-actions">
             <button type="button" className="button big primary" onClick={fellAsleep} disabled={busy}>Fell asleep</button>
@@ -186,7 +192,12 @@ export default function LiveTracker({ live, onChange, onSave, onEditAwake, sessi
             </span>
           </div>
           <WindowBeforeLine sessions={sessions} live={live} targets={wakeTargets} />
-          {live.type === 'nap' && <NapProgress nap={nap} now={now} asleep={since(live.asleep)} />}
+          {live.type === 'nap' && (
+            <>
+              <NapProgress nap={nap} now={now} asleep={since(live.asleep)} />
+              <BedtimeLine sessions={sessions} now={now} targets={wakeTargets} napStart={since(live.asleep)} />
+            </>
+          )}
           {live.type === 'night' && (
             <>
               <WakeUpLine sessions={sessions} now={now} live={live} avgTotal={avgTotal} />

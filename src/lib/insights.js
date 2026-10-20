@@ -307,6 +307,57 @@ export function upcomingWakeWindow(sessions, now = new Date(), days = 5) {
 }
 
 /**
+ * Estimated bedtime for today: this morning's wake-up, then for each nap its wake window and its length,
+ * then the wake window before bedtime. Naps already done use their real times; a nap in progress
+ * (`napStart`) ends after its usual length (or now, if longer). Wake windows are the parents' targets,
+ * else the 5-day average for that nap / bedtime; nap lengths are the 3-day average for that nap number.
+ * The number of naps = the most of: naps today, the highest nap with a target, the usual count.
+ * Returns { when, wake, naps, averaged (true if some wake window had no target) } or null.
+ */
+export function estimatedBedtime(sessions, targets = {}, now = new Date(), napStart = null) {
+  const today = dateKey(now);
+  const wake = sessions
+    .filter((s) => s.type === 'night' && s.day === shiftDay(today, -1) && s.end <= now)
+    .reduce((w, s) => (!w || s.end > w ? s.end : w), null);
+  if (!wake || dateKey(wake) !== today) return null;
+  if (sessions.some((s) => s.type === 'night' && s.day === today && s.start <= now)) return null;
+  const done = sessions.filter((s) => s.type === 'nap' && s.day === today && s.end <= now).sort((a, b) => a.start - b.start);
+  const previous = [...new Set(sessions.filter((s) => s.day < today).map((s) => s.day))].sort();
+  const recent5 = new Set(previous.slice(-5));
+  const napDays = [...new Set(sessions.filter((s) => s.type === 'nap' && s.day < today).map((s) => s.day))].sort().slice(-3);
+  const avgWindow = (key) => mean(sessions.filter((s) => recent5.has(s.day) && s.position === key).map(knownWindow).filter((w) => w != null));
+  const avgLength = (n) => mean(napDays
+    .map((d) => sessions.filter((s) => s.type === 'nap' && s.day === d).sort((a, b) => a.start - b.start)[n - 1])
+    .filter(Boolean).map((s) => s.minutes));
+  const usualNaps = Math.round(mean([...recent5].map((d) => sessions.filter((s) => s.type === 'nap' && s.day === d).length)) ?? 0);
+  const targetNaps = Math.max(0, ...Object.keys(targets ?? {}).map(Number).filter((n) => n > 0 && targets[n] > 0));
+  const naps = Math.max(done.length + (napStart ? 1 : 0), targetNaps || usualNaps);
+  let averaged = false;
+  const windowFor = (key) => {
+    if (targets?.[key] > 0) return targets[key];
+    averaged = true;
+    return avgWindow(key);
+  };
+  let cursor = done.at(-1)?.end ?? wake;
+  for (let n = done.length + 1; n <= naps; n++) {
+    const length = avgLength(n);
+    if (length == null) return null;
+    let start;
+    if (n === done.length + 1 && napStart) start = napStart;
+    else {
+      const window = windowFor(n);
+      if (window == null) return null;
+      start = new Date(Math.max(cursor.getTime() + window * MS_MIN, now.getTime()));
+    }
+    cursor = new Date(Math.max(start.getTime() + length * MS_MIN, now.getTime()));
+  }
+  const bedWindow = windowFor('bedtime');
+  if (bedWindow == null) return null;
+  const when = new Date(Math.max(cursor.getTime() + bedWindow * MS_MIN, now.getTime()));
+  return { when, wake, naps, averaged };
+}
+
+/**
  * Actual numbers for one sleep day (no averages), for the "Last 5 days" table.
  * day: a dailyStats() record; sessions: all sessions (needed for the morning wake-up from the night before).
  */
