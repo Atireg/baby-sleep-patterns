@@ -187,6 +187,8 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
   **Awake during the day** and **Total sleep** (from `recentDetails`/`dayDetails`, passed as `details`), with "avg X" under the label.
 - Sleep timeline: the last-5 days, newest first, calendar-day rows (`dayKeys`); green bands + tip = good times to meet friends
   (`friendsWindows`: 07:00–19:00, awake and not within 30 min of a sleep on all days, else all-but-one; ≥ 60 min; top 2).
+  Band labels "👋 HH:MM–HH:MM" under the rows (phones < 600px: just "👋", the times are in the subtitle); the legend is pushed
+  below them so they don't overlap.
 - Charts use saved entries (local, or the cloud log when signed in) + a loaded file (when upload is enabled), not double-counted.
 - The old full-history daily breakdown table was removed at the user's request — don't re-add it (Naps history is separate).
 
