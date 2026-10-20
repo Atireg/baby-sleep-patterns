@@ -286,6 +286,31 @@ describe('upcomingWakeWindow', () => {
   });
 });
 
+describe('estimatedBedtime', () => {
+  it('adds the target wake windows and usual nap lengths to this morning\'s wake-up', async () => {
+    const { estimatedBedtime } = await import('./insights.js');
+    const rows = [['Date', 'Fell asleep', 'Woke up', 'Type']];
+    // Previous days: 2 naps of 1h and 1h30, bedtime wake window 4h.
+    for (const d of ['2026-10-10', '2026-10-11', '2026-10-12']) {
+      rows.push([d, '08:30', '09:30', 'Nap'], [d, '12:00', '13:30', 'Nap'], [d, '17:30', '06:30', 'Night']);
+    }
+    const { sessions } = rowsToSessions(rows);
+    const targets = { 1: 120, 2: 150, bedtime: 210 };
+    // Up 06:30 → nap 1 08:30–09:30 → nap 2 12:00–13:30 → bed 17:00.
+    const morning = estimatedBedtime(sessions, targets, new Date(2026, 9, 13, 7, 0));
+    expect(morning).toMatchObject({ when: new Date(2026, 9, 13, 17, 0), naps: 2, averaged: false });
+    // Without targets: the 5-day averages (2h, 2h30, 4h) → bed 17:30.
+    expect(estimatedBedtime(sessions, {}, new Date(2026, 9, 13, 7, 0))).toMatchObject({ when: new Date(2026, 9, 13, 17, 30), averaged: true });
+    // A real nap counts with its own times; a nap in progress lasts its usual length.
+    const later = rowsToSessions([...rows, ['2026-10-13', '09:00', '10:30', 'Nap']]).sessions;
+    expect(estimatedBedtime(later, targets, new Date(2026, 9, 13, 11, 0)).when).toEqual(new Date(2026, 9, 13, 18, 0));
+    expect(estimatedBedtime(later, targets, new Date(2026, 9, 13, 13, 30), new Date(2026, 9, 13, 13, 0)).when)
+      .toEqual(new Date(2026, 9, 13, 18, 0)); // 13:00 + 1h30 + 3h30
+    // Unknown wake-up: no estimate.
+    expect(estimatedBedtime(sessions, targets, new Date(2026, 9, 15, 9, 0))).toBeNull();
+  });
+});
+
 describe('dayDetails', () => {
   it('gives the actual numbers for a day', async () => {
     const { dayDetails } = await import('./insights.js');

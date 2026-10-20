@@ -74,6 +74,8 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
   `MAX_WAKE_WINDOW` (8h; longer gaps aren't wake windows, `knownWindow`),
   `friendsWindows`, `dayDetails` (one day's actual numbers, incl. `napsIndependent`/`napsWithMethod`), `upcomingNap` (avg length of nap #N over the last 3 days with naps before today),
   `napsDoneToday`, `expectedWakeUp` (bedtime + (5-day avg total sleep − that day's naps) + awake time at night so far), `upcomingWakeWindow` (avg wake window before nap N, else before bedtime, over the last 5 days),
+  `estimatedBedtime` (this morning's wake-up + per nap its target wake window (else 5-day avg) + its 3-day avg length, done
+  naps use real times, a nap in progress its usual length; + bedtime window; naps = max(today's, highest nap target, usual count)),
   `dayAwakeTotal` (morning wake-up → bedtime minus naps for one day), `nightBefore` (night logged under the previous date:
   sleep minutes + non-feed wakings count/minutes + feeds count), `wakeWindowGrid` (actual wake window per nap N / bedtime
   per day),
@@ -151,7 +153,8 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
   The sleep in progress counts in the tank (`tankSessions`) but not in charts until saved.
   The sleep log wins: adding/editing/deleting in the entry form calls `syncLive` in App (`liveAfterLogEdit`), so the Now card
   follows the log (Last-night notes edits don't trigger it).
-  No expected-bedtime line (removed at the user's request).
+  Estimated bedtime (idle, nap settling, nap asleep): "🌙 Estimated bedtime ~HH:MM · in X (woke HH:MM · N naps · target wake
+  windows)" from `estimatedBedtime` (user request; replaces the old average-based expected-bedtime line, which was removed).
   Wake-window lines (idle): first "🎯 Target wake window before the Nth nap/bedtime: Y — enter the room at HH:MM · asleep by
   HH:MM" (target end − `ENTER_ROOM_EARLY` = 10 min; only when a target is set), then "⏱ Average wake window: ~X · asleep by
   HH:MM (last N days)" from `upcomingWakeWindow`; when over: "X over the target/usual — time to settle?"; bar of awake time vs the
