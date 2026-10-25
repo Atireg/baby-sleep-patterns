@@ -1,18 +1,16 @@
 import { useRef, useState } from 'react';
 import { utils, writeFile } from 'xlsx';
-import { entriesToRows, entryToValues, makeEntry } from '../lib/entries.js';
+import { entriesToRows, entriesToSessions, entryToValues, makeEntry } from '../lib/entries.js';
 import { METHODS, MOODS } from '../lib/insights.js';
 import { formatDay, formatDuration } from '../lib/format.js';
-import { countsAsSleep } from '../lib/sleepData.js';
 import { YesNoChips } from './Chips.jsx';
 import WakingRows from './WakingRows.jsx';
-import { clockSpan, dateKey } from '../lib/time.js';
+import { dateKey, sum } from '../lib/time.js';
 
 const today = () => dateKey(new Date());
-// Time asleep: the whole span minus night wakings (short feeds still count as sleep).
-const duration = (e) => clockSpan(e.asleep, e.woke) - (e.wakings ?? [])
-  .filter((w) => !countsAsSleep(w.feed, clockSpan(w.from, w.to)))
-  .reduce((sum, w) => sum + clockSpan(w.from, w.to), 0);
+// Time asleep, as the charts count it: the whole span minus night wakings (short feeds still count as
+// sleep), in real time (the night the clocks go back is an hour longer).
+const duration = (e) => sum(entriesToSessions([e]).map((s) => s.minutes));
 const EMPTY = { settle: '', asleep: '', woke: '', method: '', mood: '', notes: '', wakings: [], extended: '' };
 const SHOW = 6;
 

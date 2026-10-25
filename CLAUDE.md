@@ -45,14 +45,18 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
 ## Layout
 - `static/` – Vite `publicDir` (served at site root): `sample-sleep-log.xlsx` (demo data + template, 5→4→3 naps), `favicon.svg`.
 - `src/lib/time.js` – shared date/clock maths (local time): `MS_MIN/HOUR/DAY`, `pad`, `dateKey`, `keyToDate`, `shiftDay`, `hhmm`,
-  `clockMinutes`, `clockSpan`, `minutesToClock`, `minutesBetween`, `atOrAfter`, `sum`, `mean`. Use these, don't re-inline them.
+  `clockMinutes`, `clockSpan`, `minutesToClock`, `minutesBetween`, `atOrAfter`, `atClock`, `clockMinutesFrom`, `sum`, `mean`.
+  Use these, don't re-inline them. **Daylight saving**: days can be 23 or 25 hours, so never build a moment as
+  midnight + N × `MS_MIN`/`MS_DAY` — use `atClock`/`atOrAfter`/`setHours` (and `clockMinutesFrom` for minute-of-day positions).
+  Durations are real elapsed time (the night the clocks go back is an hour longer); a waking in the repeated hour is read by its
+  clock times (`splitNight`). Tests: `src/lib/dst.test.js` (sets `TZ=Europe/Berlin`).
 - `src/lib/format.js` – display text: `formatDuration`, `formatDay`, `formatTimer`, `ordinal` (+ re-exports `hhmm`).
 - `src/lib/storage.js` – `readStored`/`writeStored`: localStorage that never throws (all local persistence goes through it).
 - `src/lib/sleepData.js` – simple-layout parser, `parseRanges`, `parseWakings` (feed marks), `splitNight` (night → stretches
   around wakings; stretches carry `nightWakings` with feed flags),
   **short feeds count as sleep** (user rule): a feed waking < `SHORT_FEED_MINUTES` (25) is still split off, but its minutes are
   added to the stretch before it (`countsAsSleep`); `lastNight`/`dayDetails` leave it out of the awake time (still counted as a
-  waking + feed, Last night list says "counted as sleep"), as do the log list durations and the Now card's "slept so far".
+  waking + feed, Last night list says "counted as sleep"), as do the log list durations (from `entriesToSessions`, real time) and the Now card's "slept so far".
   Timeline tooltips show the clock span, not `minutes`.
   `annotateSessions` (nap position + wake window), daily stats. No xlsx dependency.
 - `src/lib/consultantLog.js` – parser for the Bulgarian sleep-consultant template.

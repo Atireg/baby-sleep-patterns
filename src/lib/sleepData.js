@@ -1,7 +1,7 @@
 // Pure helpers that turn spreadsheet rows into sleep sessions and daily stats.
 // Kept free of the xlsx dependency so they are easy to unit test.
 
-import { MS_DAY, MS_MIN, atOrAfter, pad } from './time.js';
+import { MS_DAY, MS_HOUR, MS_MIN, atClock, atOrAfter, hhmm, pad } from './time.js';
 
 // Header aliases (lower-cased, punctuation stripped) -> canonical column.
 const HEADER_ALIASES = {
@@ -135,8 +135,12 @@ export function splitNight(session, ranges) {
   const pieces = [];
   let cursor = session.start;
   for (const [from, to, asSleep] of ranges) {
-    const a = atOrAfter(session.start, from);
+    let a = atOrAfter(session.start, from);
     const z = atOrAfter(a, to);
+    // In the hour that repeats when the clocks go back, take the second "from" so the waking lasts
+    // as long as its clock times say (02:30–03:10 = 40m, not 1h 40m).
+    const repeat = new Date(a.getTime() + MS_HOUR);
+    if (repeat < z && hhmm(repeat) === hhmm(a)) a = repeat;
     if (a <= cursor || z >= session.end) continue;
     pieces.push({ ...session, start: cursor, end: a, credit: asSleep ? Math.round((z - a) / MS_MIN) : 0 });
     cursor = z;
@@ -182,17 +186,15 @@ export function rowsToSessions(rows) {
     // A row's date is the evening the night began, so night sleep starting
     // in the small hours (e.g. 02:10 after a feed) falls on the next calendar day.
     const nextDay = type === 'night' && start < 12 * 60 ? 1 : 0;
-    const base = new Date(date.y, date.m, date.d + nextDay).getTime();
-    const startMs = base + start * MS_MIN;
+    const startAt = atClock(date.y, date.m, date.d + nextDay, start);
     // End before start means the sleep ran past midnight.
-    let endMs = base + end * MS_MIN;
-    if (endMs <= startMs) endMs += MS_DAY;
+    const endAt = atClock(date.y, date.m, date.d + nextDay, end <= start ? end + 1440 : end);
 
     const session = {
       day: dayKey(date),
-      start: new Date(startMs),
-      end: new Date(endMs),
-      minutes: Math.round((endMs - startMs) / MS_MIN),
+      start: startAt,
+      end: endAt,
+      minutes: Math.round((endAt - startAt) / MS_MIN),
       type,
       notes: cols.notes !== undefined ? String(row[cols.notes] ?? '') : '',
       ...optionalDetails(row, cols, start),
