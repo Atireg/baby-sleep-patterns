@@ -22,6 +22,23 @@ export function shiftDay(day, n) {
   return dateKey(date);
 }
 
+/**
+ * The moment the clock shows `minutes` after midnight on date y-m-d (month 0-based; minutes past 1440
+ * fall on the next day). Built from the calendar, not by adding minutes to midnight, so it stays right
+ * on the days the clocks change (23 or 25 hours long).
+ */
+export const atClock = (y, m, d, minutes) => new Date(y, m, d, 0, minutes);
+
+/**
+ * What `date`'s clock shows, in minutes after the midnight that starts `day` ("YYYY-MM-DD"): negative
+ * the day before, past 1440 on later days. Clock time, so it is right on daylight-saving days too.
+ */
+export function clockMinutesFrom(day, date) {
+  const [y, m, d] = day.split('-').map(Number);
+  const days = Math.round((Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) - Date.UTC(y, m - 1, d)) / MS_DAY);
+  return days * 1440 + date.getHours() * 60 + date.getMinutes() + date.getSeconds() / 60 + date.getMilliseconds() / MS_MIN;
+}
+
 /** "HH:MM" for a Date. */
 export const hhmm = (date) => `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 

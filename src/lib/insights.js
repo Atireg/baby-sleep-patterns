@@ -1,7 +1,7 @@
 // Weekly aggregates for the consultant-log insights (settling, wake windows, how sleep started).
 import { allWeeks } from './series.js';
 import { countsAsSleep } from './sleepData.js';
-import { MS_HOUR, MS_MIN, dateKey, keyToDate, mean, minutesBetween, shiftDay, sum } from './time.js';
+import { MS_HOUR, MS_MIN, clockMinutesFrom, dateKey, keyToDate, mean, minutesBetween, shiftDay, sum } from './time.js';
 
 /** Gaps of 8h or more aren't wake windows (e.g. missing data); they are ignored. */
 export const MAX_WAKE_WINDOW = 8 * 60;
@@ -213,12 +213,11 @@ export function friendsWindows(sessions, dayKeys, { from = 7 * 60, to = 19 * 60,
   if (!n) return [];
   const goodDays = new Array(to - from).fill(0);
   for (const key of dayKeys) {
-    const dayStart = keyToDate(key).getTime();
     const busy = new Array(to - from).fill(false);
     for (const s of sessions) {
-      // Minutes of this calendar day covered by the sleep, plus the wind-down before it.
-      const a = Math.floor((s.start.getTime() - dayStart) / MS_MIN) - bufferBefore;
-      const b = Math.ceil((s.end.getTime() - dayStart) / MS_MIN);
+      // Minutes of this calendar day (by the clock) covered by the sleep, plus the wind-down before it.
+      const a = Math.floor(clockMinutesFrom(key, s.start)) - bufferBefore;
+      const b = Math.ceil(clockMinutesFrom(key, s.end));
       for (let t = Math.max(a, from); t < Math.min(b, to); t++) busy[t - from] = true;
     }
     busy.forEach((isBusy, i) => { if (!isBusy) goodDays[i] += 1; });

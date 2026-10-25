@@ -7,7 +7,7 @@
 //   row  "Вечерно заспиване"   bedtime: settling start, asleep, woke next morning, ...
 //   rows of daily summaries and free-text questions about the night.
 import { dayKey, parseDateCell, parseRanges, parseTimeCell } from './sleepData.js';
-import { MS_MIN, atOrAfter } from './time.js';
+import { MS_MIN, atClock, atOrAfter } from './time.js';
 
 export { parseRanges };
 
@@ -73,8 +73,7 @@ export function consultantLogToSessions(rows) {
       const date = parseDateCell(rows[wakeRow - 1]?.[c]);
       if (!date) continue;
       const day = dayKey(date);
-      const base = new Date(date.y, date.m, date.d).getTime();
-      const at = (min) => new Date(base + min * MS_MIN);
+      const at = (min) => atClock(date.y, date.m, date.d, min);
 
       const wakeMin = parseTimeCell(rows[wakeRow][c]);
       const daySessions = [];

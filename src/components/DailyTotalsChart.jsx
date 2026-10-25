@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { formatDay, formatDuration } from '../lib/format.js';
-import { MS_DAY, dateKey, keyToDate, pad } from '../lib/time.js';
+import { dateKey, keyToDate, pad } from '../lib/time.js';
 import { baseLayout, rangeButtons, useChartTheme } from '../lib/theme.js';
 import PlotlyChart from './PlotlyChart.jsx';
 import { breakGaps, rollingMean } from '../lib/series.js';
@@ -8,7 +8,8 @@ import { breakGaps, rollingMean } from '../lib/series.js';
 const hours = (m) => +(m / 60).toFixed(2);
 // 'YYYY-MM-DD' shifted by a fraction of a day, as a Plotly date string (for shading around bars).
 const plotlyDay = (day, offset) => {
-  const x = new Date(keyToDate(day).getTime() + offset * MS_DAY);
+  const x = keyToDate(day);
+  x.setMinutes(Math.round(offset * 1440));
   return `${dateKey(x)} ${pad(x.getHours())}:${pad(x.getMinutes())}`;
 };
 

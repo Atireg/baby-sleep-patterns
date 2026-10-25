@@ -1,21 +1,24 @@
 import { useMemo } from 'react';
 import { formatDay, formatDuration, hhmm } from '../lib/format.js';
-import { MS_DAY, MS_HOUR, dateKey, minutesBetween, minutesToClock } from '../lib/time.js';
+import { clockMinutesFrom, dateKey, minutesBetween, minutesToClock } from '../lib/time.js';
 import { methodLabel, moodLabel } from '../lib/insights.js';
 import { baseLayout, useChartTheme, withAlpha } from '../lib/theme.js';
 import PlotlyChart from './PlotlyChart.jsx';
 
-const midnight = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
+const nextMidnight = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
 
-/** Split sessions at midnight so each piece sits on its own calendar-day row (hours 0–24). */
+/**
+ * Split sessions at midnight so each piece sits on its own calendar-day row, placed by clock time
+ * (hours 0–24, so the days the clocks change line up with the others).
+ */
 export function toPieces(sessions) {
   const pieces = [];
   for (const s of sessions) {
-    let from = s.start.getTime();
-    while (from < s.end.getTime()) {
-      const dayStart = midnight(new Date(from)).getTime();
-      const to = Math.min(s.end.getTime(), dayStart + MS_DAY);
-      pieces.push({ session: s, row: dateKey(new Date(from)), from: (from - dayStart) / MS_HOUR, to: (to - dayStart) / MS_HOUR });
+    let from = s.start;
+    while (from < s.end) {
+      const to = s.end < nextMidnight(from) ? s.end : nextMidnight(from);
+      const row = dateKey(from);
+      pieces.push({ session: s, row, from: clockMinutesFrom(row, from) / 60, to: clockMinutesFrom(row, to) / 60 });
       from = to;
     }
   }
