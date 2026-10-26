@@ -25,7 +25,7 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
 - Auth: Google sign-in; `atireg.github.io` must be in Authentication → Authorized domains.
 - Firestore: doc `live/current` = `{ live }`, the sleep being tracked right now, or just `{ awakeFrom }` for a manually started
   awake timer (shared between devices; deleted when a sleep is saved).
-- Firestore: family settings `settings/wakeTargets` = `{ targets }` and `settings/napTarget` = `{ minutes }` (null = Auto);
+- Firestore: family settings `settings/wakeTargets` = `{ targets }`, `settings/napTarget` and `settings/awakeTarget` = `{ minutes }` (null = Auto);
   never deleted, so a cleared setting stays cleared (`watchSetting` gives undefined only when never saved).
 - Firestore: collection `months`, one doc per month (`2026-10`) with `{ entries: [...] }` (same entry shape as the form) —
   ~12 reads per year of data. Writes are per-month transactions; duplicates skipped by `entryKey` (day|type|asleep).
@@ -87,8 +87,8 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
   label translations (BG + EN).
 - `src/lib/wakeTargets.js` – parents' **target wake windows** `{ 1: 120, 2: 150, bedtime: 210 }` (minutes): `loadWakeTargets` /
   `saveLocalWakeTargets` (localStorage `baby-sleep-wake-targets`), `withWakeTarget`, `targetFor`, `targetsTotal` (day's targets added up, null unless all set), `TARGET_CHOICES` (30m–6h,
-  5-minute steps); the tank's **nap-time target** `loadNapTarget`/`saveLocalNapTarget` (`baby-sleep-nap-target`, null = Auto).
-  Both sync through `src/hooks/useSyncedSetting.js` (`useWakeTargets`, `useNapTarget` in `hooks/useWakeTargets.js`): signed in →
+  5-minute steps); the tanks' **nap-time target** `loadNapTarget`/`saveLocalNapTarget` (`baby-sleep-nap-target`) and **awake-time target**
+  `loadAwakeTarget`/`saveLocalAwakeTarget` (`baby-sleep-awake-target`), null = Auto. All three sync through `src/hooks/useSyncedSetting.js` (`useWakeTargets`, `useNapTarget`, `useAwakeTarget` in `hooks/useWakeTargets.js`): signed in →
   Firestore `settings/*` (watched live, mirrored to the device; if the cloud has no value yet, the device's is uploaded),
   signed out → device only.
 - `src/lib/autoUpdate.js` – prod only (`main.jsx`): when the page regains focus/visibility (max once a minute) it fetches
@@ -183,7 +183,8 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
   progress (the nap row shows "HH:MM–now" + running timer), otherwise every minute. Below it a collapsible "🎯 Target wake
   windows" editor (Before 1st nap … / Before bedtime selects; rows = max(3, naps seen in the last 5 days, today's naps + 1)).
 - **Awake today** tank (`AwakeTank`, after the Daytime sleep tank, user request): amber (`--series-4`) tank of `daytimeAwake`
-  minutes vs the target wake windows added up (`targetsTotal`), else the 5-day average awake time (`awakeAvg`); "~X of awake time
+  minutes vs the "Awake-time target" select (6h–16h, 15-min steps; `useAwakeTarget`, synced) or Auto = the target wake windows
+  added up (`targetsTotal`), else the 5-day average awake time (`awakeAvg`); "~X of awake time
   left today" / "X over — time for bed?" / "Day done · bedtime HH:MM"; list of today's wake windows (Before Nth nap / Before bed /
   Now with a running timer). Ticks every second while awake, every minute while asleep; paused during naps. Without a logged
   wake-up today it asks for one.

@@ -12,13 +12,18 @@ export function loadWakeTargets() {
 }
 export const saveLocalWakeTargets = (targets) => writeStored(KEY, targets);
 
-// The Daytime sleep tank's nap-time target in minutes (null = Auto, the 5-day average).
-const NAP_KEY = 'baby-sleep-nap-target';
-export function loadNapTarget() {
-  const v = Number(readStored(NAP_KEY));
+// Tank targets in minutes, null = Auto: the Daytime sleep tank's nap time (Auto = 5-day average) and the
+// Awake today tank's awake time (Auto = target wake windows added up, else the 5-day average).
+const loadMinutes = (key) => {
+  const v = Number(readStored(key));
   return Number.isFinite(v) && v > 0 ? v : null;
-}
+};
+const NAP_KEY = 'baby-sleep-nap-target';
+export const loadNapTarget = () => loadMinutes(NAP_KEY);
 export const saveLocalNapTarget = (minutes) => writeStored(NAP_KEY, minutes || null);
+const AWAKE_KEY = 'baby-sleep-awake-target';
+export const loadAwakeTarget = () => loadMinutes(AWAKE_KEY);
+export const saveLocalAwakeTarget = (minutes) => writeStored(AWAKE_KEY, minutes || null);
 
 /** The targets with the one for a nap number or 'bedtime' set (or cleared, with null). */
 export function withWakeTarget(targets, key, minutes) {
