@@ -30,3 +30,13 @@ export function withWakeTarget(targets, key, minutes) {
 
 /** The target for nap N or 'bedtime', or null. */
 export const targetFor = (targets, key) => (key != null && targets?.[key] > 0 ? targets[key] : null);
+
+/**
+ * The day's target wake windows added up: before naps 1…N and before bedtime, where N is the most of
+ * `naps` (today's naps so far) and the highest nap with a target. Null unless all of them are set.
+ */
+export function targetsTotal(targets, naps = 0) {
+  const highest = Math.max(0, ...Object.keys(targets ?? {}).map(Number).filter((n) => n > 0 && targets[n] > 0));
+  const keys = [...Array.from({ length: Math.max(naps, highest) }, (_, i) => i + 1), 'bedtime'];
+  return keys.every((k) => targetFor(targets, k)) ? keys.reduce((total, k) => total + targets[k], 0) : null;
+}

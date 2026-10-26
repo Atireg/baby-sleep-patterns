@@ -80,12 +80,13 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
   `napsDoneToday`, `expectedWakeUp` (bedtime + (5-day avg total sleep − that day's naps) + awake time at night so far), `upcomingWakeWindow` (avg wake window before nap N, else before bedtime, over the last 5 days),
   `estimatedBedtime` (this morning's wake-up + per nap its target wake window (else 5-day avg) + its 3-day avg length, done
   naps use real times, a nap in progress its usual length; + bedtime window; naps = max(today's, highest nap target, usual count)),
-  `dayAwakeTotal` (morning wake-up → bedtime minus naps for one day), `nightBefore` (night logged under the previous date:
+  `daytimeAwake` (today's awake time: this morning's wake-up (or a manual awake timer started today) → now / bedtime, minus
+  naps; wake windows with `before` nap N/'bedtime'/null + `ongoing`), `dayAwakeTotal` (morning wake-up → bedtime minus naps for one day), `nightBefore` (night logged under the previous date:
   sleep minutes + non-feed wakings count/minutes + feeds count), `wakeWindowGrid` (actual wake window per nap N / bedtime
   per day),
   label translations (BG + EN).
 - `src/lib/wakeTargets.js` – parents' **target wake windows** `{ 1: 120, 2: 150, bedtime: 210 }` (minutes): `loadWakeTargets` /
-  `saveLocalWakeTargets` (localStorage `baby-sleep-wake-targets`), `withWakeTarget`, `targetFor`, `TARGET_CHOICES` (30m–6h,
+  `saveLocalWakeTargets` (localStorage `baby-sleep-wake-targets`), `withWakeTarget`, `targetFor`, `targetsTotal` (day's targets added up, null unless all set), `TARGET_CHOICES` (30m–6h,
   5-minute steps); the tank's **nap-time target** `loadNapTarget`/`saveLocalNapTarget` (`baby-sleep-nap-target`, null = Auto).
   Both sync through `src/hooks/useSyncedSetting.js` (`useWakeTargets`, `useNapTarget` in `hooks/useWakeTargets.js`): signed in →
   Firestore `settings/*` (watched live, mirrored to the device; if the cloud has no value yet, the device's is uploaded),
@@ -100,7 +101,7 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
   `src/hooks/useNow.js` – `useNow(intervalMs)` ticking clock.
 - `src/components/` – `PlotlyChart` (lazy-loads Plotly, card wrapper), `DailyTotalsChart`, `NapCountChart`, `WeeklyLineChart`,
   `MethodShareChart`, `SleepTimeline`, `RecentDaysTable`, `FileDrop`, `EntryForm`, `CloudBar` (sign-in status),
-  `DaytimeTank` (custom SVG, not Plotly), `LastNightCard`, `WakeWindowsCard`, `LiveTracker` ("Now" card: states + actions) with
+  `DaytimeTank` and `AwakeTank` (both draw the shared custom-SVG `Tank`, not Plotly), `LastNightCard`, `WakeWindowsCard`, `LiveTracker` ("Now" card: states + actions) with
   `NowForecasts` (each forecast line as a component, recomputed per minute), `LiveEditPanel` ("Edit times or type").
   Shared bits: `Chips` (`Chips`, `YesNoChips`, `TypeSwitch`, `ProgressBar`), `WakingRows` (night-waking rows, used by the form
   and the edit panel).
@@ -134,7 +135,7 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
 - Stats are grouped by the row's date ("sleep day"); the timeline groups by calendar day.
 
 ## Conventions
-- Page order: CloudBar → **Now** card → **Daytime sleep tank** → **Last night** card → **Wake and sleep windows** card →
+- Page order: CloudBar → **Now** card → **Daytime sleep tank** → **Awake today** tank → **Last night** card → **Wake and sleep windows** card →
   **Naps history** → **Sleep timeline** → (upload, hidden) → entry form → charts.
 - Charts use Plotly (`plotly.js-cartesian-dist-min@3.7.0`, lazy-loaded chunk ~476 kB gzip) via `PlotlyChart`. Colors always come
   from CSS tokens in `src/styles.css` through `useChartTheme` (night = `--series-1` blue, nap = `--series-2` orange, light + dark).
@@ -181,7 +182,12 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
   or a fixed choice (`useNapTarget`, synced when signed in); "awake/asleep since"; refreshes every second while a nap is in
   progress (the nap row shows "HH:MM–now" + running timer), otherwise every minute. Below it a collapsible "🎯 Target wake
   windows" editor (Before 1st nap … / Before bedtime selects; rows = max(3, naps seen in the last 5 days, today's naps + 1)).
-- Last night card (`LastNightCard`, after the tank): tiles Asleep / **Awake during the night** (highlighted amber) / Wakings /
+- **Awake today** tank (`AwakeTank`, after the Daytime sleep tank, user request): amber (`--series-4`) tank of `daytimeAwake`
+  minutes vs the target wake windows added up (`targetsTotal`), else the 5-day average awake time (`awakeAvg`); "~X of awake time
+  left today" / "X over — time for bed?" / "Day done · bedtime HH:MM"; list of today's wake windows (Before Nth nap / Before bed /
+  Now with a running timer). Ticks every second while awake, every minute while asleep; paused during naps. Without a logged
+  wake-up today it asks for one.
+- Last night card (`LastNightCard`, after the tanks): tiles Asleep / **Awake during the night** (highlighted amber) / Wakings /
   Feeds 🍼; bedtime → morning bar (blue asleep, amber awake, 🍼 feeds); numbered waking list; "✎ Edit night wakings" (`WakingRows`
   prefilled from **all** the card's wakings, i.e. the gaps between the night's stretches; save → `mergeNight` (entries.js) joins
   a night saved as several entries into the first one, validated like the form, then the other parts are deleted); "Notes about last night" saved into

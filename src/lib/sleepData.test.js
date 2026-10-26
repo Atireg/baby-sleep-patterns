@@ -311,6 +311,33 @@ describe('estimatedBedtime', () => {
   });
 });
 
+describe('daytimeAwake', () => {
+  it('adds up today\'s wake windows since the morning wake-up, pausing for naps and stopping at bedtime', async () => {
+    const { daytimeAwake } = await import('./insights.js');
+    const { targetsTotal } = await import('./wakeTargets.js');
+    const rows = [['Date', 'Fell asleep', 'Woke up', 'Type'],
+      ['2026-10-25', '19:30', '07:18', 'Night'], ['2026-10-26', '10:20', '11:45', 'Nap']];
+    const { sessions } = rowsToSessions(rows);
+    const midday = daytimeAwake(sessions, new Date(2026, 9, 26, 13, 0));
+    expect(midday.minutes).toBe(182 + 75);
+    expect(midday.windows.map((w) => [w.before, w.minutes, w.ongoing])).toEqual([[1, 182, false], [null, 75, true]]);
+    // During the nap: paused at the first window.
+    const napping = daytimeAwake(sessions, new Date(2026, 9, 26, 11, 0));
+    expect(napping).toMatchObject({ minutes: 182 });
+    expect(napping.asleepSince).toEqual(new Date(2026, 9, 26, 10, 20));
+    // After bedtime: stops there.
+    const evening = rowsToSessions([...rows, ['2026-10-26', '19:50', '06:30', 'Night']]).sessions;
+    const done = daytimeAwake(evening, new Date(2026, 9, 26, 21, 0));
+    expect(done.minutes).toBe(182 + 485);
+    expect(done.bedtime).toEqual(new Date(2026, 9, 26, 19, 50));
+    // No wake-up logged this morning: unknown, unless an awake timer was started today.
+    expect(daytimeAwake(sessions, new Date(2026, 9, 27, 9, 0))).toBeNull();
+    expect(daytimeAwake(sessions, new Date(2026, 9, 27, 9, 0), new Date(2026, 9, 27, 7, 0)).minutes).toBe(120);
+    expect(targetsTotal({ 1: 180, 2: 210, bedtime: 225 }, 1)).toBe(615);
+    expect(targetsTotal({ 1: 180, bedtime: 225 }, 2)).toBeNull();
+  });
+});
+
 describe('dayDetails', () => {
   it('gives the actual numbers for a day', async () => {
     const { dayDetails } = await import('./insights.js');
