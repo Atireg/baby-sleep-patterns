@@ -182,6 +182,38 @@ export function daytimeTank(sessions, now, targetMinutes) {
 }
 
 /**
+ * Time awake today so far, for the Awake today tank: this morning's wake-up (end of the night logged
+ * yesterday, else a manual awake timer started today) up to now — or to bedtime once tonight's night
+ * has started — minus naps (a nap in progress pauses it).
+ * Returns { wake, minutes, windows: [{ from, to, minutes, before: N | 'bedtime' | null, ongoing }],
+ * asleepSince, bedtime } or null when this morning's wake-up isn't known.
+ */
+export function daytimeAwake(sessions, now = new Date(), awakeFrom = null) {
+  const today = dateKey(now);
+  let wake = sessions
+    .filter((s) => s.type === 'night' && s.day === shiftDay(today, -1) && s.end <= now)
+    .reduce((w, s) => (!w || s.end > w ? s.end : w), null);
+  if (!(wake && dateKey(wake) === today) && awakeFrom && dateKey(awakeFrom) === today && awakeFrom <= now) wake = awakeFrom;
+  if (!wake || dateKey(wake) !== today) return null;
+  const bed = sessions.filter((s) => s.type === 'night' && s.day === today && s.start >= wake && s.start <= now)
+    .sort((a, b) => a.start - b.start)[0];
+  const until = bed ? bed.start : now;
+  const naps = sessions.filter((s) => s.type === 'nap' && s.day === today && s.start >= wake && s.start < until)
+    .sort((a, b) => a.start - b.start);
+  const windows = [];
+  let cursor = wake;
+  let asleepSince = bed ? bed.start : null;
+  naps.forEach((nap, i) => {
+    if (cursor) windows.push({ from: cursor, to: nap.start, before: i + 1, ongoing: false });
+    cursor = nap.end > now ? null : nap.end;
+    if (!cursor) asleepSince = nap.start;
+  });
+  if (cursor) windows.push({ from: cursor, to: until, before: bed ? 'bedtime' : null, ongoing: !bed });
+  for (const w of windows) w.minutes = Math.max(0, minutesBetween(w.from, w.to));
+  return { wake, minutes: sum(windows.map((w) => w.minutes)), windows, asleepSince, bedtime: bed?.start ?? null };
+}
+
+/**
  * Last night's sleep for the tank card: the night logged under yesterday's date
  * (bedtime yesterday evening → wake-up this morning). Wakings are the gaps between its stretches.
  * Returns { bedtime, wake, sleptMinutes, wakings: [{ from, to, minutes }], awakeMinutes } or null.

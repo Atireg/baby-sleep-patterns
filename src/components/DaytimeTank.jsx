@@ -4,15 +4,10 @@ import { formatDuration, formatTimer, hhmm, ordinal } from '../lib/format.js';
 import { TARGET_CHOICES } from '../lib/wakeTargets.js';
 import { minutesBetween } from '../lib/time.js';
 import { useNow } from '../hooks/useNow.js';
+import Tank from './Tank.jsx';
 
 const TARGET_OPTIONS = Array.from({ length: 17 }, (_, i) => 60 + i * 15); // 1h … 5h
 
-
-const W = 132;
-const H = 210;
-const R = 22;
-
-/** Today's naps filling a tank whose capacity is the daytime-sleep target. */
 /** The parents' target wake window before each nap and before bedtime ("—" = none). */
 function WakeTargets({ targets, napRows, onChange }) {
   const keys = [...Array.from({ length: napRows }, (_, i) => i + 1), 'bedtime'];
@@ -36,6 +31,7 @@ function WakeTargets({ targets, napRows, onChange }) {
   );
 }
 
+/** Today's naps filling a tank whose capacity is the daytime-sleep target. */
 export default function DaytimeTank({ sessions, autoTarget, napTarget = null, onNapTarget, wakeTargets, napRows = 3, onWakeTarget }) {
   const [napping, setNapping] = useState(false);
   // Every second while a nap is in progress (live nap time), otherwise every minute.
@@ -51,8 +47,6 @@ export default function DaytimeTank({ sessions, autoTarget, napTarget = null, on
     onNapTarget(e.target.value === 'auto' ? null : Number(e.target.value));
   };
 
-  const level = Math.min(1, tank.fill);
-  const liquidTop = H * (1 - level);
   const pct = Math.round(tank.fill * 100);
   const full = tank.fill >= 1;
 
@@ -64,37 +58,8 @@ export default function DaytimeTank({ sessions, autoTarget, napTarget = null, on
       </div>
 
       <div className="tank-body">
-        <svg className="tank" width={W + 40} height={H + 16} viewBox={`-28 -8 ${W + 40} ${H + 16}`} role="img"
-          aria-label={`Daytime sleep ${formatDuration(tank.napMinutes)} of ${formatDuration(tank.target)}, ${pct}%`}>
-          <defs>
-            <clipPath id="tank-clip"><rect width={W} height={H} rx={R} /></clipPath>
-            <linearGradient id="tank-liquid" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="var(--series-2)" stopOpacity="0.75" />
-              <stop offset="1" stopColor="var(--series-2)" />
-            </linearGradient>
-          </defs>
-          <rect width={W} height={H} rx={R} className="tank-glass" />
-          <g clipPath="url(#tank-clip)">
-            <g className="tank-liquid" style={{ transform: `translateY(${liquidTop}px)` }}>
-              {level > 0 && (
-                <>
-                  <path className="tank-wave" d={wavePath(W)} fill="url(#tank-liquid)" />
-                  <rect y={6} width={W * 3} x={-W} height={H} fill="url(#tank-liquid)" />
-                </>
-              )}
-            </g>
-          </g>
-          {[0.25, 0.5, 0.75].map((f) => (
-            <g key={f}>
-              <line x1={-6} x2={0} y1={H * (1 - f)} y2={H * (1 - f)} className="tank-tick" />
-              <text x={-10} y={H * (1 - f)} dy="0.32em" textAnchor="end" className="tank-tick-label">{f * 100}%</text>
-            </g>
-          ))}
-          <rect width={W} height={H} rx={R} className="tank-outline" />
-          <text x={W / 2} y={H / 2} dy="0.35em" textAnchor="middle" className={`tank-pct ${level > 0.55 ? 'on-liquid' : ''}`}>
-            {pct}%
-          </text>
-        </svg>
+        <Tank id="nap-tank" fill={tank.fill} color="var(--series-2)"
+          label={`Daytime sleep ${formatDuration(tank.napMinutes)} of ${formatDuration(tank.target)}, ${pct}%`} />
 
         <div className="tank-info">
           <div className="tank-big">
@@ -144,12 +109,4 @@ export default function DaytimeTank({ sessions, autoTarget, napTarget = null, on
       {onWakeTarget && <WakeTargets targets={wakeTargets} napRows={napRows} onChange={onWakeTarget} />}
     </section>
   );
-}
-
-// A gentle wave three tank-widths wide; CSS slides it sideways.
-function wavePath(w) {
-  const amp = 5;
-  let d = `M${-w},6`;
-  for (let x = -w; x < w * 2; x += w / 2) d += ` q${w / 8},${-amp} ${w / 4},0 t${w / 4},0`;
-  return `${d} V${H + 20} H${-w} Z`;
 }

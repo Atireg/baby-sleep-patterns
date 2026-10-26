@@ -15,6 +15,7 @@ import { useSleepLog } from './hooks/useSleepLog.js';
 import LiveTracker from './components/LiveTracker.jsx';
 import CloudBar from './components/CloudBar.jsx';
 import DaytimeTank from './components/DaytimeTank.jsx';
+import AwakeTank from './components/AwakeTank.jsx';
 import LastNightCard from './components/LastNightCard.jsx';
 import FileDrop from './components/FileDrop.jsx';
 import EntryForm from './components/EntryForm.jsx';
@@ -127,6 +128,7 @@ export default function App() {
     [days, nightDay],
   );
   const recentDetails = useMemo(() => recentDays.map((d) => dayDetails(d, sessions)), [recentDays, sessions]);
+  const awakeFromDate = useMemo(() => (live?.awakeFrom ? new Date(live.awakeFrom) : null), [live?.awakeFrom]);
   const awakeAvg = useMemo(() => mean(recentDetails.map((d) => d.awakeMinutes).filter((v) => v != null)), [recentDetails]);
   const detailed = useMemo(() => hasDetails(sessions), [sessions]);
   const insights = useMemo(() => {
@@ -166,6 +168,9 @@ export default function App() {
           napRows={napRows}
           onWakeTarget={setWakeTarget}
         />
+      )}
+      {(sessions.length > 0 || live?.awakeFrom) && (
+        <AwakeTank sessions={tankSessions} wakeTargets={wakeTargets} awakeAvg={awakeAvg} awakeFrom={awakeFromDate} />
       )}
       {(sessions.length > 0 || live?.asleep) && (
         <LastNightCard
