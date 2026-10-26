@@ -1,4 +1,6 @@
-import { loadWakeTargets, loadNapTarget, saveLocalNapTarget, saveLocalWakeTargets, withWakeTarget } from '../lib/wakeTargets.js';
+import {
+  loadAwakeTarget, loadNapTarget, loadWakeTargets, saveLocalAwakeTarget, saveLocalNapTarget, saveLocalWakeTargets, withWakeTarget,
+} from '../lib/wakeTargets.js';
 import { useSyncedSetting } from './useSyncedSetting.js';
 
 const WAKE_TARGETS = {
@@ -7,6 +9,9 @@ const WAKE_TARGETS = {
 };
 const NAP_TARGET = {
   name: 'napTarget', field: 'minutes', load: loadNapTarget, saveLocal: saveLocalNapTarget, isSet: (m) => m > 0,
+};
+const AWAKE_TARGET = {
+  name: 'awakeTarget', field: 'minutes', load: loadAwakeTarget, saveLocal: saveLocalAwakeTarget, isSet: (m) => m > 0,
 };
 
 /** Target wake windows, shared between devices when signed in. Returns [targets, setTarget(key, minutes)]. */
@@ -18,3 +23,6 @@ export function useWakeTargets(cloud, onError) {
 
 /** The tank's nap-time target in minutes (null = Auto), shared between devices when signed in. */
 export const useNapTarget = (cloud, onError) => useSyncedSetting(cloud, onError, NAP_TARGET);
+
+/** The Awake today tank's awake-time target in minutes (null = Auto), shared between devices when signed in. */
+export const useAwakeTarget = (cloud, onError) => useSyncedSetting(cloud, onError, AWAKE_TARGET);

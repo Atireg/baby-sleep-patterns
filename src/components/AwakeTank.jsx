@@ -5,6 +5,8 @@ import { targetsTotal } from '../lib/wakeTargets.js';
 import { useNow } from '../hooks/useNow.js';
 import Tank from './Tank.jsx';
 
+const TARGET_OPTIONS = Array.from({ length: 41 }, (_, i) => 6 * 60 + i * 15); // 6h … 16h
+
 const windowLabel = (w) => (w.before === 'bedtime' ? 'Before bed' : w.before ? `Before ${ordinal(w.before)} nap` : 'Now');
 
 /**
@@ -12,7 +14,7 @@ const windowLabel = (w) => (w.before === 'bedtime' ? 'Before bed' : w.before ? `
  * (else the 5-day average awake time). Ticks every second while she's awake.
  * awakeFrom: a manually started awake timer (Date), used when this morning's wake-up isn't logged.
  */
-export default function AwakeTank({ sessions, wakeTargets, awakeAvg = null, awakeFrom = null }) {
+export default function AwakeTank({ sessions, wakeTargets, awakeAvg = null, awakeFrom = null, awakeTarget = null, onAwakeTarget }) {
   const [awake, setAwake] = useState(true);
   const now = useNow(awake ? 1000 : 60000);
   const day = useMemo(() => daytimeAwake(sessions, now, awakeFrom), [sessions, now, awakeFrom]);
@@ -20,13 +22,29 @@ export default function AwakeTank({ sessions, wakeTargets, awakeAvg = null, awak
   useEffect(() => setAwake(isAwake), [isAwake]);
 
   const fromTargets = day ? targetsTotal(wakeTargets, day.windows.filter((w) => typeof w.before === 'number').length) : null;
-  const target = fromTargets ?? (awakeAvg > 0 ? Math.round(awakeAvg) : null);
+  const auto = fromTargets ?? (awakeAvg > 0 ? Math.round(awakeAvg) : null);
+  const target = awakeTarget ?? auto;
+  const basis = awakeTarget ? 'Your awake-time target'
+    : fromTargets ? 'Your target wake windows added up'
+      : auto ? '5-day average awake time' : 'No target wake windows or recent days yet';
+  const targetPicker = (
+    <label className="tank-target">
+      <span>Awake-time target</span>
+      <select value={awakeTarget ?? 'auto'} onChange={(e) => onAwakeTarget(e.target.value === 'auto' ? null : Number(e.target.value))}>
+        <option value="auto">
+          Auto{auto ? ` – ${fromTargets ? 'target wake windows' : '5-day average'} (${formatDuration(auto)})` : ''}
+        </option>
+        {TARGET_OPTIONS.map((m) => <option key={m} value={m}>{formatDuration(m)}</option>)}
+      </select>
+    </label>
+  );
 
   if (!day) {
     return (
       <section className="card tank-card awake-tank" aria-label="Awake today">
         <h2>Awake today</h2>
         <p className="subtitle">Log this morning’s wake-up (when last night ended) to start today’s awake tank.</p>
+        {onAwakeTarget && targetPicker}
       </section>
     );
   }
@@ -46,9 +64,7 @@ export default function AwakeTank({ sessions, wakeTargets, awakeAvg = null, awak
             <strong>{formatDuration(day.minutes)}</strong>
             {target && <span> of {formatDuration(target)}</span>}
           </div>
-          <p className="muted tank-basis">
-            {fromTargets ? 'Your target wake windows added up' : target ? '5-day average awake time' : 'No target wake windows or recent days yet'}
-          </p>
+          <p className="muted tank-basis">{basis}</p>
           {day.bedtime ? (
             <p className="tank-status full">Day done · bedtime {hhmm(day.bedtime)}</p>
           ) : target && (
@@ -79,6 +95,7 @@ export default function AwakeTank({ sessions, wakeTargets, awakeAvg = null, awak
             ))}
           </ul>
           {!ongoing && !day.bedtime && <p className="muted tank-basis">Paused while she naps.</p>}
+          {onAwakeTarget && targetPicker}
         </div>
       </div>
     </section>
