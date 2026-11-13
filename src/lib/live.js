@@ -1,9 +1,9 @@
 // The sleep currently being tracked live ("Now" card): settling → asleep → woke up.
 // Shape: { type: 'nap'|'night', settle: ISO|null, asleep: ISO|null, method: string }
 import { countsAsSleep, inferType } from './sleepData.js';
-import { checkWakings, entriesToSessions, newId, toYesNo } from './entries.js';
+import { checkWakings, entriesToSessions, entryZone, newId, toYesNo } from './entries.js';
 import { readStored, writeStored } from './storage.js';
-import { MS_HOUR, MS_MIN, atOrAfter, clockMinutes, dateKey, hhmm, minutesBetween } from './time.js';
+import { MS_HOUR, MS_MIN, atOrAfter, clockIn, clockMinutes, dateKey, hhmm, localZone, minutesBetween } from './time.js';
 
 const LOCAL_KEY = 'baby-sleep-live-v1';
 /** Longer than this can't be one sleep (or one awake stretch); used to catch mistyped times. */
@@ -67,6 +67,9 @@ export function liveToEntry(live, woke, extra = {}) {
       notes: (extra.notes || '').trim(),
       wakings: checked.wakings,
       extended: live.type === 'nap' ? toYesNo(extra.extended) : null,
+      // Times above are this phone's clock; if it changed time zone during the sleep, both ends
+      // were still taken from the real moments, so the length is right.
+      tz: localZone(),
     },
   };
 }
@@ -173,10 +176,11 @@ export function editAwakeSince(entries, since, newTime, now = new Date()) {
   }
   if (newTime <= last.start) return { error: `She fell asleep at ${hhmm(last.start)} — the wake-up time must be after that.` };
   if (newTime - last.start > MAX_SPAN) return { error: 'That would be a sleep of more than 16 hours — check the time.' };
-  const woke = hhmm(newTime);
+  // In the clock the entry was logged in (it may differ from this phone's, e.g. after a trip).
+  const woke = clockIn(newTime, entryZone(last.entry));
   if (woke === last.entry.asleep) return { error: 'Woke up can’t be the same time she fell asleep.' };
   // Night wakings that would now fall after the wake-up are dropped.
   // (Stretch i + 1 starts when waking i ends.)
   const wakings = (last.entry.wakings ?? []).filter((_, i) => last.pieces[i + 1]?.start < newTime);
-  return { entry: { ...last.entry, woke, wakings } };
+  return { entry: { ...last.entry, woke, wakings, tz: entryZone(last.entry) } };
 }

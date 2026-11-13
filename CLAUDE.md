@@ -25,7 +25,8 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
 - Auth: Google sign-in; `atireg.github.io` must be in Authentication → Authorized domains.
 - Firestore: doc `live/current` = `{ live }`, the sleep being tracked right now, or just `{ awakeFrom }` for a manually started
   awake timer (shared between devices; deleted when a sleep is saved).
-- Firestore: family settings `settings/wakeTargets` = `{ targets }`, `settings/napTarget` and `settings/awakeTarget` = `{ minutes }` (null = Auto);
+- Firestore: family settings `settings/wakeTargets` = `{ targets }`, `settings/napTarget` and `settings/awakeTarget` = `{ minutes }` (null = Auto),
+  `settings/homeZone` = `{ zone }` (see Time zones);
   never deleted, so a cleared setting stays cleared (`watchSetting` gives undefined only when never saved).
 - Firestore: collection `months`, one doc per month (`2026-10`) with `{ entries: [...] }` (same entry shape as the form) —
   ~12 reads per year of data. Writes are per-month transactions; duplicates skipped by `entryKey` (day|type|asleep).
@@ -33,7 +34,7 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
 - SDK `firebase@12.19.0`, loaded lazily with a persistent local cache (offline + fewer reads).
 - **Backups**: private repo `Atireg/baby-sleep-backups` (never copy its data here — this repo is public). GitHub Actions
   there: *Backup* nightly 01:17 UTC + manual → `data/months/*.json`, `data/settings.json`, `data/live.json`,
-  `data/sleep-log.csv` (same columns as `EXPORT_HEADERS`, readable by the site), committed per night; fails (email) if entries
+  `data/sleep-log.csv` (same columns as `EXPORT_HEADERS` incl. Time zone, readable by the site), committed per night; fails (email) if entries
   drop to ≤ half. *Restore* (manual, dry run by default, optional backup date) only adds missing entries (by `entryKey`) and
   missing settings, never deletes. Uses firebase-admin with secret `FIREBASE_SERVICE_ACCOUNT` (service-account key, in that
   repo's secrets only). If the Firestore layout or entry shape changes, update its `scripts/` too.
@@ -45,7 +46,8 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
 ## Layout
 - `static/` – Vite `publicDir` (served at site root): `sample-sleep-log.xlsx` (demo data + template, 5→4→3 naps), `favicon.svg`.
 - `src/lib/time.js` – shared date/clock maths (local time): `MS_MIN/HOUR/DAY`, `pad`, `dateKey`, `keyToDate`, `shiftDay`, `hhmm`,
-  `clockMinutes`, `clockSpan`, `minutesToClock`, `minutesBetween`, `atOrAfter`, `atClock`, `clockMinutesFrom`, `sum`, `mean`.
+  `clockMinutes`, `clockSpan`, `minutesToClock`, `minutesBetween`, `atOrAfter`, `atClock`, `clockMinutesFrom`, `sum`, `mean`,
+  and time zones: `localZone`, `atClock`/`atOrAfter` with an optional `tz`, `clockIn(date, tz)`, `sameZone` (aliases are one zone), `zoneCity`.
   Use these, don't re-inline them. **Daylight saving**: days can be 23 or 25 hours, so never build a moment as
   midnight + N × `MS_MIN`/`MS_DAY` — use `atClock`/`atOrAfter`/`setHours` (and `clockMinutesFrom` for minute-of-day positions).
   Durations are real elapsed time (the night the clocks go back is an hour longer); a waking in the repeated hour is read by its
@@ -63,8 +65,9 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
 - `src/lib/readWorkbook.js` – reads the first sheet via SheetJS (`xlsx`) and picks the parser by format.
 - `src/lib/entries.js` – sleeps entered on the site: validation (`makeEntry(values, id?)`, `checkWakings`), `replaceEntry` (edit by
   id, refuses duplicates), `entryToValues`, localStorage (`baby-sleep-entries-v1`), conversion, Excel export rows.
-  Entry shape: `{ id, day, type, settle, asleep, woke, method, mood, notes, wakings: [{ from, to, feed }], extended }` (HH:MM;
-  wakings nights only; `extended` = "Was the nap extended?" true/false/null, naps only; `toYesNo`).
+  Entry shape: `{ id, day, type, settle, asleep, woke, method, mood, notes, wakings: [{ from, to, feed }], extended, tz }` (HH:MM;
+  wakings nights only; `extended` = "Was the nap extended?" true/false/null, naps only; `toYesNo`; `tz` = IANA zone the clock
+  times are in, `entryZone(e)`; missing on older entries → the home zone via `setHomeZone`).
 - `src/lib/cloud.js` – Firebase wrapper (sign-in, live `watchEntries`, `addEntries`, `updateEntry` (moves between month docs
   in one transaction), `deleteEntry`, `watchLive`/`setLive` (via `watchField`/`setField`), `watchSetting`/`saveSetting`, `describeError`);
   `src/lib/cloudData.js` – pure helpers (month grouping, merge/dedupe, `sessionsToEntries` for importing a file).
@@ -91,6 +94,15 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
   `loadAwakeTarget`/`saveLocalAwakeTarget` (`baby-sleep-awake-target`), null = Auto. All three sync through `src/hooks/useSyncedSetting.js` (`useWakeTargets`, `useNapTarget`, `useAwakeTarget` in `hooks/useWakeTargets.js`): signed in →
   Firestore `settings/*` (watched live, mirrored to the device; if the cloud has no value yet, the device's is uploaded),
   signed out → device only.
+- **Time zones** (trips abroad, user request): every saved entry records `tz` (`makeEntry`: kept when editing, else the device
+  zone; `liveToEntry`: device zone, ends taken from the real moments so lengths across a zone change are right). Entries are read
+  in their own zone (`entriesToRows` writes a `Time zone` column, the parser's optional `zone` column → `atClock`/`atOrAfter`/
+  `splitNight` in that zone), so sessions are real moments and everything is *shown* on the device's clock. Anything that writes
+  clock times back into an entry uses its zone (`clockIn(…, entryZone(e))`: `editAwakeSince`, Last night waking editor, file
+  import). Home zone: `hooks/useHomeZone.js` (`baby-sleep-home-zone`, first device's zone, synced as `settings/homeZone`), set in
+  App with `setHomeZone` before sessions are built. `TimeZoneNote` (under CloudBar) appears when recent entries or the home zone
+  differ from the phone's zone; the log list tags such entries "Berlin time", the form says which clock an edited entry uses.
+  `rowsToSessions` sorts by time before `annotateSessions`. Tests: `src/lib/tz.test.js` (runs as if in Buenos Aires).
 - `src/lib/autoUpdate.js` – prod only (`main.jsx`): when the page regains focus/visibility (max once a minute) it fetches
   `index.html` and reloads if the `assets/index-*.js` name changed (skipped while typing in a field). Phones keep the tab open
   for days, so fixes would otherwise not load.
@@ -99,7 +111,7 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
 - `src/hooks/useSleepLog.js` – all log/cloud/live state and actions (local vs Firebase, `addEntry`/`editEntry`/`removeEntry` with
   `syncLive`, `editAwake`, sign-in, `run` for busy/error handling); `App.jsx` only derives stats and lays out the cards.
   `src/hooks/useNow.js` – `useNow(intervalMs)` ticking clock.
-- `src/components/` – `PlotlyChart` (lazy-loads Plotly, card wrapper), `DailyTotalsChart`, `NapCountChart`, `WeeklyLineChart`,
+- `src/components/` – `TimeZoneNote`, `PlotlyChart` (lazy-loads Plotly, card wrapper), `DailyTotalsChart`, `NapCountChart`, `WeeklyLineChart`,
   `MethodShareChart`, `SleepTimeline`, `RecentDaysTable`, `FileDrop`, `EntryForm`, `CloudBar` (sign-in status),
   `DaytimeTank` and `AwakeTank` (both draw the shared custom-SVG `Tank`, not Plotly), `LastNightCard`, `WakeWindowsCard`, `LiveTracker` ("Now" card: states + actions) with
   `NowForecasts` (each forecast line as a component, recomputed per minute), `LiveEditPanel` ("Edit times or type").

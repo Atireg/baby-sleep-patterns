@@ -1,7 +1,7 @@
 // Pure helpers that turn spreadsheet rows into sleep sessions and daily stats.
 // Kept free of the xlsx dependency so they are easy to unit test.
 
-import { MS_DAY, MS_HOUR, MS_MIN, atClock, atOrAfter, hhmm, pad } from './time.js';
+import { MS_DAY, MS_HOUR, MS_MIN, atClock, atOrAfter, clockIn, pad } from './time.js';
 
 // Header aliases (lower-cased, punctuation stripped) -> canonical column.
 const HEADER_ALIASES = {
@@ -15,6 +15,7 @@ const HEADER_ALIASES = {
   mood: ['moodafter', 'mood', 'moodafterwaking'],
   wakings: ['nightwakings', 'nightwaking', 'wakings', 'awakeatnight'],
   extended: ['napextended', 'extended', 'resettled', 'doprispivane'],
+  zone: ['timezone', 'tz', 'zone'],
 };
 
 const normalizeHeader = (h) => String(h ?? '').toLowerCase().replace(/[^a-z]/g, '');
@@ -135,12 +136,12 @@ export function splitNight(session, ranges) {
   const pieces = [];
   let cursor = session.start;
   for (const [from, to, asSleep] of ranges) {
-    let a = atOrAfter(session.start, from);
-    const z = atOrAfter(a, to);
+    let a = atOrAfter(session.start, from, session.tz);
+    const z = atOrAfter(a, to, session.tz);
     // In the hour that repeats when the clocks go back, take the second "from" so the waking lasts
     // as long as its clock times say (02:30–03:10 = 40m, not 1h 40m).
     const repeat = new Date(a.getTime() + MS_HOUR);
-    if (repeat < z && hhmm(repeat) === hhmm(a)) a = repeat;
+    if (repeat < z && clockIn(repeat, session.tz) === clockIn(a, session.tz)) a = repeat;
     if (a <= cursor || z >= session.end) continue;
     pieces.push({ ...session, start: cursor, end: a, credit: asSleep ? Math.round((z - a) / MS_MIN) : 0 });
     cursor = z;
@@ -186,9 +187,11 @@ export function rowsToSessions(rows) {
     // A row's date is the evening the night began, so night sleep starting
     // in the small hours (e.g. 02:10 after a feed) falls on the next calendar day.
     const nextDay = type === 'night' && start < 12 * 60 ? 1 : 0;
-    const startAt = atClock(date.y, date.m, date.d + nextDay, start);
+    // Optional "Time zone" column: the clock the times were written in (e.g. on a trip abroad).
+    const tz = cols.zone !== undefined ? String(row[cols.zone] ?? '').trim() || undefined : undefined;
+    const startAt = atClock(date.y, date.m, date.d + nextDay, start, tz);
     // End before start means the sleep ran past midnight.
-    const endAt = atClock(date.y, date.m, date.d + nextDay, end <= start ? end + 1440 : end);
+    const endAt = atClock(date.y, date.m, date.d + nextDay, end <= start ? end + 1440 : end, tz);
 
     const session = {
       day: dayKey(date),
@@ -196,6 +199,7 @@ export function rowsToSessions(rows) {
       end: endAt,
       minutes: Math.round((endAt - startAt) / MS_MIN),
       type,
+      ...(tz ? { tz } : {}),
       notes: cols.notes !== undefined ? String(row[cols.notes] ?? '') : '',
       ...optionalDetails(row, cols, start),
     };
@@ -209,9 +213,9 @@ export function rowsToSessions(rows) {
       sessions.push(session);
     }
   });
-  annotateSessions(sessions);
-
+  // In time order (sleeps logged in different time zones can interleave), then annotated.
   sessions.sort((a, b) => a.start - b.start);
+  annotateSessions(sessions);
   return { sessions, errors };
 }
 

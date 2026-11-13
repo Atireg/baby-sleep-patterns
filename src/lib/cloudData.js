@@ -2,7 +2,7 @@
 // Firestore layout: collection "months", one document per month ("2026-10") holding
 // { entries: [entry, ...] } — one read per month keeps usage far inside the free quota.
 import { methodLabel, moodLabel } from './insights.js';
-import { MS_MIN, hhmm } from './time.js';
+import { MS_MIN, clockIn, localZone } from './time.js';
 
 export const MONTHS = 'months';
 
@@ -45,17 +45,19 @@ const importId = () => `imp-${Date.now().toString(36)}-${(counter++).toString(36
 export function sessionsToEntries(sessions) {
   return sessions.map((s) => {
     const settleStart = s.settleMinutes != null ? new Date(s.start.getTime() - s.settleMinutes * MS_MIN) : null;
+    const tz = s.tz || localZone();
     return {
       id: importId(),
       day: s.day,
       type: s.type,
-      settle: settleStart ? hhmm(settleStart) : '',
-      asleep: hhmm(s.start),
-      woke: hhmm(s.end),
+      settle: settleStart ? clockIn(settleStart, tz) : '',
+      asleep: clockIn(s.start, tz),
+      woke: clockIn(s.end, tz),
       method: s.method ? methodLabel(s.method) : '',
       extended: s.type === 'nap' && s.extended != null ? s.extended : null,
       mood: s.mood ? moodLabel(s.mood) : '',
       notes: s.notes ?? '',
+      tz,
     };
   });
 }

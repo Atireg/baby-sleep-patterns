@@ -370,7 +370,7 @@ describe('nap extended', () => {
     const n = makeEntry({ day: '2026-10-13', type: 'night', asleep: '19:30', woke: '06:30', extended: 'yes' }).entry;
     expect([a.extended, b.extended, c.extended, n.extended]).toEqual([true, false, null, null]);
     expect(entryToValues(a).extended).toBe('yes');
-    expect(entriesToRows([a, b, c]).slice(1).map((r) => r.at(-1))).toEqual(['Yes', 'No', '']);
+    expect(entriesToRows([a, b, c]).slice(1).map((r) => r.at(-2))).toEqual(['Yes', 'No', '']);
     const sessions = entriesToSessions([a, b, c, n]);
     expect(sessions.filter((s) => s.type === 'nap').map((s) => s.extended)).toEqual([true, false, undefined]);
     const day = dailyStats(sessions)[0];

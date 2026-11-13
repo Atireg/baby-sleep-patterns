@@ -2,15 +2,17 @@ import { useMemo, useState } from 'react';
 import { readWorkbook } from './lib/readWorkbook.js';
 import { dailyStats, summary } from './lib/sleepData.js';
 import { hhmm } from './lib/format.js';
-import { MS_DAY, clockSpan, dateKey, mean } from './lib/time.js';
+import { MS_DAY, clockSpan, dateKey, mean, shiftDay } from './lib/time.js';
 import {
   WAKE_WINDOW_SERIES, dayDetails, napsDoneToday, friendsWindows, lastNight, hasDetails, methodsByWeek, settlingByWeek, wakeWindowsByWeek,
 } from './lib/insights.js';
-import { entriesToSessions, mergeNight } from './lib/entries.js';
+import { entriesToSessions, mergeNight, setHomeZone } from './lib/entries.js';
 import { entryKey, sessionsToEntries } from './lib/cloudData.js';
 import { addEntries } from './lib/cloud.js';
 import { sleepDay } from './lib/live.js';
 import { useAwakeTarget, useNapTarget, useWakeTargets } from './hooks/useWakeTargets.js';
+import { useHomeZone } from './hooks/useHomeZone.js';
+import TimeZoneNote from './components/TimeZoneNote.jsx';
 import { useSleepLog } from './hooks/useSleepLog.js';
 import LiveTracker from './components/LiveTracker.jsx';
 import CloudBar from './components/CloudBar.jsx';
@@ -44,6 +46,9 @@ export default function App() {
     live, changeLive, saveLiveEntry, onSignIn, onSignOut, moveLocal,
     addEntry, changeEntry, editEntry, removeEntry, editAwake, clearLocal,
   } = useSleepLog();
+  // Sleeps saved without a time zone are read in the home time zone (set before anything reads entries).
+  const [homeZone] = useHomeZone(cloud, setCloudError);
+  setHomeZone(homeZone);
   const importFile = () => run(async () => {
     const added = await addEntries(sessionsToEntries(data.sessions));
     setNotice(`Saved ${added} new sleep${added === 1 ? '' : 's'} from ${data.name} to the shared log${added < data.sessions.length ? ' (the rest were already there)' : ''}.`);
@@ -78,7 +83,7 @@ export default function App() {
     const keys = new Set(formEntries.map(entryKey));
     const fromFile = (data?.sessions ?? []).filter((s) => !keys.has(`${s.day}|${s.type}|${hhmm(s.start)}`));
     return [...fromFile, ...saved].sort((a, b) => a.start - b.start);
-  }, [data, formEntries]);
+  }, [data, formEntries, homeZone]);
   // A sleep in progress counts in the daytime tank (up to now) but not in the charts until it's saved.
   const tankSessions = useMemo(() => {
     if (!live?.asleep) return sessions;
@@ -157,6 +162,7 @@ export default function App() {
         onSignOut={onSignOut}
       />
       {notice && <p className="loaded" role="status">{notice}</p>}
+      <TimeZoneNote entries={formEntries} homeZone={homeZone} sinceDay={shiftDay(dateKey(new Date()), -7)} />
 
       <LiveTracker live={live} onChange={changeLive} onSave={saveLiveEntry} onEditAwake={editAwake} sessions={sessions} busy={busy} awakeAvg={awakeAvg} avgTotal={nightAvgTotal} wakeTargets={wakeTargets} />
       {(sessions.length > 0 || live?.asleep) && (
