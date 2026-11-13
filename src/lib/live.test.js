@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { formatTimer } from './format.js';
 import { atTime, editAwakeSince, liveAfterLogEdit, liveToEntry, resolveWakings, sleepDay, typeAt } from './live.js';
-import { entriesToSessions } from './entries.js';
+import { entriesToSessions, entryZone } from './entries.js';
 
 describe('live tracking', () => {
   it('picks nap/night and the log date', () => {
@@ -110,7 +110,7 @@ describe('editing "awake since"', () => {
     wakings: [{ from: '01:00', to: '01:30', feed: true }, { from: '06:00', to: '06:10', feed: false }], extended: null };
   const now = at(15, 11, 0);
   it('changes the wake-up time of the logged sleep the timer runs from', () => {
-    expect(editAwakeSince([night, nap], at(15, 10, 0), at(15, 10, 20), now)).toEqual({ entry: { ...nap, woke: '10:20', wakings: [] } });
+    expect(editAwakeSince([night, nap], at(15, 10, 0), at(15, 10, 20), now)).toEqual({ entry: { ...nap, woke: '10:20', wakings: [], tz: entryZone(nap) } });
   });
   it('drops night wakings after the new wake-up', () => {
     const res = editAwakeSince([night], at(15, 6, 30), at(15, 6, 5), at(15, 8, 0));

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { formatDay, formatDuration, hhmm } from '../lib/format.js';
-import { dateKey } from '../lib/time.js';
+import { clockIn, dateKey } from '../lib/time.js';
+import { entryZone } from '../lib/entries.js';
 import WakingRows from './WakingRows.jsx';
 
 /**
@@ -30,8 +31,12 @@ export default function LastNightCard({ night, entry, parts = 1, onSaveNotes, on
   const pct = (t) => `${((t - night.bedtime) / span) * 100}%`;
   const width = (a, b) => `${((b - a) / span) * 100}%`;
   // Every waking shown on the card (gaps between the night's stretches), however the night was saved.
+  const zone = entry ? entryZone(entry) : undefined;
   const startWakingEdit = () => setWakingEdit({
-    wakings: night.wakings.map((w) => ({ from: hhmm(w.from), to: hhmm(w.to), feed: Boolean(w.feed) })), error: null, saving: false,
+    // In the clock the night was logged in (it may differ from this phone's, e.g. after a trip).
+    wakings: night.wakings.map((w) => ({ from: clockIn(w.from, zone), to: clockIn(w.to, zone), feed: Boolean(w.feed) })),
+    error: null,
+    saving: false,
   });
   const saveWakings = async () => {
     setWakingEdit((x) => ({ ...x, saving: true, error: null }));

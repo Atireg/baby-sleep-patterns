@@ -1,11 +1,18 @@
 // Sleeps entered by hand on the website. Stored in this browser only (localStorage).
 import { rowsToSessions } from './sleepData.js';
-import { clockSpan } from './time.js';
+import { clockSpan, localZone } from './time.js';
 import { readStored, writeStored } from './storage.js';
 
 const STORAGE_KEY = 'baby-sleep-entries-v1';
 
-export const EXPORT_HEADERS = ['Date', 'Settling start', 'Fell asleep', 'Woke up', 'Type', 'How fell asleep', 'Mood after', 'Notes', 'Night wakings', 'Nap extended'];
+export const EXPORT_HEADERS = ['Date', 'Settling start', 'Fell asleep', 'Woke up', 'Type', 'How fell asleep', 'Mood after', 'Notes', 'Night wakings', 'Nap extended', 'Time zone'];
+
+// Each entry's times are clock times in its `tz` (the time zone it was logged in). Entries saved before
+// time zones were recorded have none: they are read in the family's home time zone (set by the app).
+let homeZone = null;
+export const setHomeZone = (tz) => { homeZone = tz || null; };
+/** The time zone an entry's clock times are in. */
+export const entryZone = (e) => e.tz || homeZone || localZone();
 
 export function loadEntries() {
   const stored = readStored(STORAGE_KEY, []);
@@ -44,6 +51,8 @@ export function makeEntry(values, id = newId()) {
       wakings: checked.wakings,
       // Naps only: was the nap extended (re-settled to sleep longer)? true / false / null = not answered.
       extended: type === 'nap' ? toYesNo(values.extended) : null,
+      // The clock the times are in: kept when editing, else this device's time zone.
+      tz: values.tz || localZone(),
     },
   };
 }
@@ -80,6 +89,7 @@ export function entriesToRows(entries) {
     ...sorted.map((e) => [
       e.day, e.settle, e.asleep, e.woke, e.type === 'night' ? 'Night' : 'Nap', e.method, e.mood, e.notes, formatWakings(e.wakings),
       e.type === 'nap' && e.extended != null ? (e.extended ? 'Yes' : 'No') : '',
+      entryZone(e),
     ]),
   ];
 }
@@ -112,6 +122,7 @@ export const entryToValues = (e) => ({
   method: e.method || '', mood: e.mood || '', notes: e.notes || '',
   wakings: (e.wakings ?? []).map((w) => ({ ...w })),
   extended: e.extended === true ? 'yes' : e.extended === false ? 'no' : '',
+  tz: entryZone(e),
 });
 
 /**

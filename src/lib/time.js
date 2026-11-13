@@ -22,12 +22,80 @@ export function shiftDay(day, n) {
   return dateKey(date);
 }
 
+/** The time zone this device is set to (IANA name, e.g. "Europe/Berlin"). */
+export const localZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+const canonical = new Map();
+/** The standard name of a time zone ("America/Argentina/Buenos_Aires" and "America/Buenos_Aires" are one zone), or null. */
+function canonicalZone(tz) {
+  if (!tz) return null;
+  if (!canonical.has(tz)) {
+    try {
+      canonical.set(tz, new Intl.DateTimeFormat('en-US', { timeZone: tz }).resolvedOptions().timeZone);
+    } catch {
+      canonical.set(tz, null); // unknown name
+    }
+  }
+  return canonical.get(tz);
+}
+
+/** Whether two time zone names mean the same zone. */
+export const sameZone = (a, b) => canonicalZone(a) === canonicalZone(b);
+
+/** A time zone other than this device's, or null (no zone, this device's, or an unknown name). */
+function otherZone(tz) {
+  const zone = canonicalZone(tz);
+  return zone && zone !== canonicalZone(localZone()) ? zone : null;
+}
+
+const formats = new Map();
+function zoneFormat(tz) {
+  if (!formats.has(tz)) {
+    formats.set(tz, new Intl.DateTimeFormat('en-US', {
+      timeZone: tz, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric',
+    }));
+  }
+  return formats.get(tz);
+}
+
+/** What a clock in time zone `tz` shows at `date`: { y, m (0-based), d, h, min }. */
+function partsIn(date, tz) {
+  const p = Object.fromEntries(zoneFormat(tz).formatToParts(date).map((x) => [x.type, Number(x.value)]));
+  return { y: p.year, m: p.month - 1, d: p.day, h: p.hour % 24, min: p.minute, s: p.second };
+}
+
+/** How far the clock in `tz` is ahead of UTC at `ms` (in ms). */
+function offsetAt(ms, tz) {
+  const p = partsIn(new Date(ms), tz);
+  return Date.UTC(p.y, p.m, p.d, p.h, p.min, p.s) - Math.floor(ms / 1000) * 1000;
+}
+
 /**
  * The moment the clock shows `minutes` after midnight on date y-m-d (month 0-based; minutes past 1440
- * fall on the next day). Built from the calendar, not by adding minutes to midnight, so it stays right
- * on the days the clocks change (23 or 25 hours long).
+ * fall on the next day), on this device's clock or, given `tz`, on that time zone's clock. Built from
+ * the calendar, not by adding minutes to midnight, so it stays right on the days the clocks change
+ * (23 or 25 hours long).
  */
-export const atClock = (y, m, d, minutes) => new Date(y, m, d, 0, minutes);
+export function atClock(y, m, d, minutes, tz) {
+  const zone = otherZone(tz);
+  if (!zone) return new Date(y, m, d, 0, minutes);
+  const wall = Date.UTC(y, m, d, 0, minutes);
+  let t = wall - offsetAt(wall, zone);
+  const again = wall - offsetAt(t, zone); // the offset can differ by then (daylight saving)
+  if (again !== t) t = again;
+  return new Date(t);
+}
+
+/** "HH:MM" that a clock shows at `date`: this device's clock, or the clock in time zone `tz`. */
+export function clockIn(date, tz) {
+  const zone = otherZone(tz);
+  if (!zone) return hhmm(date);
+  const p = partsIn(date, zone);
+  return `${pad(p.h)}:${pad(p.min)}`;
+}
+
+/** "Buenos Aires" for "America/Argentina/Buenos_Aires": a short name for a time zone. */
+export const zoneCity = (tz) => String(tz ?? '').split('/').pop().replace(/_/g, ' ');
 
 /**
  * What `date`'s clock shows, in minutes after the midnight that starts `day` ("YYYY-MM-DD"): negative
@@ -57,8 +125,17 @@ export const clockSpan = (from, to) => (clockMinutes(to) - clockMinutes(from) + 
 /** Whole minutes from `a` to `b` (Dates or timestamps). */
 export const minutesBetween = (a, b) => Math.round((b - a) / MS_MIN);
 
-/** The first moment at or after `after` whose clock shows `minutes` after midnight (within 24h). */
-export function atOrAfter(after, minutes) {
+/**
+ * The first moment at or after `after` whose clock shows `minutes` after midnight (within 24h):
+ * this device's clock, or the clock in time zone `tz`.
+ */
+export function atOrAfter(after, minutes, tz) {
+  const zone = otherZone(tz);
+  if (zone) {
+    const p = partsIn(after, zone);
+    const d = atClock(p.y, p.m, p.d, minutes, zone);
+    return d < after ? atClock(p.y, p.m, p.d + 1, minutes, zone) : d;
+  }
   const d = new Date(after);
   d.setHours(0, minutes, 0, 0);
   if (d < after) d.setDate(d.getDate() + 1);

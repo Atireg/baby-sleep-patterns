@@ -1,11 +1,11 @@
 import { useRef, useState } from 'react';
 import { utils, writeFile } from 'xlsx';
-import { entriesToRows, entriesToSessions, entryToValues, makeEntry } from '../lib/entries.js';
+import { entriesToRows, entriesToSessions, entryToValues, entryZone, makeEntry } from '../lib/entries.js';
 import { METHODS, MOODS } from '../lib/insights.js';
 import { formatDay, formatDuration } from '../lib/format.js';
 import { YesNoChips } from './Chips.jsx';
 import WakingRows from './WakingRows.jsx';
-import { dateKey, sum } from '../lib/time.js';
+import { dateKey, localZone, sameZone, sum, zoneCity } from '../lib/time.js';
 
 const today = () => dateKey(new Date());
 // Time asleep, as the charts count it: the whole span minus night wakings (short feeds still count as
@@ -142,6 +142,9 @@ export default function EntryForm({ entries, cloud, onAdd, onUpdate, onDelete, o
             {editing ? (saving ? 'Saving…' : 'Save changes') : 'Add entry'}
           </button>
           {editing && <button type="button" className="button ghost" onClick={stopEdit}>Cancel edit</button>}
+          {editing && values.tz && !sameZone(values.tz, localZone()) && (
+            <p className="muted entry-zone-hint">Times are in {zoneCity(values.tz)} time, as this sleep was logged.</p>
+          )}
           {error && <span className="error" role="alert">{error}</span>}
         </div>
       </form>
@@ -178,7 +181,10 @@ export default function EntryForm({ entries, cloud, onAdd, onUpdate, onDelete, o
               <li key={e.id} className={editing?.id === e.id ? 'being-edited' : ''}>
                 <span className={`pill ${e.type}`}>{e.type === 'night' ? 'Night' : 'Nap'}</span>
                 <span className="entry-day">{formatDay(e.day)}</span>
-                <span className="entry-time">{e.asleep}–{e.woke}</span>
+                <span className="entry-time">
+                  {e.asleep}–{e.woke}
+                  {!sameZone(entryZone(e), localZone()) && <small className="entry-zone"> {zoneCity(entryZone(e))} time</small>}
+                </span>
                 <span className="entry-dur">{formatDuration(duration(e))}</span>
                 <span className="entry-extra">
                   {[
