@@ -13,15 +13,25 @@ const plotlyDay = (day, offset) => {
   return `${dateKey(x)} ${pad(x.getHours())}:${pad(x.getMinutes())}`;
 };
 
-/** recent: { avgMinutes, from, to } — average total sleep over the last 5 days before today (optional). */
-export default function DailyTotalsChart({ days, recent }) {
+/**
+ * recent: { avgMinutes, from, to } — average total sleep over the last 5 days before today (optional).
+ * restDays: rest-mode days (Map) — shown, shaded, and left out of the rolling average.
+ */
+export default function DailyTotalsChart({ days, recent, restDays = null }) {
   const t = useChartTheme();
   const { data, layout } = useMemo(() => {
     const x = days.map((d) => d.day);
     // 7-day rolling average of total sleep (calendar days), broken where days are missing.
     // Today is still in progress, so it isn't part of the rolling average.
     const todayKey = dateKey(new Date());
-    const avg = breakGaps(x, rollingMean(days, (d) => d.totalMinutes).map((v, i) => (days[i].day === todayKey ? null : v)));
+    // Rest days are left out of it too.
+    const usual = days.filter((d) => d.day !== todayKey && !restDays?.has(d.day));
+    const rolling = new Map(rollingMean(usual, (d) => d.totalMinutes).map((v, i) => [usual[i].day, v]));
+    const avg = breakGaps(x, days.map((d) => rolling.get(d.day) ?? null));
+    const restShapes = days.filter((d) => restDays?.has(d.day)).map((d) => ({
+      type: 'rect', xref: 'x', yref: 'paper', layer: 'below', line: { width: 0 }, fillcolor: t.s4, opacity: 0.18,
+      x0: plotlyDay(d.day, -0.5), x1: plotlyDay(d.day, 0.5), y0: 0, y1: 1,
+    }));
     const bar = (key, name, color) => ({
       type: 'bar', name, x, y: days.map((d) => hours(d[key])),
       customdata: days.map((d) => formatDuration(d[key])),
@@ -44,9 +54,11 @@ export default function DailyTotalsChart({ days, recent }) {
         bargap: 0.2,
         xaxis: { type: 'date', rangeselector: rangeButtons(t), hoverformat: '%a %-d %b' },
         yaxis: { title: { text: 'Hours' }, ticksuffix: 'h' },
+        shapes: restShapes,
         ...(recent ? {
           // Shade the 5 days that the average covers and draw the average across the chart.
           shapes: [
+            ...restShapes,
             {
               type: 'rect', xref: 'x', yref: 'paper', layer: 'below', line: { width: 0 }, fillcolor: t.grid, opacity: 0.6,
               x0: plotlyDay(recent.from, -0.5), x1: plotlyDay(recent.to, 0.5), y0: 0, y1: 1,
@@ -64,7 +76,7 @@ export default function DailyTotalsChart({ days, recent }) {
         } : {}),
       }),
     };
-  }, [days, recent, t]);
+  }, [days, recent, t, restDays]);
 
   return (
     <PlotlyChart

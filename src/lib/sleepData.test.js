@@ -454,3 +454,28 @@ describe('nightBefore', () => {
     expect(nightBefore(entriesToSessions([entry]), '2026-10-13')).toBeNull();
   });
 });
+
+describe('rest mode', () => {
+  it('covers the days of each period (one still on runs to today) and keeps them out of the usual', async () => {
+    const { restDayMap, setRestDays, startRest, endRest, activeRest } = await import('./rest.js');
+    const { upcomingNap, upcomingWakeWindow } = await import('./insights.js');
+    let periods = startRest([], 'sick', '2026-11-11');
+    expect(activeRest(periods)).toMatchObject({ kind: 'sick', from: '2026-11-11', to: null });
+    expect([...restDayMap(periods, '2026-11-12').keys()]).toEqual(['2026-11-11', '2026-11-12']);
+    periods = endRest(periods, periods[0].id, '2026-11-12');
+    expect(activeRest(periods)).toBeNull();
+    expect([...restDayMap(periods, '2026-11-20').keys()]).toEqual(['2026-11-11', '2026-11-12']);
+
+    const rows = [['Date', 'Fell asleep', 'Woke up', 'Type']];
+    for (const d of ['2026-11-08', '2026-11-09', '2026-11-10']) rows.push([d, '09:00', '10:00', 'Nap'], [d, '19:00', '06:00', 'Night']);
+    // Sick days: short naps and late wake windows.
+    for (const d of ['2026-11-11', '2026-11-12']) rows.push([d, '11:00', '11:20', 'Nap'], [d, '19:00', '06:00', 'Night']);
+    const { sessions } = rowsToSessions(rows);
+    const now = new Date(2026, 10, 13, 7, 0);
+    expect(upcomingNap(sessions, now).avgMinutes).toBeCloseTo((60 + 20 + 20) / 3);
+    setRestDays(restDayMap(periods, '2026-11-13').keys());
+    expect(upcomingNap(sessions, now).avgMinutes).toBe(60);
+    expect(upcomingWakeWindow(sessions, now)).toMatchObject({ target: 1, avgMinutes: 180 });
+    setRestDays([]);
+  });
+});

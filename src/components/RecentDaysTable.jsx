@@ -1,4 +1,5 @@
 import { formatDay, formatDuration } from '../lib/format.js';
+import { restMark } from '../lib/rest.js';
 
 const dur = (m) => (m == null ? '–' : formatDuration(m));
 
@@ -12,7 +13,7 @@ const ROWS = [
 ];
 
 /** "Naps history": the naps of the last 5 days as a day-by-day table of actual numbers, newest day first. */
-export default function RecentDaysTable({ days, title }) {
+export default function RecentDaysTable({ days, title, restDays = null }) {
   const cols = [...days].reverse();
   return (
     <section className="card recent-days" aria-label={title}>
@@ -28,8 +29,8 @@ export default function RecentDaysTable({ days, title }) {
             <tr>
               <th scope="col"><span className="sr-only">Measure</span></th>
               {cols.map((d) => (
-                <th scope="col" key={d.day}>
-                  {formatDay(d.day, { weekday: 'short' })}
+                <th scope="col" key={d.day} className={restMark(restDays, d.day) ? 'rest-day' : ''}>
+                  {formatDay(d.day, { weekday: 'short' })}{restMark(restDays, d.day) && ` ${restMark(restDays, d.day)}`}
                   <small>{formatDay(d.day, { day: 'numeric', month: 'short' })}</small>
                 </th>
               ))}

@@ -10,7 +10,9 @@ import { entriesToSessions, mergeNight, setHomeZone } from './lib/entries.js';
 import { entryKey, sessionsToEntries } from './lib/cloudData.js';
 import { addEntries } from './lib/cloud.js';
 import { sleepDay } from './lib/live.js';
-import { useAwakeTarget, useNapTarget, useWakeTargets } from './hooks/useWakeTargets.js';
+import { useAwakeTarget, useNapTarget, useRestPeriods, useWakeTargets } from './hooks/useWakeTargets.js';
+import { restDayMap, setRestDays } from './lib/rest.js';
+import RestMode from './components/RestMode.jsx';
 import { useHomeZone } from './hooks/useHomeZone.js';
 import TimeZoneNote from './components/TimeZoneNote.jsx';
 import { useSleepLog } from './hooks/useSleepLog.js';
@@ -49,6 +51,12 @@ export default function App() {
   // Sleeps saved without a time zone are read in the home time zone (set before anything reads entries).
   const [homeZone] = useHomeZone(cloud, setCloudError);
   setHomeZone(homeZone);
+  // Rest mode (sick, vaccination, travel, …): those days are shown but left out of averages and forecasts.
+  const [restPeriods, setRestPeriods] = useRestPeriods(cloud, setCloudError);
+  const todayKey = dateKey(new Date());
+  const restDays = useMemo(() => restDayMap(restPeriods, todayKey), [restPeriods, todayKey]);
+  setRestDays(restDays.keys());
+  const restKey = [...restDays.keys()].join();
   const importFile = () => run(async () => {
     const added = await addEntries(sessionsToEntries(data.sessions));
     setNotice(`Saved ${added} new sleep${added === 1 ? '' : 's'} from ${data.name} to the shared log${added < data.sessions.length ? ' (the rest were already there)' : ''}.`);
@@ -83,7 +91,7 @@ export default function App() {
     const keys = new Set(formEntries.map(entryKey));
     const fromFile = (data?.sessions ?? []).filter((s) => !keys.has(`${s.day}|${s.type}|${hhmm(s.start)}`));
     return [...fromFile, ...saved].sort((a, b) => a.start - b.start);
-  }, [data, formEntries, homeZone]);
+  }, [data, formEntries, homeZone, restKey]); // restKey: forecasts below recompute when rest days change
   // A sleep in progress counts in the daytime tank (up to now) but not in the charts until it's saved.
   const tankSessions = useMemo(() => {
     if (!live?.asleep) return sessions;
@@ -94,16 +102,16 @@ export default function App() {
   const dayMeta = data?.days ?? [];
   const days = useMemo(() => dailyStats(sessions), [sessions]);
   // The summary tiles describe the last 5 days with data before today (today is still in progress).
-  const recentDays = useMemo(() => {
-    const today = dateKey(new Date());
-    return days.filter((d) => d.day < today).slice(-RECENT_DAYS);
-  }, [days]);
-  const stats = useMemo(() => summary(recentDays), [recentDays]);
+  const recentDays = useMemo(() => days.filter((d) => d.day < todayKey).slice(-RECENT_DAYS), [days, todayKey]);
+  // Averages use the last 5 days before today that weren't rest days.
+  const usualDays = useMemo(() => days.filter((d) => !restDays.has(d.day)), [days, restDays]);
+  const statDays = useMemo(() => usualDays.filter((d) => d.day < todayKey).slice(-RECENT_DAYS), [usualDays, todayKey]);
+  const stats = useMemo(() => summary(statDays), [statDays]);
   const recentKeys = useMemo(() => recentDays.map((d) => d.day), [recentDays]);
-  const friends = useMemo(() => friendsWindows(sessions, recentKeys), [sessions, recentKeys]);
+  const friends = useMemo(() => friendsWindows(sessions, statDays.map((d) => d.day)), [sessions, statDays]);
   const recentAvg = useMemo(
-    () => (stats && recentDays.length ? { avgMinutes: stats.avgTotal, from: recentDays[0].day, to: recentDays.at(-1).day } : null),
-    [stats, recentDays],
+    () => (stats && statDays.length ? { avgMinutes: stats.avgTotal, from: statDays[0].day, to: statDays.at(-1).day } : null),
+    [stats, statDays],
   );
   // Last night's summary for the tank card (recomputed when the date changes).
   const todayStamp = new Date().toDateString();
@@ -130,21 +138,25 @@ export default function App() {
   // (after midnight that night's own day, with only its naps, must not count).
   const nightDay = live?.asleep && live.type === 'night' ? sleepDay('night', new Date(live.asleep)) : null;
   const nightAvgTotal = useMemo(
-    () => (nightDay ? mean(days.filter((d) => d.day < nightDay).slice(-RECENT_DAYS).map((d) => d.totalMinutes)) : null),
-    [days, nightDay],
+    () => (nightDay ? mean(usualDays.filter((d) => d.day < nightDay).slice(-RECENT_DAYS).map((d) => d.totalMinutes)) : null),
+    [usualDays, nightDay],
   );
   const recentDetails = useMemo(() => recentDays.map((d) => dayDetails(d, sessions)), [recentDays, sessions]);
   const awakeFromDate = useMemo(() => (live?.awakeFrom ? new Date(live.awakeFrom) : null), [live?.awakeFrom]);
-  const awakeAvg = useMemo(() => mean(recentDetails.map((d) => d.awakeMinutes).filter((v) => v != null)), [recentDetails]);
+  const awakeAvg = useMemo(
+    () => mean(statDays.map((d) => dayDetails(d, sessions).awakeMinutes).filter((v) => v != null)),
+    [statDays, sessions],
+  );
   const detailed = useMemo(() => hasDetails(sessions), [sessions]);
   const insights = useMemo(() => {
     if (!detailed) return null;
+    const usual = sessions.filter((s) => !restDays.has(s.day));
     return {
-      settling: settlingByWeek(sessions),
-      wakeWindows: wakeWindowsByWeek(sessions),
-      methods: methodsByWeek(sessions),
+      settling: settlingByWeek(usual),
+      wakeWindows: wakeWindowsByWeek(usual),
+      methods: methodsByWeek(usual),
     };
-  }, [sessions, detailed]);
+  }, [sessions, detailed, restDays]);
 
   return (
     <main>
@@ -162,7 +174,8 @@ export default function App() {
         onSignOut={onSignOut}
       />
       {notice && <p className="loaded" role="status">{notice}</p>}
-      <TimeZoneNote entries={formEntries} homeZone={homeZone} sinceDay={shiftDay(dateKey(new Date()), -7)} />
+      <TimeZoneNote entries={formEntries} homeZone={homeZone} sinceDay={shiftDay(todayKey, -7)} />
+      <RestMode periods={restPeriods} onChange={setRestPeriods} />
 
       <LiveTracker live={live} onChange={changeLive} onSave={saveLiveEntry} onEditAwake={editAwake} sessions={sessions} busy={busy} awakeAvg={awakeAvg} avgTotal={nightAvgTotal} wakeTargets={wakeTargets} />
       {(sessions.length > 0 || live?.asleep) && (
@@ -195,9 +208,9 @@ export default function App() {
           }}
         />
       )}
-      {recentDays.length > 0 && <WakeWindowsCard sessions={sessions} dayKeys={recentKeys} details={recentDetails} />}
-      {recentDays.length > 0 && <RecentDaysTable title="💤 Naps history" days={recentDetails} />}
-      {recentDays.length > 0 && <SleepTimeline sessions={sessions} dayKeys={recentKeys} friends={friends} />}
+      {recentDays.length > 0 && <WakeWindowsCard sessions={sessions} dayKeys={recentKeys} details={recentDetails} restDays={restDays} />}
+      {recentDays.length > 0 && <RecentDaysTable title="💤 Naps history" days={recentDetails} restDays={restDays} />}
+      {recentDays.length > 0 && <SleepTimeline sessions={sessions} dayKeys={recentKeys} friends={friends} restDays={restDays} />}
 
       {SHOW_FILE_UPLOAD && <FileDrop onFile={onFile} onSample={onSample} />}
       {error && <p className="error" role="alert">{error}</p>}
@@ -244,8 +257,9 @@ export default function App() {
           <DailyTotalsChart
             days={days}
             recent={recentAvg}
+            restDays={restDays}
           />
-          <NapCountChart days={days} />
+          <NapCountChart days={usualDays} />
           {insights && (
             <>
               <WeeklyLineChart

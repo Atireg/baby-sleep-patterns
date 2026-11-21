@@ -1,6 +1,7 @@
 import {
   loadAwakeTarget, loadNapTarget, loadWakeTargets, saveLocalAwakeTarget, saveLocalNapTarget, saveLocalWakeTargets, withWakeTarget,
 } from '../lib/wakeTargets.js';
+import { loadRestPeriods, saveLocalRestPeriods } from '../lib/rest.js';
 import { useSyncedSetting } from './useSyncedSetting.js';
 
 const WAKE_TARGETS = {
@@ -26,3 +27,12 @@ export const useNapTarget = (cloud, onError) => useSyncedSetting(cloud, onError,
 
 /** The Awake today tank's awake-time target in minutes (null = Auto), shared between devices when signed in. */
 export const useAwakeTarget = (cloud, onError) => useSyncedSetting(cloud, onError, AWAKE_TARGET);
+
+const REST_PERIODS = {
+  name: 'restPeriods', field: 'periods', load: loadRestPeriods, saveLocal: saveLocalRestPeriods, isSet: (p) => p?.length > 0,
+};
+/** Rest-mode periods (sick, vaccination, travel, …), shared between devices when signed in. */
+export function useRestPeriods(cloud, onError) {
+  const [periods, setPeriods] = useSyncedSetting(cloud, onError, REST_PERIODS);
+  return [Array.isArray(periods) ? periods : [], setPeriods];
+}
