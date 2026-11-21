@@ -369,7 +369,9 @@ code { font-size: 0.85em; }
 .card { grid-template-columns: minmax(0, 1fr); }
 
 /* Time zones (trips abroad) */
-.zone-note { margin: 0; padding: 8px 12px; border-radius: 10px; font-size: 0.88rem; color: var(--text-secondary);
-  background: color-mix(in srgb, var(--series-1) 10%, var(--surface-1)); }
+.zone-note { margin: 0; justify-self: start; padding: 4px 12px; border-radius: 999px; font-size: 0.82rem; color: var(--text-secondary);
+  background: color-mix(in srgb, var(--series-1) 8%, var(--surface-1)); }
+.zone-note.converted { justify-self: stretch; padding: 8px 12px; border-radius: 10px; font-size: 0.88rem;
+  background: color-mix(in srgb, var(--series-1) 12%, var(--surface-1)); }
 .entry-zone { color: var(--text-muted); font-size: 0.75rem; white-space: nowrap; }
 .entry-zone-hint { flex-basis: 100%; margin: 0; font-size: 0.85rem; }

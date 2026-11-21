@@ -100,8 +100,8 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
   `splitNight` in that zone), so sessions are real moments and everything is *shown* on the device's clock. Anything that writes
   clock times back into an entry uses its zone (`clockIn(…, entryZone(e))`: `editAwakeSince`, Last night waking editor, file
   import). Home zone: `hooks/useHomeZone.js` (`baby-sleep-home-zone`, first device's zone, synced as `settings/homeZone`), set in
-  App with `setHomeZone` before sessions are built. `TimeZoneNote` (under CloudBar) appears when recent entries or the home zone
-  differ from the phone's zone; the log list tags such entries "Berlin time", the form says which clock an edited entry uses.
+  App with `setHomeZone` before sessions are built. `TimeZoneNote` (under CloudBar, user request: always shown) is a small tag "🌍 Times in
+  Berlin time · GMT+1" (the phone's zone); when recent entries or the home zone differ it grows into a note that they're converted; the log list tags such entries "Berlin time", the form says which clock an edited entry uses.
   `rowsToSessions` sorts by time before `annotateSessions`. Tests: `src/lib/tz.test.js` (runs as if in Buenos Aires).
 - `src/lib/autoUpdate.js` – prod only (`main.jsx`): when the page regains focus/visibility (max once a minute) it fetches
   `index.html` and reloads if the `assets/index-*.js` name changed (skipped while typing in a field). Phones keep the tab open
