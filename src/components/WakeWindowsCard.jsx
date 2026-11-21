@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { nightBefore, upcomingWakeWindow, wakeWindowGrid } from '../lib/insights.js';
 import { formatDay, formatDuration, ordinal } from '../lib/format.js';
 import { mean } from '../lib/time.js';
+import { restMark } from '../lib/rest.js';
 
 /**
  * Actual wake windows before each nap / bedtime on the last 5 days (newest first),
@@ -9,7 +10,7 @@ import { mean } from '../lib/time.js';
  * each day: hours asleep, plus any night wakings that weren't feeds and the number of feeds. The last rows are the day's totals:
  * awake during the day and total sleep (from `dayDetails`), with their average under the label.
  */
-export default function WakeWindowsCard({ sessions, dayKeys, details = [] }) {
+export default function WakeWindowsCard({ sessions, dayKeys, details = [], restDays = null }) {
   const keys = useMemo(() => [...dayKeys].reverse(), [dayKeys]);
   const rows = useMemo(() => wakeWindowGrid(sessions, keys), [sessions, keys]);
   const nextKey = useMemo(() => upcomingWakeWindow(sessions)?.target ?? null, [sessions]);
@@ -20,7 +21,8 @@ export default function WakeWindowsCard({ sessions, dayKeys, details = [] }) {
     { label: 'Total sleep', value: (d) => d?.totalMinutes },
   ].map((row) => {
     const values = keys.map((k) => row.value(byDay.get(k)) ?? null);
-    return { ...row, values, avg: mean(values.filter((v) => v != null)) };
+    // Rest days (🤒 …) are shown but left out of the average.
+    return { ...row, values, avg: mean(values.filter((v, i) => v != null && !restDays?.has(keys[i]))) };
   });
   if (!rows.length) return null;
   return (
@@ -35,7 +37,10 @@ export default function WakeWindowsCard({ sessions, dayKeys, details = [] }) {
             <tr>
               <th scope="col"><span className="sr-only">Before</span></th>
               {keys.map((d) => (
-                <th scope="col" key={d}>{formatDay(d, { weekday: 'short' })}<small>{formatDay(d, { day: 'numeric', month: 'short' })}</small></th>
+                <th scope="col" key={d} className={restMark(restDays, d) ? 'rest-day' : ''}>
+                  {formatDay(d, { weekday: 'short' })}{restMark(restDays, d) && ` ${restMark(restDays, d)}`}
+                  <small>{formatDay(d, { day: 'numeric', month: 'short' })}</small>
+                </th>
               ))}
             </tr>
           </thead>

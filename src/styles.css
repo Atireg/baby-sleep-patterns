@@ -122,7 +122,7 @@ code { font-size: 0.85em; }
 .entry-form label em { font-style: normal; color: var(--text-muted); }
 .entry-form .wide { grid-column: span 2; }
 @media (max-width: 420px) { .entry-form .wide { grid-column: auto; } }
-.entry-form input, .entry-form select {
+.entry-form input, .entry-form select, .rest-fields input {
   font: inherit; font-size: 0.95rem; color: var(--text-primary); background: var(--page);
   border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; min-height: 38px; width: 100%;
 }
@@ -375,3 +375,17 @@ code { font-size: 0.85em; }
   background: color-mix(in srgb, var(--series-1) 12%, var(--surface-1)); }
 .entry-zone { color: var(--text-muted); font-size: 0.75rem; white-space: nowrap; }
 .entry-zone-hint { flex-basis: 100%; margin: 0; font-size: 0.85rem; }
+
+/* Rest mode (sick, vaccination, travel, …) */
+.rest-mode { display: grid; gap: 8px; padding: 10px 14px; border-radius: 12px; border: 1px dashed var(--border); font-size: 0.9rem; }
+.rest-mode p { margin: 0; }
+.rest-mode.on { border: 2px solid var(--series-4); background: color-mix(in srgb, var(--series-4) 12%, var(--surface-1)); }
+.rest-mode .rest-title { font-size: 1rem; }
+.rest-fields { display: flex; flex-wrap: wrap; gap: 8px 12px; }
+.rest-fields label { display: grid; gap: 2px; font-size: 0.8rem; color: var(--text-secondary); }
+.rest-fields .rest-note { flex: 1; min-width: 180px; }
+.rest-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.rest-past summary { cursor: pointer; color: var(--text-secondary); font-size: 0.85rem; }
+.rest-past ul { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px; }
+.rest-past li { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; padding: 4px 0; border-bottom: 1px solid var(--grid); }
+.recent-table th.rest-day { background: color-mix(in srgb, var(--series-4) 16%, var(--surface-1)); }

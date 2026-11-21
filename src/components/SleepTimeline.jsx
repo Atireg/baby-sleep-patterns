@@ -4,6 +4,7 @@ import { clockMinutesFrom, dateKey, minutesBetween, minutesToClock } from '../li
 import { methodLabel, moodLabel } from '../lib/insights.js';
 import { baseLayout, useChartTheme, withAlpha } from '../lib/theme.js';
 import PlotlyChart from './PlotlyChart.jsx';
+import { restMark } from '../lib/rest.js';
 
 const nextMidnight = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
 
@@ -40,7 +41,7 @@ function hoverText(s) {
 /** dayKeys: the calendar days to show as rows (shown newest first). */
 
 /** friends: suggested windows [{ from, to, days, of }] in minutes after midnight (see friendsWindows). */
-export default function SleepTimeline({ sessions, dayKeys, friends = [] }) {
+export default function SleepTimeline({ sessions, dayKeys, friends = [], restDays = null }) {
   const t = useChartTheme();
   // Fewer hour labels on phones so they don't overlap.
   const narrow = window.innerWidth < 600;
@@ -49,7 +50,7 @@ export default function SleepTimeline({ sessions, dayKeys, friends = [] }) {
     const rowKeys = [...dayKeys].sort().reverse();
     const shown = new Set(rowKeys);
     const pieces = toPieces(sessions).filter((p) => shown.has(p.row));
-    const label = (k) => formatDay(k, { weekday: 'short', day: 'numeric', month: 'short' });
+    const label = (k) => `${restMark(restDays, k) ? `${restMark(restDays, k)} ` : ''}${formatDay(k, { weekday: 'short', day: 'numeric', month: 'short' })}`;
     const trace = (type, name, color) => {
       const list = pieces.filter((p) => p.session.type === type);
       return {
@@ -93,7 +94,7 @@ export default function SleepTimeline({ sessions, dayKeys, friends = [] }) {
         legend: { orientation: 'h', x: 0, y: friends.length ? -22 / (rowKeys.length * 44) : -0.02, yanchor: 'top' },
       }),
     };
-  }, [sessions, dayKeys, friends, t, narrow]);
+  }, [sessions, dayKeys, friends, t, narrow, restDays]);
 
   return (
     <PlotlyChart

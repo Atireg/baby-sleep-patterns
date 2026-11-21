@@ -26,7 +26,7 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
 - Firestore: doc `live/current` = `{ live }`, the sleep being tracked right now, or just `{ awakeFrom }` for a manually started
   awake timer (shared between devices; deleted when a sleep is saved).
 - Firestore: family settings `settings/wakeTargets` = `{ targets }`, `settings/napTarget` and `settings/awakeTarget` = `{ minutes }` (null = Auto),
-  `settings/homeZone` = `{ zone }` (see Time zones);
+  `settings/homeZone` = `{ zone }` (see Time zones), `settings/restPeriods` = `{ periods }` (see Rest mode);
   never deleted, so a cleared setting stays cleared (`watchSetting` gives undefined only when never saved).
 - Firestore: collection `months`, one doc per month (`2026-10`) with `{ entries: [...] }` (same entry shape as the form) —
   ~12 reads per year of data. Writes are per-month transactions; duplicates skipped by `entryKey` (day|type|asleep).
@@ -103,6 +103,15 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
   App with `setHomeZone` before sessions are built. `TimeZoneNote` (under CloudBar, user request: always shown) is a small tag "🌍 Times in
   Berlin time · GMT+1" (the phone's zone); when recent entries or the home zone differ it grows into a note that they're converted; the log list tags such entries "Berlin time", the form says which clock an edited entry uses.
   `rowsToSessions` sorts by time before `annotateSessions`. Tests: `src/lib/tz.test.js` (runs as if in Buenos Aires).
+- **Rest mode** (user request): `src/lib/rest.js` — periods `{ id, kind: sick|vaccine|travel|other, from, to (null = still on),
+  note }` (`REST_KINDS`, `startRest`/`endRest` (to = today)/`updateRest`/`removeRest`, `restDayMap` → Map day → period, `restMark`
+  → emoji), synced via `useRestPeriods` (`baby-sleep-rest-periods`, `settings/restPeriods`). Rest days are still logged and shown
+  but never count towards averages/usuals/forecasts: App passes `setRestDays(...)` (module state read by `isRestDay` in
+  `upcomingNap`, `upcomingWakeWindow`, `estimatedBedtime`) before building sessions, and uses `usualDays`/`statDays` (last 5
+  non-rest days) for `stats`, the Sleep per day average, `nightAvgTotal`, `awakeAvg`, friends windows, the nap count chart and the
+  weekly charts. The last-5-days cards still show rest days, marked with the emoji (amber header), left out of their averages;
+  Sleep per day shades them and skips them in the rolling average. `RestMode` bar sits under the time-zone tag (kind chips, since
+  date, note, End / Turned on by mistake, past periods list).
 - `src/lib/autoUpdate.js` – prod only (`main.jsx`): when the page regains focus/visibility (max once a minute) it fetches
   `index.html` and reloads if the `assets/index-*.js` name changed (skipped while typing in a field). Phones keep the tab open
   for days, so fixes would otherwise not load.
@@ -111,7 +120,7 @@ Pages is enabled (Source = "GitHub Actions"). Site URL: https://atireg.github.io
 - `src/hooks/useSleepLog.js` – all log/cloud/live state and actions (local vs Firebase, `addEntry`/`editEntry`/`removeEntry` with
   `syncLive`, `editAwake`, sign-in, `run` for busy/error handling); `App.jsx` only derives stats and lays out the cards.
   `src/hooks/useNow.js` – `useNow(intervalMs)` ticking clock.
-- `src/components/` – `TimeZoneNote`, `PlotlyChart` (lazy-loads Plotly, card wrapper), `DailyTotalsChart`, `NapCountChart`, `WeeklyLineChart`,
+- `src/components/` – `TimeZoneNote`, `RestMode`, `PlotlyChart` (lazy-loads Plotly, card wrapper), `DailyTotalsChart`, `NapCountChart`, `WeeklyLineChart`,
   `MethodShareChart`, `SleepTimeline`, `RecentDaysTable`, `FileDrop`, `EntryForm`, `CloudBar` (sign-in status),
   `DaytimeTank` and `AwakeTank` (both draw the shared custom-SVG `Tank`, not Plotly), `LastNightCard`, `WakeWindowsCard`, `LiveTracker` ("Now" card: states + actions) with
   `NowForecasts` (each forecast line as a component, recomputed per minute), `LiveEditPanel` ("Edit times or type").
@@ -147,7 +156,7 @@ Headers (case-insensitive, aliases in `HEADER_ALIASES`): `Date`, `Fell asleep`/`
 - Stats are grouped by the row's date ("sleep day"); the timeline groups by calendar day.
 
 ## Conventions
-- Page order: CloudBar → **Now** card → **Daytime sleep tank** → **Awake today** tank → **Last night** card → **Wake and sleep windows** card →
+- Page order: CloudBar → time-zone tag → **Rest mode** bar → **Now** card → **Daytime sleep tank** → **Awake today** tank → **Last night** card → **Wake and sleep windows** card →
   **Naps history** → **Sleep timeline** → (upload, hidden) → entry form → charts.
 - Charts use Plotly (`plotly.js-cartesian-dist-min@3.7.0`, lazy-loaded chunk ~476 kB gzip) via `PlotlyChart`. Colors always come
   from CSS tokens in `src/styles.css` through `useChartTheme` (night = `--series-1` blue, nap = `--series-2` orange, light + dark).

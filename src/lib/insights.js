@@ -1,6 +1,7 @@
 // Weekly aggregates for the consultant-log insights (settling, wake windows, how sleep started).
 import { allWeeks } from './series.js';
 import { countsAsSleep } from './sleepData.js';
+import { isRestDay } from './rest.js';
 import { MS_HOUR, MS_MIN, clockMinutesFrom, dateKey, keyToDate, mean, minutesBetween, shiftDay, sum } from './time.js';
 
 /** Gaps of 8h or more aren't wake windows (e.g. missing data); they are ignored. */
@@ -287,7 +288,8 @@ export function upcomingNap(sessions, now = new Date(), days = 3) {
     napsByDay.get(s.day).push(s);
   }
   const position = (napsByDay.get(today)?.length ?? 0) + 1;
-  const previous = [...napsByDay.keys()].filter((d) => d < today).sort().slice(-days);
+  // Rest days (illness, travel, …) don't count towards the usual.
+  const previous = [...napsByDay.keys()].filter((d) => d < today && !isRestDay(d)).sort().slice(-days);
   const lengths = previous
     .map((d) => napsByDay.get(d).sort((a, b) => a.start - b.start)[position - 1])
     .filter(Boolean)
@@ -325,7 +327,7 @@ export const napsDoneToday = (sessions, now = new Date()) =>
 export function upcomingWakeWindow(sessions, now = new Date(), days = 5) {
   const today = dateKey(now);
   const napsToday = napsDoneToday(sessions, now);
-  const previous = [...new Set(sessions.filter((s) => s.day < today).map((s) => s.day))].sort().slice(-days);
+  const previous = [...new Set(sessions.filter((s) => s.day < today && !isRestDay(s.day)).map((s) => s.day))].sort().slice(-days);
   const windowsFor = (position) => previous
     .map((d) => sessions.find((s) => s.day === d && s.position === position))
     .map((s) => s && knownWindow(s))
@@ -353,9 +355,10 @@ export function estimatedBedtime(sessions, targets = {}, now = new Date(), napSt
   if (!wake || dateKey(wake) !== today) return null;
   if (sessions.some((s) => s.type === 'night' && s.day === today && s.start <= now)) return null;
   const done = sessions.filter((s) => s.type === 'nap' && s.day === today && s.end <= now).sort((a, b) => a.start - b.start);
-  const previous = [...new Set(sessions.filter((s) => s.day < today).map((s) => s.day))].sort();
+  const usual = (s) => s.day < today && !isRestDay(s.day); // rest days don't count towards the usual
+  const previous = [...new Set(sessions.filter(usual).map((s) => s.day))].sort();
   const recent5 = new Set(previous.slice(-5));
-  const napDays = [...new Set(sessions.filter((s) => s.type === 'nap' && s.day < today).map((s) => s.day))].sort().slice(-3);
+  const napDays = [...new Set(sessions.filter((s) => s.type === 'nap' && usual(s)).map((s) => s.day))].sort().slice(-3);
   const avgWindow = (key) => mean(sessions.filter((s) => recent5.has(s.day) && s.position === key).map(knownWindow).filter((w) => w != null));
   const avgLength = (n) => mean(napDays
     .map((d) => sessions.filter((s) => s.type === 'nap' && s.day === d).sort((a, b) => a.start - b.start)[n - 1])
